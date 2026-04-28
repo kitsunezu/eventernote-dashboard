@@ -1,0 +1,6 @@
+services:
+  eventernote-dashboard:
+    image: ghcr.io/kitsunezu/eventernote-dashboard:latest
+    restart: unless-stopped
+    ports:
+      - "3000:80"
