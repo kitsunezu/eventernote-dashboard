@@ -24,7 +24,7 @@
   color: var(--text);
   font-family: var(--font-body);
   line-height: 1.5;
-  background: #313338;
+  background: rgba(46, 46, 46, 0.7);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -47,7 +47,7 @@
   --accent-line: rgba(88, 101, 242, 0.22);
   --glass-highlight: rgba(255, 255, 255, 0.7);
   --shadow: 0 22px 48px rgba(79, 84, 92, 0.16);
-  background: #f2f3f5;
+  background: rgba(242, 243, 245, 0.7);
 }
 
 * {
@@ -59,6 +59,10 @@ body,
 #root,
 .app-shell-root {
   min-height: 100%;
+}
+
+.app-shell-root {
+  overflow-x: clip;
 }
 
 body {
