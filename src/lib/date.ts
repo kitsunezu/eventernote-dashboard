@@ -75,26 +75,7 @@ export function formatDetailedRange(event: ScheduleEvent, locale: SupportedLocal
 
 export function formatDayHeading(dayKey: string, locale: SupportedLocale = 'en'): string {
   const day = dayjs(dayKey).locale(toDayjsLocale(locale))
-  if (day.isSame(dayjs(), 'day')) {
-    return locale === 'zh-Hant'
-      ? `今天 ${day.format('M月D日')}`
-      : locale === 'ja'
-        ? `今日 ${day.format('M月D日')}`
-        : `Today · ${day.format('MMM D')}`
-  }
-  if (day.isSame(dayjs().add(1, 'day'), 'day')) {
-    return locale === 'zh-Hant'
-      ? `明天 ${day.format('M月D日')}`
-      : locale === 'ja'
-        ? `明日 ${day.format('M月D日')}`
-        : `Tomorrow · ${day.format('MMM D')}`
-  }
-
-  if (locale === 'zh-Hant' || locale === 'ja') {
-    return day.format('M月D日')
-  }
-
-  return day.format('ddd · MMM D')
+  return day.format('YYYY-MM-DD(ddd)')
 }
 
 export function formatDayMeta(dayKey: string, events: ScheduleEvent[], locale: SupportedLocale = 'en'): string {

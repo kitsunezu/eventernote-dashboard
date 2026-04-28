@@ -2,21 +2,21 @@
   --font-body: 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans', sans-serif;
   --font-heading: 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans', sans-serif;
   --font-mono: 'IBM Plex Mono', Consolas, monospace;
-  --bg: #121415;
-  --bg-soft: rgba(21, 24, 25, 0.72);
-  --bg-card: rgba(17, 20, 21, 0.58);
-  --surface: rgba(27, 30, 31, 0.5);
-  --line: rgba(209, 214, 211, 0.08);
-  --line-strong: rgba(209, 214, 211, 0.18);
-  --text: #edf0ec;
-  --text-soft: #b8beb9;
-  --text-muted: #858c87;
-  --accent: #c8cfca;
-  --accent-strong: #f4f6f2;
-  --accent-wash: rgba(245, 247, 242, 0.12);
-  --accent-line: rgba(245, 247, 242, 0.2);
-  --glass-highlight: rgba(255, 255, 255, 0.08);
-  --shadow: 0 24px 60px rgba(3, 4, 5, 0.24);
+  --bg: #313338;
+  --bg-soft: rgba(43, 45, 49, 0.82);
+  --bg-card: rgba(30, 31, 34, 0.72);
+  --surface: rgba(43, 45, 49, 0.88);
+  --line: rgba(255, 255, 255, 0.06);
+  --line-strong: rgba(255, 255, 255, 0.12);
+  --text: #f2f3f5;
+  --text-soft: #b9bbbe;
+  --text-muted: #6d757e;
+  --accent: #7289da;
+  --accent-strong: #5865f2;
+  --accent-wash: rgba(88, 101, 242, 0.14);
+  --accent-line: rgba(88, 101, 242, 0.28);
+  --glass-highlight: rgba(255, 255, 255, 0.05);
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.36);
   --radius-xl: 28px;
   --radius-lg: 22px;
   --radius-md: 16px;
@@ -24,10 +24,7 @@
   color: var(--text);
   font-family: var(--font-body);
   line-height: 1.5;
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.06), transparent 28%),
-    radial-gradient(circle at top right, rgba(196, 203, 199, 0.08), transparent 26%),
-    linear-gradient(180deg, #0d1011 0%, #121415 42%, #0f1213 100%);
+  background: #313338;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -35,25 +32,22 @@
 }
 
 :root[data-theme='light'] {
-  --bg: #ecefeb;
-  --bg-soft: rgba(252, 253, 251, 0.8);
-  --bg-card: rgba(255, 255, 254, 0.72);
-  --surface: rgba(255, 255, 254, 0.58);
-  --line: rgba(91, 101, 96, 0.1);
-  --line-strong: rgba(91, 101, 96, 0.18);
-  --text: #1e2320;
-  --text-soft: #5f6963;
-  --text-muted: #8d9790;
-  --accent: #67706b;
-  --accent-strong: #2f3632;
-  --accent-wash: rgba(47, 54, 50, 0.08);
-  --accent-line: rgba(47, 54, 50, 0.16);
-  --glass-highlight: rgba(255, 255, 255, 0.66);
-  --shadow: 0 22px 48px rgba(89, 98, 92, 0.14);
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), transparent 22%),
-    radial-gradient(circle at top right, rgba(211, 218, 214, 0.24), transparent 26%),
-    linear-gradient(180deg, #f5f7f4 0%, #ecefeb 48%, #e6eae5 100%);
+  --bg: #f2f3f5;
+  --bg-soft: rgba(255, 255, 255, 0.9);
+  --bg-card: rgba(255, 255, 255, 0.82);
+  --surface: rgba(255, 255, 255, 0.72);
+  --line: rgba(79, 84, 92, 0.12);
+  --line-strong: rgba(79, 84, 92, 0.22);
+  --text: #2e3338;
+  --text-soft: #4f545c;
+  --text-muted: #72767d;
+  --accent: #5865f2;
+  --accent-strong: #4752c4;
+  --accent-wash: rgba(88, 101, 242, 0.1);
+  --accent-line: rgba(88, 101, 242, 0.22);
+  --glass-highlight: rgba(255, 255, 255, 0.7);
+  --shadow: 0 22px 48px rgba(79, 84, 92, 0.16);
+  background: #f2f3f5;
 }
 
 * {
@@ -105,14 +99,19 @@ button {
 
 .app-shell--viewer {
   position: relative;
-  padding-right: 10px;
+  padding: 0;
 }
 
 .app-shell--admin {
   width: min(1320px, 100%);
 }
 
-.viewer-layout,
+.viewer-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
 .admin-panel {
   display: flex;
   flex-direction: column;
@@ -140,6 +139,19 @@ button {
 .admin-card {
   padding: 14px;
   border-radius: var(--radius-lg);
+}
+
+.schedule-canvas {
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+  padding: 10px;
+}
+
+.countdown {
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  margin: 0 0 8px 0;
 }
 
 .app-header {
@@ -330,7 +342,6 @@ button {
 .text-area:hover,
 .event-drawer__close:hover,
 .event-drawer__link:hover,
-.event-card__content:hover,
 .event-card__linkButton:hover,
 .button:focus-visible,
 .segmented__button:focus-visible,
@@ -634,9 +645,9 @@ button {
   width: 1px;
   background: linear-gradient(
     180deg,
-    var(--accent) 0%,
-    var(--line-strong) 28%,
-    var(--line) 72%,
+    rgba(255, 255, 255, 0.32) 0%,
+    rgba(255, 255, 255, 0.1) 28%,
+    rgba(255, 255, 255, 0.04) 72%,
     transparent 100%
   );
   pointer-events: none;
@@ -672,10 +683,10 @@ button {
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: var(--accent-strong);
+  background: rgba(255, 255, 255, 0.55);
   box-shadow:
     0 0 0 2px var(--bg),
-    0 0 0 4px var(--accent);
+    0 0 0 4px rgba(255, 255, 255, 0.22);
   z-index: 1;
   transition:
     box-shadow 200ms ease,
@@ -694,11 +705,11 @@ button {
 
 /* When any event-card in this day is hovered, pulse the bead and heading */
 .timeline-day:has(.event-card:hover) .timeline-day__heading::before {
-  background: var(--accent-strong);
+  background: rgba(255, 255, 255, 0.75);
   box-shadow:
     0 0 0 2px var(--bg),
-    0 0 0 5px var(--accent),
-    0 0 12px 2px var(--accent);
+    0 0 0 5px rgba(255, 255, 255, 0.32),
+    0 0 10px 2px rgba(255, 255, 255, 0.12);
   transform: translateY(-50%) scale(1.35);
   transition:
     box-shadow 200ms ease,
@@ -731,13 +742,20 @@ button {
   height: 112px;
   overflow: visible;
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   background: var(--bg-card);
   box-shadow: 0 20px 40px rgba(4, 8, 16, 0.16);
+  transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.event-card:hover {
+  background: rgba(50, 53, 59, 0.92);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.38);
+  transform: translateY(-1px);
 }
 
 .event-card__accent {
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  border-radius: 0;
   transition: filter 200ms ease, opacity 200ms ease;
 }
 
@@ -821,6 +839,12 @@ button {
   right: 8px;
   left: auto;
   z-index: 1;
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  justify-content: center;
 }
 
 .brand.brand--compact h1 {
@@ -1096,7 +1120,7 @@ button {
   }
 
   .app-shell--viewer {
-    padding-right: 8px;
+    padding: 0;
   }
 
   .admin-panel,

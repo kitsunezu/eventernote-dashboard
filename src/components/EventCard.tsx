@@ -2,7 +2,7 @@ import { useRef, useState, type CSSProperties } from 'react'
 import type { ScheduleEvent, SupportedLocale } from '../types/events'
 import { buildPreviewText, formatEventDate, formatEventTime } from '../lib/date'
 import { getUiCopy, resolveEventCopy, resolveLinkLabel } from '../lib/localize'
-import { CalendarIcon, ClockIcon, ExternalLinkIcon, PinIcon } from './Icons'
+import { CalendarIcon, ClockIcon, LinkChainIcon, PinIcon } from './Icons'
 
 interface EventCardProps {
   event: ScheduleEvent
@@ -61,7 +61,7 @@ export function EventCard({ event, locale, onOpen }: EventCardProps) {
             aria-label={resolveLinkLabel(primaryLink, locale)}
             title={resolveLinkLabel(primaryLink, locale)}
           >
-            <ExternalLinkIcon className="ui-icon" />
+            <LinkChainIcon className="ui-icon" />
             <span className="visually-hidden">{resolveLinkLabel(primaryLink, locale)}</span>
           </a>
         ) : null}
