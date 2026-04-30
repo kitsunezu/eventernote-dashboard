@@ -1,14 +1,18 @@
 import { useState } from 'react'
-import type { ThemeMode } from '../types/events'
+import type { SupportedLocale, ThemeMode } from '../types/events'
+import { LOCALE_LABELS, SUPPORTED_LOCALES, getUiCopy } from '../lib/localize'
 import { MoonIcon, SunIcon } from './Icons'
 
 interface LandingPageProps {
   theme: ThemeMode
+  locale: SupportedLocale
   onThemeToggle: () => void
+  onLocaleChange: (locale: SupportedLocale) => void
 }
 
-export function LandingPage({ theme, onThemeToggle }: LandingPageProps) {
+export function LandingPage({ theme, locale, onThemeToggle, onLocaleChange }: LandingPageProps) {
   const [userId, setUserId] = useState('')
+  const copy = getUiCopy(locale)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -20,25 +24,38 @@ export function LandingPage({ theme, onThemeToggle }: LandingPageProps) {
 
   return (
     <div className="landing-root">
-      <button
-        type="button"
-        className="landing-theme-btn"
-        onClick={onThemeToggle}
-        aria-label={theme === 'dark' ? 'ライトモード' : 'ダークモード'}
-      >
-        {theme === 'dark' ? (
-          <SunIcon className="ui-icon" />
-        ) : (
-          <MoonIcon className="ui-icon" />
-        )}
-      </button>
+      <div className="landing-top-bar">
+        <div className="landing-locale-switcher">
+          {SUPPORTED_LOCALES.map((l) => (
+            <button
+              key={l}
+              type="button"
+              className={`landing-locale-btn${l === locale ? ' is-active' : ''}`}
+              onClick={() => onLocaleChange(l)}
+            >
+              {LOCALE_LABELS[l]}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          className="landing-theme-btn"
+          onClick={onThemeToggle}
+          aria-label={theme === 'dark' ? copy.lightMode : copy.darkMode}
+        >
+          {theme === 'dark' ? (
+            <SunIcon className="ui-icon" />
+          ) : (
+            <MoonIcon className="ui-icon" />
+          )}
+        </button>
+      </div>
 
       <div className="landing-card">
-        <p className="landing-eyebrow">Eventernote Dashboard</p>
-        <h1 className="landing-title">イベント一覧</h1>
-        <p className="landing-desc">
-          Eventernote のユーザー ID を入力すると、参加イベントを一覧表示します。
-        </p>
+        <p className="landing-eyebrow">{copy.viewerEyebrow}</p>
+        <h1 className="landing-title">{copy.landingTitle}</h1>
+        <p className="landing-desc">{copy.landingDesc}</p>
 
         <form onSubmit={handleSubmit} className="landing-form">
           <div className="landing-input-wrap">
@@ -60,11 +77,9 @@ export function LandingPage({ theme, onThemeToggle }: LandingPageProps) {
             className="landing-btn"
             disabled={!userId.trim()}
           >
-            表示する
+            {copy.landingSubmit}
           </button>
         </form>
-
-
       </div>
     </div>
   )

@@ -72,6 +72,15 @@ interface UiCopy {
   saveErrorRange: string
   deleteConfirm: string
   visibleSummary: (visible: number, total: number) => string
+  landingTitle: string
+  landingDesc: string
+  landingSubmit: string
+  loadingText: string
+  loadErrorTitle: string
+  loadRetry: string
+  noEventsTitle: string
+  loadedCount: (count: number) => string
+  loadFailed: string
 }
 
 const UI_COPY: Record<SupportedLocale, UiCopy> = {
@@ -139,6 +148,15 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     saveErrorRange: '請確認開始與結束時間。',
     deleteConfirm: '確定要刪除這筆行程嗎？',
     visibleSummary: (visible, total) => `目前顯示 ${visible} / ${total}`,
+    landingTitle: '活動列表',
+    landingDesc: '輸入 Eventernote 用戶 ID，即可一覽參加活動。',
+    landingSubmit: '查看',
+    loadingText: '載入中…',
+    loadErrorTitle: '載入錯誤',
+    loadRetry: '重試',
+    noEventsTitle: '沒有活動',
+    loadedCount: (count) => `已載入 ${count} 個活動。`,
+    loadFailed: '活動載入失敗。',
   },
   en: {
     viewerEyebrow: 'Eventernote Dashboard',
@@ -156,7 +174,7 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     close: 'Close',
     when: 'When',
     where: 'Where',
-    summary: 'Summary',
+    summary: 'Performers',
     notes: 'Notes',
     links: 'Links',
     openLink: 'Open link',
@@ -204,6 +222,15 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     saveErrorRange: 'Check the event start and end time.',
     deleteConfirm: 'Delete this event?',
     visibleSummary: (visible, total) => `Visible ${visible} / ${total}`,
+    landingTitle: 'Event Schedule',
+    landingDesc: 'Enter an Eventernote user ID to browse your event schedule.',
+    landingSubmit: 'View',
+    loadingText: 'Loading…',
+    loadErrorTitle: 'Load error',
+    loadRetry: 'Retry',
+    noEventsTitle: 'No events',
+    loadedCount: (count) => `Loaded ${count} event${count === 1 ? '' : 's'}.`,
+    loadFailed: 'Failed to load events.',
   },
   ja: {
     viewerEyebrow: 'Eventernote Dashboard',
@@ -221,7 +248,7 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     close: '閉じる',
     when: '時間',
     where: '場所',
-    summary: '概要',
+    summary: '出演者',
     notes: 'メモ',
     links: 'リンク',
     openLink: 'リンクを開く',
@@ -269,6 +296,15 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     saveErrorRange: '開始時刻と終了時刻を確認してください。',
     deleteConfirm: 'このイベントを削除しますか？',
     visibleSummary: (visible, total) => `${visible} / ${total} 件を表示中`,
+    landingTitle: 'イベント一覧',
+    landingDesc: 'Eventernote のユーザー ID を入力すると、参加イベントを一覧表示します。',
+    landingSubmit: '表示する',
+    loadingText: '読み込み中…',
+    loadErrorTitle: '読み込みエラー',
+    loadRetry: '再試行',
+    noEventsTitle: 'イベントなし',
+    loadedCount: (count) => `${count} 件のイベントを読み込みました。`,
+    loadFailed: 'イベントの読み込みに失敗しました。',
   },
 }
 

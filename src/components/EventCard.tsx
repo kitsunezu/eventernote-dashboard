@@ -33,13 +33,10 @@ export function EventCard({ event, locale, onOpen }: EventCardProps) {
     const minLeft = 16 - rect.left
     const maxLeft = window.innerWidth - rect.left - width - 16
     const left = Math.max(minLeft, Math.min(8, maxLeft))
-    const placeBelow = rect.top < 260
 
     setTooltipStyle({
       '--tooltip-left': `${left}px`,
       '--tooltip-width': `${width}px`,
-      top: placeBelow ? 'calc(100% + 10px)' : 'auto',
-      bottom: placeBelow ? 'auto' : 'calc(100% + 10px)',
     })
   }
 

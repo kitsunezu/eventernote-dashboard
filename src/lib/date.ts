@@ -4,7 +4,7 @@ import 'dayjs/locale/zh-tw'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import type { DayRangeOption, EventCategory, ScheduleEvent, SupportedLocale } from '../types/events'
-import { resolveEventCopy } from './localize'
+import { getUiCopy, resolveEventCopy } from './localize'
 
 dayjs.extend(localizedFormat)
 dayjs.extend(relativeTime)
@@ -91,8 +91,9 @@ export function formatDayMeta(dayKey: string, events: ScheduleEvent[], locale: S
 
 export function buildPreviewText(event: ScheduleEvent, locale: SupportedLocale = 'en'): string {
   const copy = resolveEventCopy(event, locale)
+  const ui = getUiCopy(locale)
   const parts: string[] = []
-  if (copy.description) parts.push(`出演者：${copy.description}`)
+  if (copy.description) parts.push(`${ui.summary}：${copy.description}`)
   if (copy.notes) parts.push(copy.notes)
   return parts.join(' · ')
 }

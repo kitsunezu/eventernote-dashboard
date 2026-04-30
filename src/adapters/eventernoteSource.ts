@@ -2,6 +2,7 @@ import type { EventCategory, ImportedScheduleData, ScheduleEvent } from '../type
 import { sortEvents } from '../lib/date'
 
 const PROXY_BASE = '/api/eventernote'
+const DETAIL_FETCH_CONCURRENCY = 6
 
 // ── region → color ────────────────────────────────────────────────
 
@@ -54,6 +55,45 @@ function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T00:00:00')
   d.setDate(d.getDate() + days)
   return d.toISOString().slice(0, 10)
+}
+
+function stripHtmlTags(value: string): string {
+  return value.replace(/<[^>]+>/g, '')
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (_, entity: string) => {
+    if (entity.startsWith('#x') || entity.startsWith('#X')) {
+      const codePoint = Number.parseInt(entity.slice(2), 16)
+      return Number.isNaN(codePoint) ? `&${entity};` : String.fromCodePoint(codePoint)
+    }
+
+    if (entity.startsWith('#')) {
+      const codePoint = Number.parseInt(entity.slice(1), 10)
+      return Number.isNaN(codePoint) ? `&${entity};` : String.fromCodePoint(codePoint)
+    }
+
+    switch (entity) {
+      case 'amp':
+        return '&'
+      case 'lt':
+        return '<'
+      case 'gt':
+        return '>'
+      case 'quot':
+        return '"'
+      case 'apos':
+      case 'nbsp':
+      case '#39':
+        return entity === 'nbsp' ? ' ' : "'"
+      default:
+        return `&${entity};`
+    }
+  })
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 /**
@@ -172,6 +212,37 @@ function parseEventsFromDoc(doc: Document): ScheduleEvent[] {
   return events
 }
 
+function parseActorsFromEventDetailDoc(doc: Document): string[] {
+  const actorRow = Array.from(doc.querySelectorAll('tr')).find((row) => {
+    const labelCell = row.querySelector('td')
+    return labelCell?.textContent?.trim() === '出演者'
+  })
+
+  if (!actorRow) {
+    return []
+  }
+
+  return Array.from(actorRow.querySelectorAll('ul.actors.inline.unstyled a[href^="/actors/"]'))
+    .map((anchor) => anchor.textContent?.trim() ?? '')
+    .filter(Boolean)
+}
+
+export function parseActorsFromEventDetailHtml(html: string): string[] {
+  if (typeof DOMParser !== 'undefined') {
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    return parseActorsFromEventDetailDoc(doc)
+  }
+
+  const actorRowMatch = html.match(/<tr>\s*<td>\s*出演者\s*<\/td>\s*<td>([\s\S]*?)<\/td>\s*<\/tr>/)
+  if (!actorRowMatch) {
+    return []
+  }
+
+  return Array.from(actorRowMatch[1].matchAll(/<a[^>]+href="\/actors\/[^\"]+"[^>]*>([\s\S]*?)<\/a>/g))
+    .map((match) => decodeHtmlEntities(stripHtmlTags(match[1])).trim())
+    .filter(Boolean)
+}
+
 /** Return unique relative paths like "/users/slan1024/events?page=2&..." */
 function parsePaginationPaths(doc: Document): string[] {
   const seen = new Set<string>()
@@ -184,13 +255,93 @@ function parsePaginationPaths(doc: Document): string[] {
   return Array.from(seen)
 }
 
-async function fetchDoc(path: string): Promise<Document> {
+  async function fetchHtml(path: string): Promise<string> {
   const resp = await fetch(`${PROXY_BASE}${path}`)
   if (!resp.ok) {
     throw new Error(`HTTP ${resp.status}: ${path}`)
   }
-  const html = await resp.text()
-  return new DOMParser().parseFromString(html, 'text/html')
+
+    return resp.text()
+  }
+
+  async function fetchDoc(path: string): Promise<Document> {
+    const html = await fetchHtml(path)
+    return new DOMParser().parseFromString(html, 'text/html')
+  }
+
+  async function mapWithConcurrency<T, TResult>(
+    items: T[],
+    limit: number,
+    mapper: (item: T) => Promise<TResult>,
+  ): Promise<Array<PromiseSettledResult<TResult>>> {
+    const results: Array<PromiseSettledResult<TResult>> = new Array(items.length)
+    let nextIndex = 0
+
+    async function worker() {
+      while (nextIndex < items.length) {
+        const currentIndex = nextIndex
+        nextIndex += 1
+
+        try {
+          results[currentIndex] = {
+            status: 'fulfilled',
+            value: await mapper(items[currentIndex]),
+          }
+        } catch (error) {
+          results[currentIndex] = {
+            status: 'rejected',
+            reason: error,
+          }
+        }
+      }
+    }
+
+    const workerCount = Math.min(limit, items.length)
+    await Promise.all(Array.from({ length: workerCount }, () => worker()))
+    return results
+  }
+
+  async function enrichEventsWithActors(
+    events: ScheduleEvent[],
+  ): Promise<{ events: ScheduleEvent[]; warnings: string[] }> {
+    const detailResults = await mapWithConcurrency(events, DETAIL_FETCH_CONCURRENCY, async (event) => {
+      const html = await fetchHtml(`/events/${event.id}`)
+      return {
+        eventId: event.id,
+        artists: parseActorsFromEventDetailHtml(html),
+      }
+    })
+
+    const warnings: string[] = []
+    const artistsByEventId = new Map<string, string[]>()
+
+    detailResults.forEach((result, index) => {
+      const event = events[index]
+
+      if (result.status === 'rejected') {
+        warnings.push(`Failed to load Eventernote details for ${event.id}: ${formatError(result.reason)}`)
+        return
+      }
+
+      if (result.value.artists.length > 0) {
+        artistsByEventId.set(result.value.eventId, result.value.artists)
+      }
+    })
+
+    return {
+      events: events.map((event) => {
+        const artists = artistsByEventId.get(event.id)
+        if (!artists || artists.length === 0) {
+          return event
+        }
+
+        return {
+          ...event,
+          description: artists.join('、'),
+        }
+      }),
+      warnings,
+    }
 }
 
 // ── public API ────────────────────────────────────────────────────
@@ -225,9 +376,11 @@ export async function loadEventernoteUser(
     return true
   })
 
+  const detailResult = await enrichEventsWithActors(unique)
+
   return {
-    events: sortEvents(unique),
-    warnings,
+    events: sortEvents(detailResult.events),
+    warnings: [...warnings, ...detailResult.warnings],
     sourceType: 'backend',
     importedAt: new Date().toISOString(),
   }

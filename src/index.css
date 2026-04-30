@@ -756,6 +756,7 @@ button {
   background: rgba(50, 53, 59, 0.92);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.38);
   transform: translateY(-1px);
+  z-index: 10;
 }
 
 .event-card__accent {
@@ -1209,10 +1210,49 @@ button {
   position: relative;
 }
 
-.landing-theme-btn {
+.landing-top-bar {
   position: fixed;
   top: 16px;
   right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.landing-locale-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  padding: 3px;
+}
+
+.landing-locale-btn {
+  padding: 4px 10px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  border: none;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 150ms, background 150ms;
+}
+
+.landing-locale-btn:hover {
+  color: var(--text);
+  background: var(--accent-wash);
+}
+
+.landing-locale-btn.is-active {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.landing-theme-btn {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-sm);

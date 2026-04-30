@@ -1,36 +1,47 @@
 # Eventernote Dashboard
 
-A personal event schedule viewer built with React and TypeScript. It fetches events from [Eventernote](https://www.eventernote.com) and lets you view, filter, import, and export them in a clean timeline or list layout.
+Eventernote Dashboard is a React and TypeScript viewer for public Eventernote schedules. Enter an Eventernote user ID on the landing page, fetch that user's public event pages through a local proxy, and browse the results in a timeline-oriented dashboard.
 
-## Features
+## Current Features
 
-- **Timeline & List views** — browse events grouped by date or in a flat list
-- **Countdown** — live countdown to the next upcoming event
-- **Category filtering** — filter events by category; toggle individual categories on/off
-- **Day-range filter** — show all events or only future ones
-- **Dark / Light theme** — toggle with one click
-- **Multilingual UI** — English, Traditional Chinese (繁體中文), and Japanese (日本語)
-- **Localized event content** — each event can store title, description, notes, and location in multiple languages
-- **Event details drawer** — slide-in panel with full event metadata and external links
-- **Import** — drag-and-drop ICS or JSON files to add events
-- **Export** — download all events as an ICS calendar file or capture cards as a PNG screenshot
-- **Admin page** — full CRUD editor at `/admin` for manually creating and editing events
-- **Persistent state** — view mode, filters, theme, and events survive page refresh via localStorage
+- Landing page for entering an Eventernote user ID
+- Viewer page that loads the selected user's public event list
+- Timeline view grouped by day
+- Countdown banner for the next upcoming event in the current range
+- Schedule range switcher for all events or future events only
+- Event cards with date, time, venue, thumbnail preview, and direct Eventernote link
+- Event details drawer with category, full time range, location, performer summary, notes, and external links
+
+## How It Works
+
+The current app is centered on the Eventernote viewer flow.
+
+1. The landing page collects a user ID and navigates to /{userId}.
+2. The app requests Eventernote pages through /api/eventernote to avoid browser CORS issues.
+3. The scraper follows pagination on the user's events pages.
+4. It fetches individual event detail pages to enrich performer information.
+5. Events are deduplicated by Eventernote event ID, sorted by time, and grouped by day for display.
+6. Venue and title text are used to infer a region-style category color for each event.
+
+## Current Routes
+
+| Path | Purpose |
+|---|---|
+| / | Landing page for entering a user ID |
+| /{userId} | Event viewer for that Eventernote user |
+
+There is no dedicated, wired admin UI in the current app surface. The repository still contains admin-related files, and the production Nginx config reserves /admin/, but admin/index.html currently loads the same src/main.tsx entry as the main app.
 
 ## Tech Stack
 
-| Category | Package | Version |
-|---|---|---|
-| Framework | React | 19 |
-| Language | TypeScript | 6 |
-| State | Zustand | 5 |
-| Build | Vite | 8 |
-| Date handling | dayjs | 1.x |
-| iCal parsing | ical.js | 2.x |
-| Validation | Zod | 4 |
-| Screenshot | html-to-image | 1.x |
-| Tests | Vitest | 4 |
-| Web server (prod) | Nginx (Alpine) | — |
+- React 19
+- TypeScript 6
+- Zustand 5
+- Vite 8
+- dayjs
+- Vitest
+- ESLint
+- Nginx for the production container
 
 ## Getting Started
 
@@ -46,28 +57,19 @@ npm install
 npm run dev
 ```
 
-The app runs at `http://localhost:5173`. The Vite dev server proxies `/api/eventernote` to `https://www.eventernote.com` so the Eventernote adapter works without CORS issues.
+The development server runs at http://localhost:5173.
 
-### Tests
+Important detail: both the Vite dev server and the production Nginx container proxy /api/eventernote to https://www.eventernote.com, so the scraper-based viewer can work without direct browser access to Eventernote.
+
+### Scripts
 
 ```bash
+npm run dev
+npm run build
+npm run preview
+npm run lint
 npm run test
 ```
-
-### Production Build
-
-```bash
-npm run build        # type-check + Vite build → dist/
-npm run preview      # serve dist/ locally
-```
-
-## URL Routing
-
-| Path | Behaviour |
-|---|---|
-| `/` | Landing page — enter an Eventernote user ID |
-| `/{userId}` | Load and display events for that user |
-| `/admin` | Admin page for creating / editing events |
 
 ## Docker
 
@@ -95,45 +97,47 @@ docker build -t eventernote-dashboard .
 docker run -p 3003:80 eventernote-dashboard
 ```
 
-The multi-stage Dockerfile builds the app with Node 22 Alpine and serves it with Nginx Alpine on port 80.
+The production image builds the app with Node 22 Alpine, serves the static bundle with Nginx, and keeps the /api/eventernote reverse proxy available inside the container.
 
-## Event Sources
+## Tests
 
-| Source | Description |
-|---|---|
-| Eventernote | Scraped from the Eventernote user page; venue names drive region detection and category colour |
-| ICS file | Standard iCalendar import; recurring events are expanded up to 30 days (max 200 instances) |
-| JSON file | Zod-validated JSON in nested or flat category format |
-| Sample | Built-in sample events shown on first load |
+The current test suite covers utility and parsing logic, including:
 
-## Import / Export Formats
+- date formatting and filtering helpers
+- Eventernote parsing behavior
+- ICS import parsing
+- JSON import parsing
+- Zustand store selectors and filtering behavior
 
-**ICS import** — accepts `.ics` files; CATEGORIES property maps to event categories.
+Run the suite with:
 
-**JSON import** — accepts `.json` files in either of these shapes:
-
-```jsonc
-// Nested (category as object)
-{ "title": "...", "startAt": "2026-01-01T18:00:00+09:00", "category": { "id": "concert", "label": "Concert", "color": "#e05858" }, ... }
-
-// Flat (category as string ID)
-{ "title": "...", "startAt": "2026-01-01T18:00:00+09:00", "categoryId": "concert", ... }
+```bash
+npm run test
 ```
 
-**ICS export** — downloads all current events as a single `.ics` file.
+## Inactive Modules Still Present In The Repo
 
-**PNG export** — captures the visible event cards as a `.png` image.
+This repository still includes code for features that are not wired into the current viewer flow:
+
+- admin editor UI in src/components/AdminPage.tsx
+- category filter UI in src/components/Filters.tsx
+- list view UI in src/components/ListView.tsx
+- ICS and JSON file adapters
+- ICS export and PNG export utilities
+- sample data and backend stub adapters
+
+Those files remain in the codebase, but they are not connected to src/App.tsx or src/main.tsx in the current build, so they are intentionally not described above as active user-facing functionality.
 
 ## Project Structure
 
-```
+```text
 src/
-├── adapters/          # Event source adapters (Eventernote, ICS, JSON, stub)
-├── components/        # React UI components
-├── data/              # Built-in sample events
-├── lib/               # Utilities: date helpers, import/export, localization, storage
-│   └── sources/       # EventSourceAdapter interface
-├── store/             # Zustand global store
-└── types/             # TypeScript type definitions
-admin/                 # Separate Vite entry point for the admin page
+├── App.tsx             # Landing page / viewer flow
+├── adapters/           # Eventernote scraper and dormant file adapters
+├── components/         # Active viewer components plus some inactive UI modules
+├── lib/                # Date, localization, storage, and parsing utilities
+├── store/              # Zustand schedule store
+└── types/              # Shared TypeScript types
+admin/
+└── index.html          # Reserved secondary entry, currently loading the main app entry
 ```

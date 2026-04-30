@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { loadEventernoteUser } from '../adapters/eventernoteSource'
 import { getEventCategories, getNextEvent, getVisibleEvents, sortEvents } from '../lib/date'
+import { getUiCopy } from '../lib/localize'
 import { readScheduleSnapshot, writeScheduleSnapshot } from '../lib/storage'
 import { DEFAULT_DAY_RANGE } from '../types/events'
 import type {
@@ -12,6 +13,17 @@ import type {
   SupportedLocale,
   ViewMode,
 } from '../types/events'
+
+function detectLocale(): SupportedLocale {
+  const langs = navigator.languages?.length ? navigator.languages : [navigator.language]
+  for (const lang of langs) {
+    const lower = lang.toLowerCase()
+    if (lower.startsWith('ja')) return 'ja'
+    if (lower.startsWith('en')) return 'en'
+    if (lower.startsWith('zh')) return 'zh-Hant'
+  }
+  return 'zh-Hant'
+}
 
 export interface ScheduleStore extends ScheduleSnapshot {
   selectedEventId: string | null
@@ -41,10 +53,10 @@ const initialSnapshot: ScheduleSnapshot = persisted ?? {
   selectedCategoryIds: [],
   theme: 'dark',
   activeSource: 'backend',
-  locale: 'zh-Hant',
+  locale: detectLocale(),
 }
 
-export const useScheduleStore = create<ScheduleStore>((set) => ({
+export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   ...initialSnapshot,
   selectedEventId: null,
   statusMessage: '',
@@ -102,16 +114,18 @@ export const useScheduleStore = create<ScheduleStore>((set) => ({
     set({ loading: true, error: null, selectedEventId: null })
     try {
       const data = await loadEventernoteUser(userId)
+      const copy = getUiCopy(get().locale)
       set({
         events: data.events,
         activeSource: 'backend',
         loading: false,
-        statusMessage: `${data.events.length} 件のイベントを読み込みました。`,
+        statusMessage: copy.loadedCount(data.events.length),
       })
     } catch (err) {
+      const copy = getUiCopy(get().locale)
       set({
         loading: false,
-        error: err instanceof Error ? err.message : 'イベントの読み込みに失敗しました。',
+        error: err instanceof Error ? err.message : copy.loadFailed,
       })
     }
   },
