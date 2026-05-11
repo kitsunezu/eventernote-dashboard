@@ -114,7 +114,14 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       }
     }),
   loadFromEventernote: async (userId: string) => {
-    set({ loading: true, error: null, selectedEventId: null })
+    const switchingUser = get().cachedUserId !== userId
+    set({
+      loading: true,
+      error: null,
+      selectedEventId: null,
+      // Clear stale events immediately when switching to a different user
+      ...(switchingUser ? { events: [], cachedAt: undefined } : {}),
+    })
     try {
       const data = await loadEventernoteUser(userId)
       const copy = getUiCopy(get().locale)

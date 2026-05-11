@@ -71,7 +71,7 @@ function App() {
         />
 
         <main className="viewer-layout">
-          {state.loading && state.events.length === 0 ? (
+          {state.loading && (state.events.length === 0 || state.cachedUserId !== userId) ? (
             <div className="loading-state" aria-live="polite">
               <span className="loading-spinner" aria-hidden="true" />
               <p>{copy.loadingText}</p>
