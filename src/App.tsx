@@ -6,6 +6,7 @@ import { LandingPage } from './components/LandingPage'
 import { TimelineView } from './components/TimelineView'
 import { getUiCopy } from './lib/localize'
 import {
+  CACHE_TTL_MS,
   selectNextEvent,
   selectSelectedEvent,
   selectVisibleEvents,
@@ -30,9 +31,13 @@ function App() {
   }, [state.theme])
 
   useEffect(() => {
-    if (userId) {
-      state.loadFromEventernote(userId)
+    if (!userId) return
+    // Skip auto-fetch if cached data is still fresh
+    if (state.cachedAt && state.events.length > 0) {
+      const age = Date.now() - new Date(state.cachedAt).getTime()
+      if (age < CACHE_TTL_MS) return
     }
+    state.loadFromEventernote(userId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
@@ -54,12 +59,15 @@ function App() {
           locale={state.locale}
           theme={state.theme}
           daysToShow={state.daysToShow}
+          cachedAt={state.cachedAt}
+          loading={state.loading}
           onThemeToggle={state.toggleTheme}
           onDaysToShowChange={state.setDaysToShow}
+          onRefresh={userId ? () => state.loadFromEventernote(userId) : undefined}
         />
 
         <main className="viewer-layout">
-          {state.loading ? (
+          {state.loading && state.events.length === 0 ? (
             <div className="loading-state" aria-live="polite">
               <span className="loading-spinner" aria-hidden="true" />
               <p>{copy.loadingText}</p>
@@ -109,3 +117,4 @@ function App() {
 }
 
 export default App
+

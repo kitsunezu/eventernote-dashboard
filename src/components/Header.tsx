@@ -7,20 +7,33 @@ interface HeaderProps {
   locale: SupportedLocale
   theme: ThemeMode
   daysToShow: DayRangeOption
+  cachedAt?: string
+  loading?: boolean
   onThemeToggle: () => void
   onDaysToShowChange: (daysToShow: DayRangeOption) => void
+  onRefresh?: () => void
 }
 
 export function Header({
   locale,
   theme,
   daysToShow,
+  cachedAt,
+  loading,
   onThemeToggle,
   onDaysToShowChange,
+  onRefresh,
 }: HeaderProps) {
   const copy = getUiCopy(locale)
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement | null>(null)
+  const [, tick] = useState(0)
+
+  // Re-render every minute so "X min ago" stays accurate
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -36,6 +49,10 @@ export function Header({
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Escape') setOpen(false)
   }
+
+  const minutesAgo = cachedAt
+    ? Math.floor((Date.now() - new Date(cachedAt).getTime()) / 60_000)
+    : null
 
   return (
     <aside className="app-header" aria-label={copy.viewerTitle}>
@@ -81,6 +98,27 @@ export function Header({
         )}
       </div>
 
+      {/* refresh button + last-updated hint */}
+      {onRefresh && (
+        <div className="header-refresh">
+          {minutesAgo !== null && !loading && (
+            <span className="header-refresh__label">
+              {copy.lastUpdated(minutesAgo)}
+            </span>
+          )}
+          <button
+            className="button button--ghost icon-button"
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            aria-label={loading ? copy.refreshing : copy.refreshData}
+            title={loading ? copy.refreshing : copy.refreshData}
+          >
+            <RefreshIcon className={`ui-icon${loading ? ' is-spinning' : ''}`} />
+          </button>
+        </div>
+      )}
+
       {/* theme toggle */}
       <button
         className="button button--ghost icon-button"
@@ -93,5 +131,16 @@ export function Header({
         <span className="visually-hidden">{theme === 'dark' ? copy.lightMode : copy.darkMode}</span>
       </button>
     </aside>
+  )
+}
+
+function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+      <path d="M21 3v5h-5"/>
+      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+      <path d="M8 16H3v5"/>
+    </svg>
   )
 }

@@ -30,6 +30,7 @@ export function readScheduleSnapshot(): ScheduleSnapshot | null {
       theme: parsed.theme,
       activeSource: parsed.activeSource ?? 'sample',
       locale: parsed.locale ?? 'zh-Hant',
+      cachedAt: typeof parsed.cachedAt === 'string' ? parsed.cachedAt : undefined,
     }
   } catch {
     return null

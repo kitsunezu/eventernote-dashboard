@@ -81,6 +81,9 @@ interface UiCopy {
   noEventsTitle: string
   loadedCount: (count: number) => string
   loadFailed: string
+  refreshData: string
+  refreshing: string
+  lastUpdated: (minutesAgo: number) => string
 }
 
 const UI_COPY: Record<SupportedLocale, UiCopy> = {
@@ -157,6 +160,9 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     noEventsTitle: '沒有活動',
     loadedCount: (count) => `已載入 ${count} 個活動。`,
     loadFailed: '活動載入失敗。',
+    refreshData: '重新整理',
+    refreshing: '更新中…',
+    lastUpdated: (min) => min === 0 ? '剛剛更新' : `${min} 分鐘前更新`,
   },
   en: {
     viewerEyebrow: 'Eventernote Dashboard',
@@ -231,6 +237,9 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     noEventsTitle: 'No events',
     loadedCount: (count) => `Loaded ${count} event${count === 1 ? '' : 's'}.`,
     loadFailed: 'Failed to load events.',
+    refreshData: 'Refresh',
+    refreshing: 'Refreshing…',
+    lastUpdated: (min) => min === 0 ? 'Just updated' : `Updated ${min}m ago`,
   },
   ja: {
     viewerEyebrow: 'Eventernote Dashboard',
@@ -305,6 +314,9 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     noEventsTitle: 'イベントなし',
     loadedCount: (count) => `${count} 件のイベントを読み込みました。`,
     loadFailed: 'イベントの読み込みに失敗しました。',
+    refreshData: '更新',
+    refreshing: '更新中…',
+    lastUpdated: (min) => min === 0 ? '今更新しました' : `${min}分前に更新`,
   },
 }
 

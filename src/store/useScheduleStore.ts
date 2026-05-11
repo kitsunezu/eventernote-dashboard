@@ -46,6 +46,9 @@ export interface ScheduleStore extends ScheduleSnapshot {
 
 const persisted = readScheduleSnapshot()
 
+/** Re-fetch from Eventernote if cached data is older than this */
+export const CACHE_TTL_MS = 30 * 60 * 1000 // 30 minutes
+
 const initialSnapshot: ScheduleSnapshot = persisted ?? {
   events: [],
   viewMode: 'timeline',
@@ -119,6 +122,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         events: data.events,
         activeSource: 'backend',
         loading: false,
+        cachedAt: new Date().toISOString(),
         statusMessage: copy.loadedCount(data.events.length),
       })
     } catch (err) {
@@ -140,6 +144,7 @@ useScheduleStore.subscribe((state) => {
     theme: state.theme,
     activeSource: state.activeSource,
     locale: state.locale,
+    cachedAt: state.cachedAt,
   })
 })
 

@@ -65,4 +65,6 @@ export interface ScheduleSnapshot {
   theme: ThemeMode
   activeSource: EventSourceKind
   locale: SupportedLocale
+  /** ISO timestamp of the last successful Eventernote fetch */
+  cachedAt?: string
 }
