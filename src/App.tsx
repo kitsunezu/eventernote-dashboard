@@ -32,8 +32,12 @@ function App() {
 
   useEffect(() => {
     if (!userId) return
-    // Skip auto-fetch if cached data is still fresh
-    if (state.cachedAt && state.events.length > 0) {
+    // Skip auto-fetch only when cache is fresh AND belongs to the current user
+    if (
+      state.cachedAt &&
+      state.cachedUserId === userId &&
+      state.events.length > 0
+    ) {
       const age = Date.now() - new Date(state.cachedAt).getTime()
       if (age < CACHE_TTL_MS) return
     }

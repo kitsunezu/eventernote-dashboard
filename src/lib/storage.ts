@@ -31,6 +31,7 @@ export function readScheduleSnapshot(): ScheduleSnapshot | null {
       activeSource: parsed.activeSource ?? 'sample',
       locale: parsed.locale ?? 'zh-Hant',
       cachedAt: typeof parsed.cachedAt === 'string' ? parsed.cachedAt : undefined,
+      cachedUserId: typeof parsed.cachedUserId === 'string' ? parsed.cachedUserId : undefined,
     }
   } catch {
     return null

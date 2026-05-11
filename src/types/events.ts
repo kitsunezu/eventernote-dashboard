@@ -67,4 +67,6 @@ export interface ScheduleSnapshot {
   locale: SupportedLocale
   /** ISO timestamp of the last successful Eventernote fetch */
   cachedAt?: string
+  /** Eventernote userId whose data is currently cached */
+  cachedUserId?: string
 }

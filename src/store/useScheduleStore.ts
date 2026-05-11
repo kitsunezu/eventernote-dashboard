@@ -123,6 +123,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         activeSource: 'backend',
         loading: false,
         cachedAt: new Date().toISOString(),
+        cachedUserId: userId,
         statusMessage: copy.loadedCount(data.events.length),
       })
     } catch (err) {
@@ -145,6 +146,7 @@ useScheduleStore.subscribe((state) => {
     activeSource: state.activeSource,
     locale: state.locale,
     cachedAt: state.cachedAt,
+    cachedUserId: state.cachedUserId,
   })
 })
 
