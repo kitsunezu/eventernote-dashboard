@@ -3,7 +3,7 @@ import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch'
 import { registerInstrumentations } from '@opentelemetry/instrumentation'
-import { Resource } from '@opentelemetry/resources'
+import { resourceFromAttributes } from '@opentelemetry/resources'
 
 /**
  * Initialise OpenTelemetry browser tracing.
@@ -11,24 +11,23 @@ import { Resource } from '@opentelemetry/resources'
  * Traces are sent via the nginx reverse-proxy at /api/otel/v1/traces,
  * which forwards to the SigNoz OTLP/HTTP collector (port 4318).
  *
- * Configure the collector address by setting the OTEL_BACKEND env var
- * on the container at start time (see docker-compose.yml).
+ * Client IP is read from the X-Client-IP response header injected by nginx
+ * and attached as a span attribute on every outgoing fetch.
  *
  * SigNoz quick-start:
  *   https://signoz.io/docs/install/docker/
  */
 export function setupOtel() {
   const provider = new WebTracerProvider({
-    resource: new Resource({
+    resource: resourceFromAttributes({
       'service.name': 'eventernote-dashboard',
     }),
+    spanProcessors: [
+      new BatchSpanProcessor(
+        new OTLPTraceExporter({ url: '/api/otel/v1/traces' }),
+      ),
+    ],
   })
-
-  provider.addSpanProcessor(
-    new BatchSpanProcessor(
-      new OTLPTraceExporter({ url: '/api/otel/v1/traces' }),
-    ),
-  )
 
   provider.register()
 
@@ -37,6 +36,12 @@ export function setupOtel() {
       new FetchInstrumentation({
         // Avoid tracing the OTel export calls themselves
         ignoreUrls: [/\/api\/otel/],
+        // Attach client IP (injected by nginx) as a span attribute
+        applyCustomAttributesOnSpan(span, _request, result) {
+          const resp = result instanceof Response ? result : undefined
+          const ip = resp?.headers.get('x-client-ip')
+          if (ip) span.setAttribute('http.client_ip', ip)
+        },
       }),
     ],
   })
