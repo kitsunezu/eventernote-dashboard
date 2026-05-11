@@ -4,3 +4,13 @@ services:
     restart: unless-stopped
     ports:
       - "3003:80"
+    environment:
+      # SigNoz otel-collector (HTTP) — same signoz-net network
+      - OTEL_BACKEND=http://signoz-otel-collector:4318
+    networks:
+      - signoz-net
+
+networks:
+  signoz-net:
+    external: true
+    name: signoz-net

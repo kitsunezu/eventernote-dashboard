@@ -11,6 +11,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.217.0",
+    "@opentelemetry/instrumentation": "^0.217.0",
+    "@opentelemetry/instrumentation-fetch": "^0.217.0",
+    "@opentelemetry/resources": "^2.7.1",
+    "@opentelemetry/sdk-trace-base": "^2.7.1",
+    "@opentelemetry/sdk-trace-web": "^2.7.1",
     "dayjs": "^1.11.19",
     "html-to-image": "^1.11.13",
     "ical.js": "^2.2.1",
