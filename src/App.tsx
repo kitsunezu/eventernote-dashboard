@@ -71,7 +71,16 @@ function App() {
         />
 
         <main className="viewer-layout">
-          {state.loading && (state.events.length === 0 || state.cachedUserId !== userId) ? (
+          {/**
+           * Show spinner when:
+           * - loading AND no correct-user data yet (first load or user switch)
+           * - OR we have data but it belongs to a different user (pre-fetch 1-frame flash)
+           * Same-user TTL refresh: loading=true but hasCachedDataForCurrentUser=true → show stale data
+           */}
+          {state.loading
+            ? state.events.length === 0 || state.cachedUserId !== userId
+            : userId !== null && state.cachedUserId !== userId
+          ? (
             <div className="loading-state" aria-live="polite">
               <span className="loading-spinner" aria-hidden="true" />
               <p>{copy.loadingText}</p>
