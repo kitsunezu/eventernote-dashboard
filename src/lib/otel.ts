@@ -18,9 +18,16 @@ import { resourceFromAttributes } from '@opentelemetry/resources'
  *   https://signoz.io/docs/install/docker/
  */
 export function setupOtel() {
+  // Extract the schedule-owner id from the URL path (e.g. /slan1024 → "slan1024")
+  const scheduleId = window.location.pathname.split('/').filter(Boolean)[0] ?? ''
+
   const provider = new WebTracerProvider({
     resource: resourceFromAttributes({
       'service.name': 'eventernote-dashboard',
+      'deployment.environment': 'production',
+      // Identifies which user's schedule is being viewed; useful for
+      // filtering SigNoz traces/dashboards per schedule owner.
+      'app.schedule_id': scheduleId,
     }),
     spanProcessors: [
       new BatchSpanProcessor(
@@ -41,6 +48,8 @@ export function setupOtel() {
           const resp = result instanceof Response ? result : undefined
           const ip = resp?.headers.get('x-client-ip')
           if (ip) span.setAttribute('http.client_ip', ip)
+          // Record the page path so SigNoz dashboards can group by page
+          span.setAttribute('page.path', window.location.pathname)
         },
       }),
     ],

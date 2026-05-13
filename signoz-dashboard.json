@@ -1,0 +1,544 @@
+{
+  "description": "Eventernote Dashboard 訪客 IP、流量、頁面與快取監控",
+  "layout": [
+    {
+      "h": 6,
+      "i": "a1b2c3d4-e5f6-4a7b-8c9d-000000000001",
+      "moved": false,
+      "static": false,
+      "w": 12,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "h": 7,
+      "i": "a1b2c3d4-e5f6-4a7b-8c9d-000000000002",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 6
+    },
+    {
+      "h": 7,
+      "i": "a1b2c3d4-e5f6-4a7b-8c9d-000000000003",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 6
+    },
+    {
+      "h": 6,
+      "i": "a1b2c3d4-e5f6-4a7b-8c9d-000000000004",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 13
+    },
+    {
+      "h": 6,
+      "i": "a1b2c3d4-e5f6-4a7b-8c9d-000000000005",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 13
+    }
+  ],
+  "panelMap": {},
+  "tags": ["eventernote", "frontend", "visitor"],
+  "title": "Eventernote 訪客監控",
+  "uploadedGrafana": false,
+  "uuid": "d1e2f3a4-b5c6-4d7e-8f9a-0b1c2d3e4f5a",
+  "variables": {},
+  "version": "v4",
+  "widgets": [
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": {},
+      "description": "每分鐘來自瀏覽器的 fetch span 數量，代表前端活躍程度",
+      "fillSpans": false,
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-000000000001",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": {
+                "id": "----",
+                "dataType": "",
+                "key": "",
+                "type": "",
+                "isColumn": false,
+                "isJSON": false
+              },
+              "aggregateOperator": "count",
+              "dataSource": "traces",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  {
+                    "id": "f001",
+                    "key": {
+                      "id": "serviceName--string--tag--true",
+                      "key": "serviceName",
+                      "dataType": "string",
+                      "type": "tag",
+                      "isColumn": true,
+                      "isJSON": false
+                    },
+                    "op": "=",
+                    "value": "eventernote-dashboard"
+                  }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [],
+              "having": [],
+              "legend": "requests",
+              "limit": null,
+              "orderBy": [],
+              "queryName": "A",
+              "reduceTo": "avg",
+              "spaceAggregation": "sum",
+              "stepInterval": 60,
+              "timeAggregation": "count"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          { "disabled": false, "legend": "", "name": "A", "query": "" }
+        ],
+        "id": "q001",
+        "promql": [
+          { "disabled": false, "legend": "", "name": "A", "query": "" }
+        ],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [
+        { "dataType": "string", "name": "body", "type": "" },
+        { "dataType": "string", "name": "timestamp", "type": "" }
+      ],
+      "selectedTracesFields": [
+        { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" },
+        { "dataType": "string", "id": "name--string--tag--true", "isColumn": true, "isJSON": false, "key": "name", "type": "tag" },
+        { "dataType": "float64", "id": "durationNano--float64--tag--true", "isColumn": true, "isJSON": false, "key": "durationNano", "type": "tag" },
+        { "dataType": "string", "id": "httpMethod--string--tag--true", "isColumn": true, "isJSON": false, "key": "httpMethod", "type": "tag" },
+        { "dataType": "string", "id": "responseStatusCode--string--tag--true", "isColumn": true, "isJSON": false, "key": "responseStatusCode", "type": "tag" }
+      ],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "請求數量趨勢",
+      "yAxisUnit": "short"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": { "A": "short" },
+      "columnWidths": { "A": 120, "http.client_ip": 200 },
+      "description": "依訪客真實 IP 統計請求次數（需 Cloudflare + nginx real_ip 正確設定）",
+      "fillSpans": false,
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-000000000002",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "table",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": {
+                "id": "----",
+                "dataType": "",
+                "key": "",
+                "type": "",
+                "isColumn": false,
+                "isJSON": false
+              },
+              "aggregateOperator": "count",
+              "dataSource": "traces",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  {
+                    "id": "f002",
+                    "key": {
+                      "id": "serviceName--string--tag--true",
+                      "key": "serviceName",
+                      "dataType": "string",
+                      "type": "tag",
+                      "isColumn": true,
+                      "isJSON": false
+                    },
+                    "op": "=",
+                    "value": "eventernote-dashboard"
+                  }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [
+                {
+                  "id": "http.client_ip--string--tag--false",
+                  "key": "http.client_ip",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false
+                }
+              ],
+              "having": [],
+              "legend": "count",
+              "limit": 20,
+              "orderBy": [{ "columnName": "count", "order": "desc" }],
+              "queryName": "A",
+              "reduceTo": "avg",
+              "spaceAggregation": "count",
+              "stepInterval": 60,
+              "timeAggregation": "count"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          { "disabled": false, "legend": "", "name": "A", "query": "" }
+        ],
+        "id": "q002",
+        "promql": [
+          { "disabled": false, "legend": "", "name": "A", "query": "" }
+        ],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [
+        { "dataType": "string", "name": "body", "type": "" },
+        { "dataType": "string", "name": "timestamp", "type": "" }
+      ],
+      "selectedTracesFields": [
+        { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" },
+        { "dataType": "string", "id": "name--string--tag--true", "isColumn": true, "isJSON": false, "key": "name", "type": "tag" },
+        { "dataType": "float64", "id": "durationNano--float64--tag--true", "isColumn": true, "isJSON": false, "key": "durationNano", "type": "tag" },
+        { "dataType": "string", "id": "httpMethod--string--tag--true", "isColumn": true, "isJSON": false, "key": "httpMethod", "type": "tag" },
+        { "dataType": "string", "id": "responseStatusCode--string--tag--true", "isColumn": true, "isJSON": false, "key": "responseStatusCode", "type": "tag" }
+      ],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Top 訪客 IP（Top 20）",
+      "yAxisUnit": "none"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": { "A": "short" },
+      "columnWidths": { "A": 120, "page.path": 280 },
+      "description": "依頁面路徑統計請求次數，了解哪個行程表被最多人查看",
+      "fillSpans": false,
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-000000000003",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "table",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": {
+                "id": "----",
+                "dataType": "",
+                "key": "",
+                "type": "",
+                "isColumn": false,
+                "isJSON": false
+              },
+              "aggregateOperator": "count",
+              "dataSource": "traces",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  {
+                    "id": "f003",
+                    "key": {
+                      "id": "serviceName--string--tag--true",
+                      "key": "serviceName",
+                      "dataType": "string",
+                      "type": "tag",
+                      "isColumn": true,
+                      "isJSON": false
+                    },
+                    "op": "=",
+                    "value": "eventernote-dashboard"
+                  }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [
+                {
+                  "id": "page.path--string--tag--false",
+                  "key": "page.path",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false
+                }
+              ],
+              "having": [],
+              "legend": "count",
+              "limit": 20,
+              "orderBy": [{ "columnName": "count", "order": "desc" }],
+              "queryName": "A",
+              "reduceTo": "avg",
+              "spaceAggregation": "count",
+              "stepInterval": 60,
+              "timeAggregation": "count"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          { "disabled": false, "legend": "", "name": "A", "query": "" }
+        ],
+        "id": "q003",
+        "promql": [
+          { "disabled": false, "legend": "", "name": "A", "query": "" }
+        ],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [
+        { "dataType": "string", "name": "body", "type": "" },
+        { "dataType": "string", "name": "timestamp", "type": "" }
+      ],
+      "selectedTracesFields": [
+        { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" },
+        { "dataType": "string", "id": "name--string--tag--true", "isColumn": true, "isJSON": false, "key": "name", "type": "tag" },
+        { "dataType": "float64", "id": "durationNano--float64--tag--true", "isColumn": true, "isJSON": false, "key": "durationNano", "type": "tag" },
+        { "dataType": "string", "id": "httpMethod--string--tag--true", "isColumn": true, "isJSON": false, "key": "httpMethod", "type": "tag" },
+        { "dataType": "string", "id": "responseStatusCode--string--tag--true", "isColumn": true, "isJSON": false, "key": "responseStatusCode", "type": "tag" }
+      ],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Top 頁面瀏覽（Top 20）",
+      "yAxisUnit": "none"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": { "A": "short" },
+      "columnWidths": { "A": 120, "responseStatusCode": 180 },
+      "description": "HTTP 狀態碼分佈，快速看出是否有大量 4xx/5xx 錯誤",
+      "fillSpans": false,
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-000000000004",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "table",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": {
+                "id": "----",
+                "dataType": "",
+                "key": "",
+                "type": "",
+                "isColumn": false,
+                "isJSON": false
+              },
+              "aggregateOperator": "count",
+              "dataSource": "traces",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  {
+                    "id": "f004",
+                    "key": {
+                      "id": "serviceName--string--tag--true",
+                      "key": "serviceName",
+                      "dataType": "string",
+                      "type": "tag",
+                      "isColumn": true,
+                      "isJSON": false
+                    },
+                    "op": "=",
+                    "value": "eventernote-dashboard"
+                  }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [
+                {
+                  "id": "responseStatusCode--string--tag--true",
+                  "key": "responseStatusCode",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": true,
+                  "isJSON": false
+                }
+              ],
+              "having": [],
+              "legend": "count",
+              "limit": 20,
+              "orderBy": [{ "columnName": "count", "order": "desc" }],
+              "queryName": "A",
+              "reduceTo": "avg",
+              "spaceAggregation": "count",
+              "stepInterval": 60,
+              "timeAggregation": "count"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          { "disabled": false, "legend": "", "name": "A", "query": "" }
+        ],
+        "id": "q004",
+        "promql": [
+          { "disabled": false, "legend": "", "name": "A", "query": "" }
+        ],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [
+        { "dataType": "string", "name": "body", "type": "" },
+        { "dataType": "string", "name": "timestamp", "type": "" }
+      ],
+      "selectedTracesFields": [
+        { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" },
+        { "dataType": "string", "id": "name--string--tag--true", "isColumn": true, "isJSON": false, "key": "name", "type": "tag" },
+        { "dataType": "float64", "id": "durationNano--float64--tag--true", "isColumn": true, "isJSON": false, "key": "durationNano", "type": "tag" },
+        { "dataType": "string", "id": "httpMethod--string--tag--true", "isColumn": true, "isJSON": false, "key": "httpMethod", "type": "tag" },
+        { "dataType": "string", "id": "responseStatusCode--string--tag--true", "isColumn": true, "isJSON": false, "key": "responseStatusCode", "type": "tag" }
+      ],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "HTTP 狀態碼分佈",
+      "yAxisUnit": "none"
+    },
+    {
+      "bucketCount": 30,
+      "bucketWidth": 0,
+      "columnUnits": { "A": "short" },
+      "columnWidths": { "A": 120, "app.schedule_id": 200 },
+      "description": "依 schedule_id（訪問者查看的行程表 userId）分組，了解哪個用戶頁面最受歡迎",
+      "fillSpans": false,
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-000000000005",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "table",
+      "query": {
+        "builder": {
+          "queryData": [
+            {
+              "aggregateAttribute": {
+                "id": "----",
+                "dataType": "",
+                "key": "",
+                "type": "",
+                "isColumn": false,
+                "isJSON": false
+              },
+              "aggregateOperator": "count",
+              "dataSource": "traces",
+              "disabled": false,
+              "expression": "A",
+              "filters": {
+                "items": [
+                  {
+                    "id": "f005",
+                    "key": {
+                      "id": "serviceName--string--tag--true",
+                      "key": "serviceName",
+                      "dataType": "string",
+                      "type": "tag",
+                      "isColumn": true,
+                      "isJSON": false
+                    },
+                    "op": "=",
+                    "value": "eventernote-dashboard"
+                  }
+                ],
+                "op": "AND"
+              },
+              "functions": [],
+              "groupBy": [
+                {
+                  "id": "app.schedule_id--string--resource--false",
+                  "key": "app.schedule_id",
+                  "dataType": "string",
+                  "type": "resource",
+                  "isColumn": false,
+                  "isJSON": false
+                }
+              ],
+              "having": [],
+              "legend": "count",
+              "limit": 20,
+              "orderBy": [{ "columnName": "count", "order": "desc" }],
+              "queryName": "A",
+              "reduceTo": "avg",
+              "spaceAggregation": "count",
+              "stepInterval": 60,
+              "timeAggregation": "count"
+            }
+          ],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          { "disabled": false, "legend": "", "name": "A", "query": "" }
+        ],
+        "id": "q005",
+        "promql": [
+          { "disabled": false, "legend": "", "name": "A", "query": "" }
+        ],
+        "queryType": "builder"
+      },
+      "selectedLogFields": [
+        { "dataType": "string", "name": "body", "type": "" },
+        { "dataType": "string", "name": "timestamp", "type": "" }
+      ],
+      "selectedTracesFields": [
+        { "dataType": "string", "id": "serviceName--string--tag--true", "isColumn": true, "isJSON": false, "key": "serviceName", "type": "tag" },
+        { "dataType": "string", "id": "name--string--tag--true", "isColumn": true, "isJSON": false, "key": "name", "type": "tag" },
+        { "dataType": "float64", "id": "durationNano--float64--tag--true", "isColumn": true, "isJSON": false, "key": "durationNano", "type": "tag" },
+        { "dataType": "string", "id": "httpMethod--string--tag--true", "isColumn": true, "isJSON": false, "key": "httpMethod", "type": "tag" },
+        { "dataType": "string", "id": "responseStatusCode--string--tag--true", "isColumn": true, "isJSON": false, "key": "responseStatusCode", "type": "tag" }
+      ],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": false,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Top 行程表（依 Schedule ID）",
+      "yAxisUnit": "none"
+    }
+  ]
+}
