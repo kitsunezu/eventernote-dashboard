@@ -2,6 +2,8 @@ import type { EventCategory, ImportedScheduleData, ScheduleEvent } from '../type
 import { sortEvents } from '../lib/date'
 
 const PROXY_BASE = '/api/eventernote'
+/** Concurrency limit for detail-page fetches (upcoming events only) */
+const DETAIL_FETCH_CONCURRENCY = 3
 
 // ── region → color ────────────────────────────────────────────────
 
@@ -222,6 +224,17 @@ function parseActorsFromEventDetailDoc(doc: Document): string[] {
     .filter(Boolean)
 }
 
+function parseVenueFromDetailDoc(doc: Document): string {
+  const venueRow = Array.from(doc.querySelectorAll('tr')).find((row) => {
+    const labelCell = row.querySelector('td')
+    const label = labelCell?.textContent?.trim()
+    return label === '開催場所'
+  })
+  if (!venueRow) return ''
+  const link = venueRow.querySelector('td:nth-child(2) a')
+  return link?.textContent?.trim() ?? ''
+}
+
 export function parseActorsFromEventDetailHtml(html: string): string[] {
   if (typeof DOMParser !== 'undefined') {
     const doc = new DOMParser().parseFromString(html, 'text/html')
@@ -264,7 +277,71 @@ function parsePaginationPaths(doc: Document): string[] {
     return new DOMParser().parseFromString(html, 'text/html')
   }
 
-// ── public API ────────────────────────────────────────────────────
+  /**
+   * Fetch detail pages for upcoming events only (concurrency-limited).
+   * Enriches venue (more accurate full name) and actor list from detail page.
+   * Past events are left as-is to keep fetch count low.
+   */
+  async function enrichUpcomingEventDetails(
+    events: ScheduleEvent[],
+  ): Promise<{ events: ScheduleEvent[]; warnings: string[] }> {
+    const now = new Date().toISOString()
+    const upcoming = events.filter((e) => e.startAt >= now)
+    const warnings: string[] = []
+
+    if (upcoming.length === 0) return { events, warnings }
+
+    // Fetch detail pages with concurrency cap
+    const detailMap = new Map<string, { venue: string; actors: string[] }>()
+    const queue = [...upcoming]
+    let active = 0
+    let index = 0
+
+    await new Promise<void>((resolve) => {
+      function next() {
+        while (active < DETAIL_FETCH_CONCURRENCY && index < queue.length) {
+          const event = queue[index++]
+          active++
+          fetchDoc(`/events/${event.id}`)
+            .then((doc) => {
+              const venue = parseVenueFromDetailDoc(doc)
+              const actors = parseActorsFromEventDetailDoc(doc)
+              detailMap.set(event.id, { venue, actors })
+            })
+            .catch((err) => {
+              warnings.push(`Detail fetch failed for ${event.id}: ${err instanceof Error ? err.message : String(err)}`)
+            })
+            .finally(() => {
+              active--
+              if (index < queue.length) {
+                next()
+              } else if (active === 0) {
+                resolve()
+              }
+            })
+        }
+        if (queue.length === 0) resolve()
+      }
+      next()
+    })
+
+    return {
+      events: events.map((event) => {
+        const detail = detailMap.get(event.id)
+        if (!detail) return event
+        const venue = detail.venue || event.location
+        const description =
+          detail.actors.length > 0 ? detail.actors.join('\u3001') : event.description
+        // Re-detect region with the more accurate venue from detail page
+        const region = detail.venue ? detectRegion(detail.venue, event.title) : event.category.id
+        const category = detail.venue
+          ? { id: region, label: region, color: colorForRegion(region) }
+          : event.category
+        return { ...event, location: venue, description, category }
+      }),
+      warnings,
+    }
+  }
 
 export async function loadEventernoteUser(
   userId: string,
@@ -296,9 +373,12 @@ export async function loadEventernoteUser(
     return true
   })
 
+  // Enrich upcoming events with accurate venue + actors from detail pages
+  const enriched = await enrichUpcomingEventDetails(unique)
+
   return {
-    events: sortEvents(unique),
-    warnings,
+    events: sortEvents(enriched.events),
+    warnings: [...warnings, ...enriched.warnings],
     sourceType: 'backend',
     importedAt: new Date().toISOString(),
   }
