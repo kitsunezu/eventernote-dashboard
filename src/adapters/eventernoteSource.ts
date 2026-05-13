@@ -2,7 +2,6 @@ import type { EventCategory, ImportedScheduleData, ScheduleEvent } from '../type
 import { sortEvents } from '../lib/date'
 
 const PROXY_BASE = '/api/eventernote'
-const DETAIL_FETCH_CONCURRENCY = 6
 
 // ── region → color ────────────────────────────────────────────────
 
@@ -90,10 +89,6 @@ function decodeHtmlEntities(value: string): string {
         return `&${entity};`
     }
   })
-}
-
-function formatError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }
 
 /**
@@ -269,81 +264,6 @@ function parsePaginationPaths(doc: Document): string[] {
     return new DOMParser().parseFromString(html, 'text/html')
   }
 
-  async function mapWithConcurrency<T, TResult>(
-    items: T[],
-    limit: number,
-    mapper: (item: T) => Promise<TResult>,
-  ): Promise<Array<PromiseSettledResult<TResult>>> {
-    const results: Array<PromiseSettledResult<TResult>> = new Array(items.length)
-    let nextIndex = 0
-
-    async function worker() {
-      while (nextIndex < items.length) {
-        const currentIndex = nextIndex
-        nextIndex += 1
-
-        try {
-          results[currentIndex] = {
-            status: 'fulfilled',
-            value: await mapper(items[currentIndex]),
-          }
-        } catch (error) {
-          results[currentIndex] = {
-            status: 'rejected',
-            reason: error,
-          }
-        }
-      }
-    }
-
-    const workerCount = Math.min(limit, items.length)
-    await Promise.all(Array.from({ length: workerCount }, () => worker()))
-    return results
-  }
-
-  async function enrichEventsWithActors(
-    events: ScheduleEvent[],
-  ): Promise<{ events: ScheduleEvent[]; warnings: string[] }> {
-    const detailResults = await mapWithConcurrency(events, DETAIL_FETCH_CONCURRENCY, async (event) => {
-      const html = await fetchHtml(`/events/${event.id}`)
-      return {
-        eventId: event.id,
-        artists: parseActorsFromEventDetailHtml(html),
-      }
-    })
-
-    const warnings: string[] = []
-    const artistsByEventId = new Map<string, string[]>()
-
-    detailResults.forEach((result, index) => {
-      const event = events[index]
-
-      if (result.status === 'rejected') {
-        warnings.push(`Failed to load Eventernote details for ${event.id}: ${formatError(result.reason)}`)
-        return
-      }
-
-      if (result.value.artists.length > 0) {
-        artistsByEventId.set(result.value.eventId, result.value.artists)
-      }
-    })
-
-    return {
-      events: events.map((event) => {
-        const artists = artistsByEventId.get(event.id)
-        if (!artists || artists.length === 0) {
-          return event
-        }
-
-        return {
-          ...event,
-          description: artists.join('、'),
-        }
-      }),
-      warnings,
-    }
-}
-
 // ── public API ────────────────────────────────────────────────────
 
 export async function loadEventernoteUser(
@@ -376,11 +296,9 @@ export async function loadEventernoteUser(
     return true
   })
 
-  const detailResult = await enrichEventsWithActors(unique)
-
   return {
-    events: sortEvents(detailResult.events),
-    warnings: [...warnings, ...detailResult.warnings],
+    events: sortEvents(unique),
+    warnings,
     sourceType: 'backend',
     importedAt: new Date().toISOString(),
   }
