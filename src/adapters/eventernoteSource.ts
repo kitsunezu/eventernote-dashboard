@@ -209,6 +209,24 @@ function parseEventsFromDoc(doc: Document): ScheduleEvent[] {
   return events
 }
 
+function applyDetailMap(
+  events: ScheduleEvent[],
+  detailMap: Map<string, { venue: string; actors: string[] }>,
+): ScheduleEvent[] {
+  return events.map((event) => {
+    const detail = detailMap.get(event.id)
+    if (!detail) return event
+    const venue = detail.venue || event.location
+    const description =
+      detail.actors.length > 0 ? detail.actors.join('\u3001') : event.description
+    const region = detail.venue ? detectRegion(detail.venue, event.title) : event.category.id
+    const category = detail.venue
+      ? { id: region, label: region, color: colorForRegion(region) }
+      : event.category
+    return { ...event, location: venue, description, category }
+  })
+}
+
 function parseActorsFromEventDetailDoc(doc: Document): string[] {
   const actorRow = Array.from(doc.querySelectorAll('tr')).find((row) => {
     const labelCell = row.querySelector('td')
@@ -281,9 +299,11 @@ function parsePaginationPaths(doc: Document): string[] {
    * Fetch detail pages for upcoming events only (concurrency-limited).
    * Enriches venue (more accurate full name) and actor list from detail page.
    * Past events are left as-is to keep fetch count low.
+   * onProgress is called after each successful detail fetch with the full updated event list.
    */
   async function enrichUpcomingEventDetails(
     events: ScheduleEvent[],
+    onProgress?: (updatedEvents: ScheduleEvent[]) => void,
   ): Promise<{ events: ScheduleEvent[]; warnings: string[] }> {
     const now = new Date().toISOString()
     const upcoming = events.filter((e) => e.startAt >= now)
@@ -307,6 +327,8 @@ function parsePaginationPaths(doc: Document): string[] {
               const venue = parseVenueFromDetailDoc(doc)
               const actors = parseActorsFromEventDetailDoc(doc)
               detailMap.set(event.id, { venue, actors })
+              // Emit incremental progress after each successful detail fetch
+              onProgress?.(applyDetailMap(events, detailMap))
             })
             .catch((err) => {
               warnings.push(`Detail fetch failed for ${event.id}: ${err instanceof Error ? err.message : String(err)}`)
@@ -326,25 +348,14 @@ function parsePaginationPaths(doc: Document): string[] {
     })
 
     return {
-      events: events.map((event) => {
-        const detail = detailMap.get(event.id)
-        if (!detail) return event
-        const venue = detail.venue || event.location
-        const description =
-          detail.actors.length > 0 ? detail.actors.join('\u3001') : event.description
-        // Re-detect region with the more accurate venue from detail page
-        const region = detail.venue ? detectRegion(detail.venue, event.title) : event.category.id
-        const category = detail.venue
-          ? { id: region, label: region, color: colorForRegion(region) }
-          : event.category
-        return { ...event, location: venue, description, category }
-      }),
+      events: applyDetailMap(events, detailMap),
       warnings,
     }
   }
 
 export async function loadEventernoteUser(
   userId: string,
+  onProgress?: (partial: { events: ScheduleEvent[]; warnings: string[] }) => void,
 ): Promise<ImportedScheduleData> {
   const basePath = `/users/${encodeURIComponent(userId)}/events`
   const firstDoc = await fetchDoc(basePath)
@@ -373,8 +384,13 @@ export async function loadEventernoteUser(
     return true
   })
 
-  // Enrich upcoming events with accurate venue + actors from detail pages
-  const enriched = await enrichUpcomingEventDetails(unique)
+  // Phase 1: emit basic list-page events immediately so UI can render quickly
+  onProgress?.({ events: sortEvents(unique), warnings: [...warnings] })
+
+  // Phase 2: enrich upcoming events with accurate venue + actors from detail pages
+  const enriched = await enrichUpcomingEventDetails(unique, (updatedEvents) => {
+    onProgress?.({ events: sortEvents(updatedEvents), warnings: [...warnings] })
+  })
 
   return {
     events: sortEvents(enriched.events),

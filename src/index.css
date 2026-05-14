@@ -1418,6 +1418,30 @@ button {
 
 /* ── Loading state ─────────────────────────────────────────────── */
 
+/* Thin animated progress bar shown at top of viewer during same-user refresh */
+.refresh-progress {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 100;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent) 30%,
+    var(--accent) 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: refresh-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes refresh-sweep {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 .loading-state {
   display: flex;
   flex-direction: column;
