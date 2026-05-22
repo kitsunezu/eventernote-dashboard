@@ -7,6 +7,10 @@ services:
     environment:
       # SigNoz otel-collector (HTTP) — same signoz-net network
       - OTEL_BACKEND=http://signoz-otel-collector:4318
+      # Optional override when the upstream hostname resolves inconsistently.
+      # Example: EVENTERNOTE_UPSTREAM=https://35.75.153.225 with EVENTERNOTE_HOST=www.eventernote.com
+      - EVENTERNOTE_UPSTREAM=https://www.eventernote.com
+      - EVENTERNOTE_HOST=www.eventernote.com
     networks:
       - signoz-net
 

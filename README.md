@@ -88,6 +88,10 @@ services:
     restart: unless-stopped
     ports:
       - "3003:80"
+    environment:
+      - OTEL_BACKEND=http://signoz-otel-collector:4318
+      - EVENTERNOTE_UPSTREAM=https://www.eventernote.com
+      - EVENTERNOTE_HOST=www.eventernote.com
 ```
 
 ### Build locally
@@ -98,6 +102,15 @@ docker run -p 3003:80 eventernote-dashboard
 ```
 
 The production image builds the app with Node 22 Alpine, serves the static bundle with Nginx, and keeps the /api/eventernote reverse proxy available inside the container.
+
+If Eventernote's hostname ever resolves inconsistently from your deployment environment, you can override the proxy target without rebuilding the image:
+
+```bash
+EVENTERNOTE_UPSTREAM=https://35.75.153.225
+EVENTERNOTE_HOST=www.eventernote.com
+```
+
+Keep EVENTERNOTE_HOST set to www.eventernote.com so the upstream Host header and TLS name stay correct even when EVENTERNOTE_UPSTREAM is pinned to an IP.
 
 ## Tests
 
