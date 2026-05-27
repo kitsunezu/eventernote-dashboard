@@ -24,6 +24,12 @@ function App() {
   const nextEvent = selectNextEvent(state)
   const selectedEvent = selectSelectedEvent(state)
   const copy = getUiCopy(state.locale)
+  const hasCachedDataForCurrentUser =
+    userId !== null && state.cachedUserId === userId && state.events.length > 0
+  const shouldShowLoadingState = state.loading
+    ? !hasCachedDataForCurrentUser
+    : userId !== null && state.cachedUserId !== userId
+  const shouldShowErrorState = Boolean(state.error) && !hasCachedDataForCurrentUser
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme
@@ -77,15 +83,12 @@ function App() {
            * - OR we have data but it belongs to a different user (pre-fetch 1-frame flash)
            * Same-user TTL refresh: loading=true but hasCachedDataForCurrentUser=true → show stale data + progress bar
            */}
-          {(state.loading
-            ? state.events.length === 0 || state.cachedUserId !== userId
-            : userId !== null && state.cachedUserId !== userId)
-          ? (
+          {shouldShowLoadingState ? (
             <div className="loading-state" aria-live="polite">
               <span className="loading-spinner" aria-hidden="true" />
               <p>{copy.loadingText}</p>
             </div>
-          ) : state.error ? (
+          ) : shouldShowErrorState ? (
             <div className="error-state" role="alert">
               <p className="error-state__title">{copy.loadErrorTitle}</p>
               <p className="error-state__body">{state.error}</p>
