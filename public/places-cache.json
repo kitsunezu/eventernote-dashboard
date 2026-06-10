@@ -1,0 +1,272 @@
+{
+  "6": {
+    "name": "東京ドーム",
+    "address": "〒112-0004 東京都文京区後楽1丁目3番61号",
+    "region": "東京"
+  },
+  "44": {
+    "name": "Spotify O-EAST(Shibuya O-EAST)",
+    "address": "〒150-0043  東京都渋谷区道玄坂2丁目14-8 O-EASTビル2F Shibuya O-EAST",
+    "region": "東京"
+  },
+  "63": {
+    "name": "Zepp DiverCity (TOKYO)",
+    "address": "〒135-0064 東京都江東区青海1丁目1-10 ダイバーシティ東京プラザ2F Zepp DiverCity (TOKYO)",
+    "region": "東京"
+  },
+  "91": {
+    "name": "江戸川区総合文化センター",
+    "address": "〒132-0021 東京都江戸川区中央4丁目14-1",
+    "region": "東京"
+  },
+  "101": {
+    "name": "Kanadevia Hall(TOKYO DOME CITY HALL)",
+    "address": "〒112-8575 東京都文京区後楽1丁目3-61 ミーツポート1F TOKYO DOME CITY HALL",
+    "region": "東京"
+  },
+  "114": {
+    "name": "川崎CLUB CITTA'(クラブチッタ)",
+    "address": "〒210-0023 神奈川県川崎市川崎区小川町5-7 CLUB CITTA’",
+    "region": "神奈川"
+  },
+  "126": {
+    "name": "福岡DRUM Be-1",
+    "address": "〒810-0073 福岡県福岡市中央区舞鶴1丁目8-29",
+    "region": "福岡"
+  },
+  "157": {
+    "name": "名古屋ボトムライン(THE BOTTOM LINE)",
+    "address": "〒464-0850 愛知県名古屋市千種区今池4丁目7-11 THE BOTTOM LINE",
+    "region": "名古屋"
+  },
+  "184": {
+    "name": "Zepp Namba (OSAKA)",
+    "address": "〒566-0012 大阪府大阪市浪速区敷津東2丁目1-39",
+    "region": "大阪"
+  },
+  "223": {
+    "name": "duo MUSIC EXCHANGE",
+    "address": "〒150-0043 東京都渋谷区道玄坂2-14-8 O-EASTビル1F duo MUSIC EXCHANGE",
+    "region": "東京"
+  },
+  "440": {
+    "name": "恵比寿CreAto(クレアート)",
+    "address": "〒150-0011 東京都渋谷区東3丁目14-19 オークヒルズB1F 恵比寿CreAto",
+    "region": "東京"
+  },
+  "515": {
+    "name": "梅田バナナホール(BananaHall)",
+    "address": "〒530-0027 大阪府大阪市北区堂山町1-21 モンテビルB-1 Banana Hall",
+    "region": "大阪"
+  },
+  "759": {
+    "name": "代官山UNIT",
+    "address": "〒150-0021 東京都渋谷区恵比寿西1丁目34-17 ザ・ハウスビル Daikanyama UNIT",
+    "region": "東京"
+  },
+  "2357": {
+    "name": "club Dorothy",
+    "address": "〒176-0004 東京都練馬区小竹町1丁目55-7 日神パレスB1F ライブハウス クラブドロシー",
+    "region": "東京"
+  },
+  "2409": {
+    "name": "東京芸術センター 天空劇場",
+    "address": "〒120-0034 東京都足立区千住1丁目4-1",
+    "region": "東京"
+  },
+  "3679": {
+    "name": "豊洲PIT",
+    "address": "〒135-0061 東京都江東区豊洲6丁目1-23 豊洲PIT",
+    "region": "東京"
+  },
+  "3889": {
+    "name": "Zepp Osaka Bayside",
+    "address": "〒554-0031 大阪府大阪市此花区桜島1丁目1-61 Zepp Osaka Bayside",
+    "region": "大阪"
+  },
+  "4255": {
+    "name": "原宿ストロボカフェ",
+    "address": "〒150-0001 東京都渋谷区神宮前1丁目20-13 ディアテックビル1F 原宿ストロボカフェ",
+    "region": "東京"
+  },
+  "4616": {
+    "name": "タクトホームこもれびGRAFAREホール(西東京市保谷こもれびホール) 小ホール",
+    "address": "〒202-0013 東京都西東京市中町1丁目5-1 西東京市保谷こもれびホール",
+    "region": "東京"
+  },
+  "4632": {
+    "name": "LOFT HEAVEN(ロフトヘヴン)",
+    "address": "〒150-0002 東京都渋谷区渋谷2丁目12-13 八千代ビルB1F",
+    "region": "東京"
+  },
+  "5105": {
+    "name": "!_国内外各所 (ライブビューイング等)",
+    "address": "",
+    "region": "その他"
+  },
+  "5111": {
+    "name": "カルッツかわさき",
+    "address": "〒210-0011 神奈川県川崎市川崎区富士見1丁目1-4 川崎市スポーツ・文化総合センター",
+    "region": "神奈川"
+  },
+  "6189": {
+    "name": "Zirco Tokyo",
+    "address": "〒160-0021 東京都新宿区歌舞伎町1丁目2-5 東陽ビルB2F",
+    "region": "東京"
+  },
+  "6389": {
+    "name": "GRAPES KITASANDO(グレープス北参道)",
+    "address": "〒151-0051 東京都渋谷区千駄ヶ谷4丁目3-11 ニューベリー千駄ヶ谷1F GRAPES KITASANDO",
+    "region": "東京"
+  },
+  "6878": {
+    "name": "CLAPPER STUDIO",
+    "address": "No. 2, Section 3, Civic Blvd, Zhongshan District Taipei City, 台湾 10491",
+    "region": "その他"
+  },
+  "7374": {
+    "name": "表参道WALL&WALL",
+    "address": "〒107-0062 東京都港区南青山3丁目18-19 フェスタ表参道ビルB1F WALL&WALL",
+    "region": "東京"
+  },
+  "7880": {
+    "name": "白金高輪SELENE b2",
+    "address": "〒108-0073 東京都港区三田5丁目2-30 セレネ ビーツー",
+    "region": "東京"
+  },
+  "7940": {
+    "name": "KT Zepp Yokohama",
+    "address": "〒220-0012 神奈川県横浜市西区みなとみらい4丁目3-6 KT Zepp Yokohama",
+    "region": "神奈川"
+  },
+  "7941": {
+    "name": "Zepp Shinjuku (TOKYO)",
+    "address": "〒160-0021 東京都新宿区歌舞伎町1丁目29-1 東急歌舞伎町タワーB1F～B4F Zepp Shinjuku (TOKYO)",
+    "region": "東京"
+  },
+  "8574": {
+    "name": "京王アリーナTOKYO(武蔵野の森総合スポーツプラザ)メインアリーナ",
+    "address": "〒182-0032 東京都調布市西町290-11 武蔵野の森総合スポーツプラザ",
+    "region": "東京"
+  },
+  "8636": {
+    "name": "AsiaWorld-Expo Runway 11",
+    "address": "Cheong Wing Rd, Chek Lap Kok, 香港",
+    "region": "香港"
+  },
+  "9089": {
+    "name": "AsiaWorld-Expo Hall 8",
+    "address": "AsiaWorld-Expo Hong Kong International Airport Lantau Hong Kong",
+    "region": "香港"
+  },
+  "9452": {
+    "name": "ヒューリックホール東京(HULIC HALL TOKYO)",
+    "address": "〒100-0006 東京都千代田区有楽町2丁目5-1 有楽町マリオン11F",
+    "region": "東京"
+  },
+  "9526": {
+    "name": "渋谷ストリームホール(SHIBUYA STREAM HALL)",
+    "address": "〒150-0002 東京都渋谷区渋谷3丁目21-3 渋谷ストリーム ホール",
+    "region": "東京"
+  },
+  "10770": {
+    "name": "harevutai",
+    "address": "〒170-0013 東京都豊島区東池袋1丁目19-1 Hareza池袋1F harevutai",
+    "region": "東京"
+  },
+  "10935": {
+    "name": "COOL JAPAN PARK OSAKA TTホール",
+    "address": "〒540-0002  大阪府大阪市中央区大阪城3番6号",
+    "region": "大阪"
+  },
+  "11016": {
+    "name": "!_香港某所",
+    "address": "香港",
+    "region": "その他"
+  },
+  "11300": {
+    "name": "Veats Shibuya(ビーツ渋谷)",
+    "address": "〒150-0042 東京都渋谷区宇田川町33-1 グランド東京渋谷ビルB1F・B2F VeatsShibuya",
+    "region": "東京"
+  },
+  "11586": {
+    "name": "心斎橋ANIMA",
+    "address": "〒542-0086 大阪府大阪市中央区西心斎橋2丁目10-21 スパジオビルB1F LiveHouseANIMA",
+    "region": "大阪"
+  },
+  "12727": {
+    "name": "SHINJUKU WALLY(新宿WALLY)",
+    "address": "〒160-0021 東京都新宿区歌舞伎町1丁目2-13 新光ビルB2F",
+    "region": "東京"
+  },
+  "13037": {
+    "name": "ZEAL THEATER TOKYO(ジールシアター東京)",
+    "address": "〒105-0004 東京都港区新橋3丁目5-10 新三ビルB1F ZEAL THEATER TOKYO",
+    "region": "東京"
+  },
+  "13168": {
+    "name": "CHIC HALL(シックホール)",
+    "address": "〒150-0042 東京都渋谷区宇田川町3-7 ヒューリック渋谷公園通りビルB1F CHIC HALL SHIBUYA",
+    "region": "東京"
+  },
+  "13308": {
+    "name": "秋葉原トークライブ BAR from scratch (LIVE SPACE Q)",
+    "address": "〒101-0021 東京都千代田区外神田4丁目4-3 SILビル9F",
+    "region": "東京"
+  },
+  "13336": {
+    "name": "GRIT at Shibuya",
+    "address": "〒150-0043 東京都渋谷区道玄坂2丁目23-12 フォンティスビルB1F GRIT at Shibuya",
+    "region": "東京"
+  },
+  "13423": {
+    "name": "飛行船シアター(スタァライト劇場)",
+    "address": "〒110-0015 東京都台東区東上野4丁目24-11 飛行船シアター",
+    "region": "東京"
+  },
+  "14436": {
+    "name": "SUPERNOVA KAWASAKI HALL",
+    "address": "〒212-0014 神奈川県川崎市幸区大宮町1-13 スペルノーヴァカワサキ",
+    "region": "神奈川"
+  },
+  "14448": {
+    "name": "ZEROTOKYO",
+    "address": "〒160-0021 東京都新宿区歌舞伎町一丁目29番1号 東急歌舞伎町タワーB1-B4 ZEROTOKYO",
+    "region": "東京"
+  },
+  "18826": {
+    "name": "横浜赤レンガ倉庫1号館 3Fホール",
+    "address": "〒231-0001 神奈川県横浜市中区新港1-1-1 横浜赤レンガ倉庫1号館 ホール",
+    "region": "神奈川"
+  },
+  "19156": {
+    "name": "澳門百老匯-百老匯舞台 BROADWAY MACAU",
+    "address": "Av. Marginal Flor de Lotus, マカオ",
+    "region": "その他"
+  },
+  "19676": {
+    "name": "PORTAL",
+    "address": "1/F, The Burrow, 212 Choi Hung Road, San Po Kong, Kowloon, Hong Kong",
+    "region": "その他"
+  },
+  "20453": {
+    "name": "clubasia(クラブエイジア)",
+    "address": "〒150-0044 東京都渋谷区円山町1-8 clubasia",
+    "region": "東京"
+  },
+  "25788": {
+    "name": "Hopewell Hotel Grand Ballroom",
+    "address": "15 Kennedy Road, Wan Chai, Hong Kong",
+    "region": "その他"
+  },
+  "26694": {
+    "name": "大佳河濱公園",
+    "address": "104 臺北市中山區濱江街5號",
+    "region": "台灣"
+  },
+  "26697": {
+    "name": "東華三院東蒲胡李名靜體育館",
+    "address": "",
+    "region": "香港"
+  }
+}

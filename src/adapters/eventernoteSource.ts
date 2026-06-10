@@ -1,5 +1,6 @@
 import type { EventCategory, ImportedScheduleData, ScheduleEvent } from '../types/events'
 import { sortEvents } from '../lib/date'
+import { getAllPlaces, getPlace, setPlace } from '../lib/placeCache'
 
 const PROXY_BASE = '/api/eventernote'
 /** Concurrency limit for detail-page fetches (upcoming events only) */
@@ -27,8 +28,28 @@ function colorForRegion(region: string): string {
   return REGION_COLORS[region] ?? '#8a7c6e'
 }
 
-/** Detect region from venue name + event title (combined for best coverage). */
-function detectRegion(venue: string, title: string = ''): string {
+/** Detect region from a structured Japanese address (都道府県 prefix). Most accurate. */
+function detectRegionFromAddress(address: string): string | null {
+  if (/東京都/.test(address)) return '東京'
+  if (/神奈川県/.test(address)) return '神奈川'
+  if (/大阪府/.test(address)) return '大阪'
+  if (/愛知県/.test(address)) return '名古屋'
+  if (/福岡県/.test(address)) return '福岡'
+  if (/北海道/.test(address)) return '北海道'
+  if (/宮城県/.test(address)) return '東北'
+  if (/広島県/.test(address)) return '広島'
+  if (/京都府/.test(address)) return '京都'
+  if (/兵庫県/.test(address)) return '神戸'
+  return null
+}
+
+/** Detect region from venue name + event title (combined for best coverage).
+ *  If an address string is available, it is checked first for highest accuracy. */
+function detectRegion(venue: string, title: string = '', address: string = ''): string {
+  if (address) {
+    const fromAddress = detectRegionFromAddress(address)
+    if (fromAddress) return fromAddress
+  }
   const text = `${venue} ${title}`
   if (/hong.?kong|asia.?world|asiaworld|東華/i.test(text)) return '香港'
   if (/taipei|台北|台灣|taiwan|大佳/i.test(text)) return '台灣'
@@ -132,9 +153,11 @@ function parseEventTimes(
 
 // ── HTML parsing ──────────────────────────────────────────────────
 
-function parseEventsFromDoc(doc: Document): ScheduleEvent[] {
+function parseEventsFromDoc(doc: Document): { events: ScheduleEvent[]; placeIdToName: Map<string, string> } {
   const items = Array.from(doc.querySelectorAll('li.clearfix'))
   const events: ScheduleEvent[] = []
+  // placeId → venue name; collected across all items on this page
+  const placeIdToName = new Map<string, string>()
 
   for (const item of items) {
     // Date — class can be day0 / day1 / day2 etc., so search all <p> elements
@@ -159,15 +182,19 @@ function parseEventsFromDoc(doc: Document): ScheduleEvent[] {
     const eventId = eventPath.match(/\/events\/(\d+)/)?.[1]
     if (!eventId) continue
 
-    // Venue: first .place <a>
+    // Venue: first .place <a> — also extract place ID for later enrichment
     let venue = ''
+    let listPagePlaceId = ''
     for (const placeEl of Array.from(item.querySelectorAll('.event .place'))) {
       const venueLink = placeEl.querySelector('a')
       if (venueLink) {
         venue = venueLink.textContent?.trim() ?? ''
+        const href = venueLink.getAttribute('href') ?? ''
+        listPagePlaceId = href.match(/\/places\/(\d+)/)?.[1] ?? ''
         break
       }
     }
+    if (listPagePlaceId && venue) placeIdToName.set(listPagePlaceId, venue)
 
     // Times: "開場 16:00 開演 17:00 終演 20:00"
     const timeText = item.querySelector('.event .place span.s')?.textContent ?? ''
@@ -178,7 +205,9 @@ function parseEventsFromDoc(doc: Document): ScheduleEvent[] {
       .map((a) => a.textContent?.trim() ?? '')
       .filter(Boolean)
 
-    const region = detectRegion(venue, title)
+    // Use place cache immediately if this place is already known
+    const cachedPlace = listPagePlaceId ? getPlace(listPagePlaceId) : undefined
+    const region = cachedPlace?.region ?? detectRegion(venue, title)
     const category: EventCategory = {
       id: region,
       label: region,
@@ -206,12 +235,71 @@ function parseEventsFromDoc(doc: Document): ScheduleEvent[] {
     })
   }
 
-  return events
+  return { events, placeIdToName }
+}
+
+/**
+ * Fetch place pages for all place IDs not yet in the cache.
+ * Covers both past and upcoming events — called once after collecting all list pages.
+ */
+async function enrichAllPlaces(placeIdToName: Map<string, string>): Promise<void> {
+  const toFetch = Array.from(placeIdToName.entries()).filter(([id]) => !getPlace(id))
+  if (toFetch.length === 0) return
+
+  const queue = [...toFetch]
+  let active = 0
+  let index = 0
+
+  await new Promise<void>((resolve) => {
+    function next() {
+      while (active < DETAIL_FETCH_CONCURRENCY && index < queue.length) {
+        const [placeId, venueName] = queue[index++]
+        active++
+        fetchDoc(`/places/${placeId}`)
+          .then((doc) => {
+            const address = parsePlaceAddressFromDoc(doc)
+            const region = detectRegion(venueName, '', address)
+            setPlace(placeId, { name: venueName, address, region })
+          })
+          .catch(() => { /* ignore — best-effort */ })
+          .finally(() => {
+            active--
+            if (index < queue.length) next()
+            else if (active === 0) resolve()
+          })
+      }
+      if (queue.length === 0) resolve()
+    }
+    next()
+  })
+}
+
+/**
+ * Apply place cache entries to events by matching venue name.
+ * Used to enrich past events (which never get a detail-page fetch) whenever
+ * a matching place is already known from the cache.
+ */
+function applyPlaceCacheByName(events: ScheduleEvent[]): ScheduleEvent[] {
+  const cache = getAllPlaces()
+  // Build name → entry lookup (O(n) once)
+  const byName = new Map<string, { address: string; region: string }>()
+  for (const entry of Object.values(cache)) {
+    if (entry.name) byName.set(entry.name, entry)
+  }
+  if (byName.size === 0) return events
+  return events.map((event) => {
+    if (!event.location) return event
+    const cached = byName.get(event.location)
+    if (!cached) return event
+    const region = cached.region
+    const category = { id: region, label: region, color: colorForRegion(region) }
+    return { ...event, category }
+  })
 }
 
 function applyDetailMap(
   events: ScheduleEvent[],
-  detailMap: Map<string, { venue: string; actors: string[] }>,
+  detailMap: Map<string, { placeId: string; venue: string; address: string; actors: string[] }>,
 ): ScheduleEvent[] {
   return events.map((event) => {
     const detail = detailMap.get(event.id)
@@ -219,7 +307,11 @@ function applyDetailMap(
     const venue = detail.venue || event.location
     const description =
       detail.actors.length > 0 ? detail.actors.join('\u3001') : event.description
-    const region = detail.venue ? detectRegion(detail.venue, event.title) : event.category.id
+    // Prefer place cache (persistent) then address, then name/title regex
+    const cached = detail.placeId ? getPlace(detail.placeId) : undefined
+    const region = detail.venue
+      ? (cached?.region ?? detectRegion(detail.venue, event.title, detail.address))
+      : event.category.id
     const category = detail.venue
       ? { id: region, label: region, color: colorForRegion(region) }
       : event.category
@@ -242,15 +334,40 @@ function parseActorsFromEventDetailDoc(doc: Document): string[] {
     .filter(Boolean)
 }
 
-function parseVenueFromDetailDoc(doc: Document): string {
+function parseVenueFromDetailDoc(doc: Document): { placeId: string; venue: string; address: string } {
   const venueRow = Array.from(doc.querySelectorAll('tr')).find((row) => {
     const labelCell = row.querySelector('td')
-    const label = labelCell?.textContent?.trim()
-    return label === '開催場所'
+    return labelCell?.textContent?.trim() === '開催場所'
   })
-  if (!venueRow) return ''
-  const link = venueRow.querySelector('td:nth-child(2) a')
-  return link?.textContent?.trim() ?? ''
+  if (!venueRow) return { placeId: '', venue: '', address: '' }
+  const td = venueRow.querySelector('td:nth-child(2)')
+  const link = td?.querySelector('a')
+  const venue = link?.textContent?.trim() ?? ''
+  // Extract place ID from href like "/places/9093"
+  const href = link?.getAttribute('href') ?? ''
+  const placeId = href.match(/\/places\/(\d+)/)?.[1] ?? ''
+  // Address appears as text content beyond the link (may be in a span or bare text node)
+  const fullText = td?.textContent?.trim() ?? ''
+  const address = fullText.replace(venue, '').trim()
+  return { placeId, venue, address }
+}
+
+/**
+ * Parse the canonical address from a place detail page (/places/{id}).
+ * The page contains a table inside .gb_place_detail_table; the address is in
+ * the row whose first <td> reads "所在地".  The address text is inside an <a>
+ * Google Maps link.
+ */
+function parsePlaceAddressFromDoc(doc: Document): string {
+  const table = doc.querySelector('.gb_place_detail_table table')
+  if (!table) return ''
+  const row = Array.from(table.querySelectorAll('tr')).find((tr) => {
+    return tr.querySelector('td')?.textContent?.trim() === '所在地'
+  })
+  if (!row) return ''
+  const valueTd = row.querySelector('td:nth-child(2)')
+  // Address is the text of the Maps <a> link, or bare text if no link
+  return (valueTd?.querySelector('a')?.textContent ?? valueTd?.textContent ?? '').trim()
 }
 
 export function parseActorsFromEventDetailHtml(html: string): string[] {
@@ -312,7 +429,9 @@ function parsePaginationPaths(doc: Document): string[] {
     if (upcoming.length === 0) return { events, warnings }
 
     // Fetch detail pages with concurrency cap
-    const detailMap = new Map<string, { venue: string; actors: string[] }>()
+    const detailMap = new Map<string, { placeId: string; venue: string; address: string; actors: string[] }>()
+    // Track place IDs already being fetched to avoid duplicate place-page requests
+    const fetchingPlaceIds = new Set<string>()
     const queue = [...upcoming]
     let active = 0
     let index = 0
@@ -323,10 +442,25 @@ function parsePaginationPaths(doc: Document): string[] {
           const event = queue[index++]
           active++
           fetchDoc(`/events/${event.id}`)
-            .then((doc) => {
-              const venue = parseVenueFromDetailDoc(doc)
+            .then(async (doc) => {
+              const { placeId, venue, address } = parseVenueFromDetailDoc(doc)
               const actors = parseActorsFromEventDetailDoc(doc)
-              detailMap.set(event.id, { venue, actors })
+              // Compute region and persist to place cache if this is a new place
+              if (placeId && !getPlace(placeId) && !fetchingPlaceIds.has(placeId)) {
+                fetchingPlaceIds.add(placeId)
+                // Fetch the place detail page for the canonical 所在地 address
+                let resolvedAddress = address
+                try {
+                  const placeDoc = await fetchDoc(`/places/${placeId}`)
+                  const placeAddress = parsePlaceAddressFromDoc(placeDoc)
+                  if (placeAddress) resolvedAddress = placeAddress
+                } catch {
+                  // ignore — fall back to event-detail address
+                }
+                const region = detectRegion(venue, event.title, resolvedAddress)
+                setPlace(placeId, { name: venue, address: resolvedAddress, region })
+              }
+              detailMap.set(event.id, { placeId, venue, address, actors })
               // Emit incremental progress after each successful detail fetch
               onProgress?.(applyDetailMap(events, detailMap))
             })
@@ -360,7 +494,8 @@ export async function loadEventernoteUser(
   const basePath = `/users/${encodeURIComponent(userId)}/events`
   const firstDoc = await fetchDoc(basePath)
 
-  const allEvents = parseEventsFromDoc(firstDoc)
+  const { events: firstPageEvents, placeIdToName } = parseEventsFromDoc(firstDoc)
+  const allEvents = firstPageEvents
   const pagePaths = parsePaginationPaths(firstDoc)
 
   const pageResults = await Promise.allSettled(
@@ -370,7 +505,9 @@ export async function loadEventernoteUser(
 
   for (const result of pageResults) {
     if (result.status === 'fulfilled') {
-      allEvents.push(...parseEventsFromDoc(result.value))
+      const { events, placeIdToName: pageMap } = parseEventsFromDoc(result.value)
+      allEvents.push(...events)
+      for (const [id, name] of pageMap) placeIdToName.set(id, name)
     } else {
       warnings.push(String(result.reason))
     }
@@ -384,16 +521,23 @@ export async function loadEventernoteUser(
     return true
   })
 
-  // Phase 1: emit basic list-page events immediately so UI can render quickly
-  onProgress?.({ events: sortEvents(unique), warnings: [...warnings] })
+  // Phase 0: fetch place pages for ALL uncached venues (past + upcoming)
+  await enrichAllPlaces(placeIdToName)
+
+  // Phase 1: emit with correct regions from place cache (covers past events too)
+  onProgress?.({ events: sortEvents(applyPlaceCacheByName(unique)), warnings: [...warnings] })
 
   // Phase 2: enrich upcoming events with accurate venue + actors from detail pages
   const enriched = await enrichUpcomingEventDetails(unique, (updatedEvents) => {
     onProgress?.({ events: sortEvents(updatedEvents), warnings: [...warnings] })
   })
 
+  // Phase 3: apply the now-populated place cache to past events so their region
+  // is correct when the user switches from 未來 to 所有.
+  const final = applyPlaceCacheByName(enriched.events)
+
   return {
-    events: sortEvents(enriched.events),
+    events: sortEvents(final),
     warnings: [...warnings, ...enriched.warnings],
     sourceType: 'backend',
     importedAt: new Date().toISOString(),
