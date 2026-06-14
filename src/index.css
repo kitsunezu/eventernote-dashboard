@@ -769,26 +769,6 @@ button {
     background 200ms ease;
 }
 
-/* When any event-card in this day is hovered, pulse the bead and heading */
-.timeline-day:has(.event-card:hover) .timeline-day__heading::before {
-  background: var(--timeline-node-hover-bg);
-  box-shadow:
-    0 0 0 3px var(--bg),
-    0 0 0 6px var(--timeline-node-hover-ring),
-    0 0 16px 3px var(--timeline-node-hover-glow);
-  transform: translateY(-50%) scale(1.25);
-  transition:
-    box-shadow 200ms ease,
-    transform 200ms ease,
-    background 200ms ease;
-}
-
-.timeline-day:has(.event-card:hover) .timeline-day__heading h2 {
-  border-color: var(--timeline-date-hover-line);
-  background: var(--timeline-date-hover-bg);
-  color: var(--text);
-}
-
 .timeline-day__meta {
   margin: 0;
 }
@@ -819,25 +799,9 @@ button {
     transform 150ms ease;
 }
 
-.event-card:hover {
-  border-color: var(--timeline-date-hover-line);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
-  transform: translateY(-1px);
-  z-index: 10;
-}
-
-:root[data-theme='light'] .event-card:hover {
-  box-shadow: 0 10px 28px rgba(79, 84, 92, 0.18);
-}
-
 .event-card__accent {
   border-radius: 0;
   transition: filter 200ms ease, opacity 200ms ease;
-}
-
-.event-card:hover .event-card__accent {
-  filter: brightness(1.5) saturate(1.3);
-  opacity: 1;
 }
 
 .event-card__body {
@@ -954,12 +918,6 @@ button {
   color: var(--text);
 }
 
-.event-card:hover .event-card__tooltip,
-.event-card:focus-within .event-card__tooltip {
-  opacity: 1;
-  transform: translateY(0);
-}
-
 .event-card__tooltipImage {
   display: block;
   width: 100%;
@@ -973,6 +931,50 @@ button {
   margin: 0;
   color: inherit;
   font-size: 0.88rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* When any event-card in this day is hovered, pulse the bead and heading */
+  .timeline-day:has(.event-card:hover) .timeline-day__heading::before {
+    background: var(--timeline-node-hover-bg);
+    box-shadow:
+      0 0 0 3px var(--bg),
+      0 0 0 6px var(--timeline-node-hover-ring),
+      0 0 16px 3px var(--timeline-node-hover-glow);
+    transform: translateY(-50%) scale(1.25);
+    transition:
+      box-shadow 200ms ease,
+      transform 200ms ease,
+      background 200ms ease;
+  }
+
+  .timeline-day:has(.event-card:hover) .timeline-day__heading h2 {
+    border-color: var(--timeline-date-hover-line);
+    background: var(--timeline-date-hover-bg);
+    color: var(--text);
+  }
+
+  .event-card:hover {
+    border-color: var(--timeline-date-hover-line);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
+    z-index: 10;
+  }
+
+  :root[data-theme='light'] .event-card:hover {
+    box-shadow: 0 10px 28px rgba(79, 84, 92, 0.18);
+  }
+
+  .event-card:hover .event-card__accent {
+    filter: brightness(1.5) saturate(1.3);
+    opacity: 1;
+  }
+
+  .event-card:hover .event-card__tooltip,
+  .event-card:focus-within .event-card__tooltip {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .empty-state {
