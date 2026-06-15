@@ -44,3 +44,29 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Trigger Portainer redeploy
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          PORTAINER_API_KEY: ${{ secrets.PORTAINER_API_KEY }}
+          PORTAINER_BASE_URL: https://portainer.kitsunet.app
+          PORTAINER_STACK_ID: "42"
+          PORTAINER_ENDPOINT_ID: "3"
+        run: |
+          if [ -z "$PORTAINER_API_KEY" ]; then
+            echo "::error::PORTAINER_API_KEY secret is not configured"
+            exit 1
+          fi
+          if [ -z "$CF_ACCESS_CLIENT_ID" ] || [ -z "$CF_ACCESS_CLIENT_SECRET" ]; then
+            echo "::error::Cloudflare Access service token secrets are not configured"
+            exit 1
+          fi
+          curl --fail-with-body --silent --show-error \
+            --request PUT \
+            --header "CF-Access-Client-ID: $CF_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+            --header "X-API-Key: $PORTAINER_API_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{"RepullImageAndRedeploy":true}' \
+            "$PORTAINER_BASE_URL/api/stacks/$PORTAINER_STACK_ID/git/redeploy?endpointId=$PORTAINER_ENDPOINT_ID"

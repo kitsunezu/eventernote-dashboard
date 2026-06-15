@@ -152,6 +152,16 @@ npm run build
 
 修改部署相關檔案時，請確認 Portainer stack 可繼續使用同一份 compose，且 Nginx placeholder 仍會由 `docker-entrypoint.sh` 正確替換。
 
+## Kitsunet auto deploy
+
+- Pushes to `main` build and push `ghcr.io/kitsunezu/eventernote-dashboard` through `.github/workflows/docker-publish.yml`.
+- After the image is pushed, GitHub Actions calls Portainer's Git stack redeploy API for stack `42` on endpoint `3` with `RepullImageAndRedeploy=true`.
+- Required GitHub Actions secrets:
+  - `PORTAINER_API_KEY`
+  - `CF_ACCESS_CLIENT_ID`
+  - `CF_ACCESS_CLIENT_SECRET`
+- Do not commit Portainer API keys, Cloudflare Access service token values, cookies, or webhook URLs. Only secret and variable names belong in git.
+
 ## Agent 工作流程建議
 
 1. 先讀 `README.md`、`package.json`，再看與任務相關的 `src/` 模組。
