@@ -81,11 +81,49 @@ jobs:
             echo "::error::Cloudflare Access service token secrets are not configured"
             exit 1
           fi
+          redeploy_dir="$(mktemp -d)"
+          trap 'rm -rf "$redeploy_dir"' EXIT
+          stack_file="$redeploy_dir/stack.json"
+          payload_file="$redeploy_dir/redeploy.json"
+          response_file="$redeploy_dir/response.json"
+
           curl --fail-with-body --silent --show-error \
+            --header "CF-Access-Client-ID: $CF_ACCESS_CLIENT_ID" \
+            --header "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+            --header "X-API-Key: $PORTAINER_API_KEY" \
+            --output "$stack_file" \
+            "$PORTAINER_BASE_URL/api/stacks/$PORTAINER_STACK_ID"
+
+          if ! jq -e '(.Env // []) | any(.name == "POSTGRES_PASSWORD" and ((.value // "") | length > 0))' "$stack_file" >/dev/null; then
+            echo "::error::POSTGRES_PASSWORD is not configured in Portainer stack $PORTAINER_STACK_ID"
+            exit 1
+          fi
+
+          jq '{
+            RepositoryReferenceName: (.GitConfig.ReferenceName // ""),
+            RepositoryAuthentication: (.GitConfig.Authentication != null),
+            RepositoryUsername: (.GitConfig.Authentication.Username // ""),
+            RepositoryAuthorizationType: (.GitConfig.Authentication.AuthorizationType // 0),
+            Env: (.Env // []),
+            Prune: (.Option.Prune // false),
+            RepullImageAndRedeploy: true
+          }' "$stack_file" > "$payload_file"
+
+          http_status="$(curl --silent --show-error \
             --request PUT \
             --header "CF-Access-Client-ID: $CF_ACCESS_CLIENT_ID" \
             --header "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
             --header "X-API-Key: $PORTAINER_API_KEY" \
             --header "Content-Type: application/json" \
-            --data '{"RepullImageAndRedeploy":true}' \
-            "$PORTAINER_BASE_URL/api/stacks/$PORTAINER_STACK_ID/git/redeploy?endpointId=$PORTAINER_ENDPOINT_ID"
+            --data-binary "@$payload_file" \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            "$PORTAINER_BASE_URL/api/stacks/$PORTAINER_STACK_ID/git/redeploy?endpointId=$PORTAINER_ENDPOINT_ID")"
+
+          if [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
+            error_message="$(jq -r '.message // "Portainer redeploy failed"' "$response_file" 2>/dev/null || true)"
+            echo "::error::Portainer redeploy failed (HTTP $http_status): $error_message"
+            exit 1
+          fi
+
+          echo "Portainer redeploy completed (HTTP $http_status)"
