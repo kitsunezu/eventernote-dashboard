@@ -60,6 +60,8 @@ const initialSnapshot: ScheduleSnapshot = persisted ?? {
   locale: detectLocale(),
 }
 
+let activeLoadId = 0
+
 export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   ...initialSnapshot,
   selectedEventId: null,
@@ -115,6 +117,8 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       }
     }),
   loadFromEventernote: async (userId: string, forceRefresh = false) => {
+    const loadId = ++activeLoadId
+    const isActiveLoad = () => loadId === activeLoadId
     const switchingUser = get().cachedUserId !== userId
     set({
       loading: true,
@@ -126,8 +130,9 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     try {
       const data = await loadEventernoteUserFromApi(userId, ({ events }) => {
         // Phase 1 & incremental phase 2: update events progressively while loading remains true
-        set({ events, activeSource: 'backend' })
+        if (isActiveLoad()) set({ events, activeSource: 'backend' })
       }, forceRefresh)
+      if (!isActiveLoad()) return
       const copy = getUiCopy(get().locale)
       set({
         events: data.events,
@@ -138,6 +143,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         statusMessage: copy.loadedCount(data.events.length),
       })
     } catch (err) {
+      if (!isActiveLoad()) return
       const copy = getUiCopy(get().locale)
       set({
         loading: false,

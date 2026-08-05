@@ -141,6 +141,7 @@ npm run build
 
 - GitHub Actions workflow：`.github/workflows/docker-publish.yml`
 - Trigger：push 到 `main` 或 manual `workflow_dispatch`
+- Quality gates：`npm ci` 後依序執行 `npm run lint`、`npm run test`，通過才 build/push images。
 - Registry：GitHub Container Registry
 - Image：`ghcr.io/kitsunezu/eventernote-dashboard`
 - Tags：default branch 會推 `latest`，另外會推 `sha-*`

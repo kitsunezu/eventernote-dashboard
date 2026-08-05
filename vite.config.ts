@@ -11,7 +11,7 @@ import react from '@vitejs/plugin-react'
  * In production (Nginx) this endpoint does not exist; the frontend silently falls back.
  */
 function placeCachePlugin(): Plugin {
-  const cacheFile = resolve(__dirname, 'public/places-cache.json')
+  const cacheFile = resolve(import.meta.dirname, 'public/places-cache.json')
   return {
     name: 'place-cache-server',
     configureServer(server) {
@@ -46,8 +46,8 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-        admin: resolve(__dirname, 'admin/index.html'),
+        main: resolve(import.meta.dirname, 'index.html'),
+        admin: resolve(import.meta.dirname, 'admin/index.html'),
       },
     },
   },
