@@ -324,6 +324,186 @@ export function getUiCopy(locale: SupportedLocale): UiCopy {
   return UI_COPY[locale]
 }
 
+export interface ReportCopy {
+  landingTitle: string
+  landingDesc: string
+  landingSubmit: string
+  eyebrow: string
+  title: (userId: string) => string
+  subtitle: string
+  back: string
+  refresh: string
+  allYears: string
+  attendedEvents: string
+  venues: string
+  regions: string
+  artists: string
+  ticketSpend: string
+  ticketCoverage: (priced: number, total: number) => string
+  venueRanking: string
+  regionBreakdown: string
+  artistRanking: string
+  activityByMonth: string
+  venueMap: string
+  openMap: string
+  mapHint: string
+  mapCoverage: (mapped: number, total: number) => string
+  eventOccurrences: (count: number) => string
+  approximateLocation: string
+  expandEvents: (name: string, count: number) => string
+  ticketLedger: string
+  ticketLedgerHint: string
+  ticketPrice: string
+  downloadImage: string
+  share: string
+  shareTo: string
+  shareText: (userId: string, eventCount: number) => string
+  imageReady: string
+  shareCopied: string
+  shareFailed: string
+  noReportTitle: string
+  noReportBody: string
+  unknownVenue: string
+  noArtistData: string
+  localOnly: string
+}
+
+const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
+  'zh-Hant': {
+    landingTitle: '活動統計報告',
+    landingDesc: '按年份整理會場、地區、藝人與門票花費。',
+    landingSubmit: '產出報告',
+    eyebrow: 'Attendance report',
+    title: (userId) => `${userId} 的活動足跡`,
+    subtitle: '把去過的現場，整理成一份值得回看的紀錄。',
+    back: '返回活動列表',
+    refresh: '重新整理資料',
+    allYears: '所有年份',
+    attendedEvents: '參加活動',
+    venues: '去過會場',
+    regions: '足跡地區',
+    artists: '看過藝人',
+    ticketSpend: '門票花費',
+    ticketCoverage: (priced, total) => `已填 ${priced} / ${total} 場`,
+    venueRanking: '最常去的會場',
+    regionBreakdown: '活動地區',
+    artistRanking: '最常看的藝人',
+    activityByMonth: '月份分布',
+    venueMap: '會場地圖',
+    openMap: '在地圖開啟',
+    mapHint: '目前統計範圍內的會場會同時標記在地圖上。',
+    mapCoverage: (mapped, total) => `已標記 ${mapped} / ${total} 個會場`,
+    eventOccurrences: (count) => `${count} 場活動`,
+    approximateLocation: '城市級約略位置',
+    expandEvents: (name, count) => `展開 ${name} 的 ${count} 場活動`,
+    ticketLedger: '門票紀錄',
+    ticketLedgerHint: 'Eventernote 不提供票價；你補登的金額只會存在這個瀏覽器。',
+    ticketPrice: '票價',
+    downloadImage: '下載報告圖片',
+    share: '分享',
+    shareTo: '分享到 SNS',
+    shareText: (userId, eventCount) => `${userId} 的 Eventernote 活動報告：共參加 ${eventCount} 場活動`,
+    imageReady: '報告圖片已下載。',
+    shareCopied: '分享連結已複製。',
+    shareFailed: '暫時無法分享，請稍後再試。',
+    noReportTitle: '這個範圍還沒有已參加的活動',
+    noReportBody: '切換到其他年份，或重新整理 Eventernote 資料。',
+    unknownVenue: '未記錄會場',
+    noArtistData: 'Eventernote 沒有提供藝人資料',
+    localOnly: '僅儲存在此裝置',
+  },
+  en: {
+    landingTitle: 'Attendance report',
+    landingDesc: 'Explore venues, regions, artists, and ticket spend by year.',
+    landingSubmit: 'Create report',
+    eyebrow: 'Attendance report',
+    title: (userId) => `${userId}'s live event footprint`,
+    subtitle: 'A personal record of the live events you have attended.',
+    back: 'Back to events',
+    refresh: 'Refresh data',
+    allYears: 'All years',
+    attendedEvents: 'Events attended',
+    venues: 'Venues visited',
+    regions: 'Regions visited',
+    artists: 'Artists seen',
+    ticketSpend: 'Ticket spend',
+    ticketCoverage: (priced, total) => `${priced} of ${total} events entered`,
+    venueRanking: 'Most visited venues',
+    regionBreakdown: 'Event regions',
+    artistRanking: 'Most seen artists',
+    activityByMonth: 'Events by month',
+    venueMap: 'Venue map',
+    openMap: 'Open in maps',
+    mapHint: 'All venues in the current report range are shown together.',
+    mapCoverage: (mapped, total) => `${mapped} of ${total} venues mapped`,
+    eventOccurrences: (count) => `${count} event${count === 1 ? '' : 's'}`,
+    approximateLocation: 'Approximate city location',
+    expandEvents: (name, count) => `Show ${count} events for ${name}`,
+    ticketLedger: 'Ticket ledger',
+    ticketLedgerHint: 'Eventernote does not provide prices. Entries are stored only in this browser.',
+    ticketPrice: 'Ticket price',
+    downloadImage: 'Download report image',
+    share: 'Share',
+    shareTo: 'Share to social media',
+    shareText: (userId, eventCount) => `${userId}'s Eventernote report: ${eventCount} events attended`,
+    imageReady: 'Report image downloaded.',
+    shareCopied: 'Share link copied.',
+    shareFailed: 'Sharing is unavailable right now.',
+    noReportTitle: 'No attended events in this range',
+    noReportBody: 'Choose another year or refresh your Eventernote data.',
+    unknownVenue: 'Venue not recorded',
+    noArtistData: 'No artist data from Eventernote',
+    localOnly: 'Stored on this device only',
+  },
+  ja: {
+    landingTitle: 'イベント統計レポート',
+    landingDesc: '会場・地域・出演者・チケット代を年ごとに集計します。',
+    landingSubmit: 'レポートを作る',
+    eyebrow: 'Attendance report',
+    title: (userId) => `${userId}さんのイベント記録`,
+    subtitle: '参加した現場を、振り返りたくなるレポートに。',
+    back: 'イベント一覧へ',
+    refresh: 'データを更新',
+    allYears: 'すべての年',
+    attendedEvents: '参加イベント',
+    venues: '訪れた会場',
+    regions: '訪れた地域',
+    artists: '見た出演者',
+    ticketSpend: 'チケット代',
+    ticketCoverage: (priced, total) => `${priced} / ${total} 件入力済み`,
+    venueRanking: 'よく行く会場',
+    regionBreakdown: '開催地域',
+    artistRanking: 'よく見る出演者',
+    activityByMonth: '月別イベント数',
+    venueMap: '会場マップ',
+    openMap: '地図で開く',
+    mapHint: '現在の集計範囲にあるすべての会場を表示します。',
+    mapCoverage: (mapped, total) => `${mapped} / ${total} 会場を表示`,
+    eventOccurrences: (count) => `${count} 件のイベント`,
+    approximateLocation: '都市単位の概算位置',
+    expandEvents: (name, count) => `${name}のイベント ${count} 件を表示`,
+    ticketLedger: 'チケット記録',
+    ticketLedgerHint: 'Eventernote に価格情報はありません。入力内容はこのブラウザだけに保存されます。',
+    ticketPrice: 'チケット代',
+    downloadImage: 'レポート画像を保存',
+    share: '共有',
+    shareTo: 'SNS に共有',
+    shareText: (userId, eventCount) => `${userId}さんの Eventernote レポート：参加イベント ${eventCount} 件`,
+    imageReady: 'レポート画像を保存しました。',
+    shareCopied: '共有リンクをコピーしました。',
+    shareFailed: '現在共有できません。',
+    noReportTitle: 'この期間に参加済みイベントはありません',
+    noReportBody: '別の年を選ぶか、Eventernote データを更新してください。',
+    unknownVenue: '会場未登録',
+    noArtistData: '出演者情報がありません',
+    localOnly: 'この端末にのみ保存',
+  },
+}
+
+export function getReportCopy(locale: SupportedLocale): ReportCopy {
+  return REPORT_COPY[locale]
+}
+
 export function formatDayRangeOption(locale: SupportedLocale, days: 'all' | 'future'): string {
   const labels: Record<SupportedLocale, Record<'all' | 'future', string>> = {
     'zh-Hant': {

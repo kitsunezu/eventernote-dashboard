@@ -1,6 +1,6 @@
 import type { EventCategory, ImportedScheduleData, ScheduleEvent } from '../types/events'
 import { sortEvents } from '../lib/date'
-import { getAllPlaces, getPlace, setPlace } from '../lib/placeCache'
+import { getAllPlaces, getPlace, hasUsablePlaceCoordinates, setPlace } from '../lib/placeCache'
 
 const PROXY_BASE = '/api/eventernote'
 /** Concurrency limit for detail-page fetches (upcoming events only) */
@@ -243,7 +243,10 @@ function parseEventsFromDoc(doc: Document): { events: ScheduleEvent[]; placeIdTo
  * Covers both past and upcoming events — called once after collecting all list pages.
  */
 async function enrichAllPlaces(placeIdToName: Map<string, string>): Promise<void> {
-  const toFetch = Array.from(placeIdToName.entries()).filter(([id]) => !getPlace(id))
+  const toFetch = Array.from(placeIdToName.entries()).filter(([id]) => {
+    const cached = getPlace(id)
+    return !cached || !hasUsablePlaceCoordinates(cached)
+  })
   if (toFetch.length === 0) return
 
   const queue = [...toFetch]
@@ -257,9 +260,17 @@ async function enrichAllPlaces(placeIdToName: Map<string, string>): Promise<void
         active++
         fetchDoc(`/places/${placeId}`)
           .then((doc) => {
-            const address = parsePlaceAddressFromDoc(doc)
+            const cached = getPlace(placeId)
+            const details = parsePlaceDetailsFromDoc(doc)
+            const address = details.address || cached?.address || ''
             const region = detectRegion(venueName, '', address)
-            setPlace(placeId, { name: venueName, address, region })
+            setPlace(placeId, {
+              name: venueName,
+              address,
+              region,
+              latitude: details.latitude,
+              longitude: details.longitude,
+            })
           })
           .catch(() => { /* ignore — best-effort */ })
           .finally(() => {
@@ -358,16 +369,47 @@ function parseVenueFromDetailDoc(doc: Document): { placeId: string; venue: strin
  * the row whose first <td> reads "所在地".  The address text is inside an <a>
  * Google Maps link.
  */
-function parsePlaceAddressFromDoc(doc: Document): string {
+interface ParsedPlaceDetails {
+  address: string
+  latitude?: number
+  longitude?: number
+}
+
+function parsePlaceDetailsFromDoc(doc: Document): ParsedPlaceDetails {
   const table = doc.querySelector('.gb_place_detail_table table')
-  if (!table) return ''
-  const row = Array.from(table.querySelectorAll('tr')).find((tr) => {
+  const row = table ? Array.from(table.querySelectorAll('tr')).find((tr) => {
     return tr.querySelector('td')?.textContent?.trim() === '所在地'
-  })
-  if (!row) return ''
-  const valueTd = row.querySelector('td:nth-child(2)')
-  // Address is the text of the Maps <a> link, or bare text if no link
-  return (valueTd?.querySelector('a')?.textContent ?? valueTd?.textContent ?? '').trim()
+  }) : undefined
+  const valueTd = row?.querySelector('td:nth-child(2)')
+  const address = (valueTd?.querySelector('a')?.textContent ?? valueTd?.textContent ?? '').trim()
+  const scripts = Array.from(doc.querySelectorAll('script')).map((script) => script.textContent ?? '').join('\n')
+  const latitude = Number(scripts.match(/\bvar\s+lat\s*=\s*['"](-?\d+(?:\.\d+)?)['"]/)?.[1])
+  const longitude = Number(scripts.match(/\bvar\s+lon\s*=\s*['"](-?\d+(?:\.\d+)?)['"]/)?.[1])
+  const coordinates = { latitude, longitude }
+  return {
+    address,
+    latitude: hasUsablePlaceCoordinates(coordinates) ? latitude : undefined,
+    longitude: hasUsablePlaceCoordinates(coordinates) ? longitude : undefined,
+  }
+}
+
+export function parsePlaceDetailsFromHtml(html: string): ParsedPlaceDetails {
+  if (typeof DOMParser !== 'undefined') {
+    return parsePlaceDetailsFromDoc(new DOMParser().parseFromString(html, 'text/html'))
+  }
+
+  const addressRow = html.match(/<tr[^>]*>\s*<td[^>]*>\s*所在地\s*<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/)
+  const address = addressRow
+    ? decodeHtmlEntities(stripHtmlTags(addressRow[1])).replace(/\s+/g, ' ').trim()
+    : ''
+  const latitude = Number(html.match(/\bvar\s+lat\s*=\s*['"](-?\d+(?:\.\d+)?)['"]/)?.[1])
+  const longitude = Number(html.match(/\bvar\s+lon\s*=\s*['"](-?\d+(?:\.\d+)?)['"]/)?.[1])
+  const coordinates = { latitude, longitude }
+  return {
+    address,
+    latitude: hasUsablePlaceCoordinates(coordinates) ? latitude : undefined,
+    longitude: hasUsablePlaceCoordinates(coordinates) ? longitude : undefined,
+  }
 }
 
 export function parseActorsFromEventDetailHtml(html: string): string[] {
@@ -381,7 +423,7 @@ export function parseActorsFromEventDetailHtml(html: string): string[] {
     return []
   }
 
-  return Array.from(actorRowMatch[1].matchAll(/<a[^>]+href="\/actors\/[^\"]+"[^>]*>([\s\S]*?)<\/a>/g))
+  return Array.from(actorRowMatch[1].matchAll(/<a[^>]+href="\/actors\/[^"]+"[^>]*>([\s\S]*?)<\/a>/g))
     .map((match) => decodeHtmlEntities(stripHtmlTags(match[1])).trim())
     .filter(Boolean)
 }
@@ -450,15 +492,19 @@ function parsePaginationPaths(doc: Document): string[] {
                 fetchingPlaceIds.add(placeId)
                 // Fetch the place detail page for the canonical 所在地 address
                 let resolvedAddress = address
+                let latitude: number | undefined
+                let longitude: number | undefined
                 try {
                   const placeDoc = await fetchDoc(`/places/${placeId}`)
-                  const placeAddress = parsePlaceAddressFromDoc(placeDoc)
-                  if (placeAddress) resolvedAddress = placeAddress
+                  const placeDetails = parsePlaceDetailsFromDoc(placeDoc)
+                  if (placeDetails.address) resolvedAddress = placeDetails.address
+                  latitude = placeDetails.latitude
+                  longitude = placeDetails.longitude
                 } catch {
                   // ignore — fall back to event-detail address
                 }
                 const region = detectRegion(venue, event.title, resolvedAddress)
-                setPlace(placeId, { name: venue, address: resolvedAddress, region })
+                setPlace(placeId, { name: venue, address: resolvedAddress, region, latitude, longitude })
               }
               detailMap.set(event.id, { placeId, venue, address, actors })
               // Emit incremental progress after each successful detail fetch

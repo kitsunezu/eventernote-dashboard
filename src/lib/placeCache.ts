@@ -11,6 +11,20 @@ export interface PlaceEntry {
   name: string
   address: string
   region: string
+  latitude?: number
+  longitude?: number
+}
+
+export function hasUsablePlaceCoordinates(
+  place: Pick<PlaceEntry, 'latitude' | 'longitude'>,
+): place is PlaceEntry & { latitude: number; longitude: number } {
+  const { latitude, longitude } = place
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') return false
+  return Number.isFinite(latitude)
+    && Number.isFinite(longitude)
+    && Math.abs(latitude) <= 90
+    && Math.abs(longitude) <= 180
+    && !(Math.abs(latitude) < 1 && Math.abs(longitude) < 1)
 }
 
 type PlaceCache = Record<string, PlaceEntry>

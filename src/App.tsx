@@ -3,6 +3,7 @@ import { Countdown } from './components/Countdown'
 import { EventDetailsDrawer } from './components/EventDetailsDrawer'
 import { Header } from './components/Header'
 import { LandingPage } from './components/LandingPage'
+import { ReportPage } from './components/ReportPage'
 import { TimelineView } from './components/TimelineView'
 import { getUiCopy } from './lib/localize'
 import {
@@ -14,10 +15,9 @@ import {
 } from './store/useScheduleStore'
 
 function App() {
-  // Derive userId from URL path: "/slan1024" → "slan1024", "/" → null
-  const pathname = window.location.pathname
-  const userId =
-    pathname === '/' ? null : pathname.replace(/^\/+/, '').split('/')[0] || null
+  const pathSegments = window.location.pathname.split('/').filter(Boolean)
+  const isReportRoute = pathSegments[0] === 'report'
+  const userId = isReportRoute ? pathSegments[1] ?? null : pathSegments[0] ?? null
 
   const state = useScheduleStore()
   const visibleEvents = selectVisibleEvents(state)
@@ -62,6 +62,21 @@ function App() {
     )
   }
 
+  if (isReportRoute) {
+    return (
+      <ReportPage
+        userId={userId}
+        events={hasCachedDataForCurrentUser ? state.events : []}
+        locale={state.locale}
+        theme={state.theme}
+        loading={shouldShowLoadingState || state.loading}
+        error={state.error}
+        onThemeToggle={state.toggleTheme}
+        onRefresh={() => state.loadFromEventernote(userId, true)}
+      />
+    )
+  }
+
   return (
     <div className="app-shell-root">
       <div className="app-shell app-shell--viewer">
@@ -73,7 +88,7 @@ function App() {
           loading={state.loading}
           onThemeToggle={state.toggleTheme}
           onDaysToShowChange={state.setDaysToShow}
-          onRefresh={userId ? () => state.loadFromEventernote(userId) : undefined}
+          onRefresh={userId ? () => state.loadFromEventernote(userId, true) : undefined}
         />
 
         <main className="viewer-layout">

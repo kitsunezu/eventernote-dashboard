@@ -1,6 +1,6 @@
 # Eventernote Dashboard
 
-Eventernote Dashboard is a React and TypeScript viewer for public Eventernote schedules. Enter an Eventernote user ID on the landing page, fetch that user's public event pages through a local proxy, and browse the results in a timeline-oriented dashboard.
+Eventernote Dashboard is a React and TypeScript viewer for public Eventernote schedules. Enter an Eventernote user ID on the landing page, load the database-backed schedule API, and browse the results in a timeline-oriented dashboard.
 
 ## Current Features
 
@@ -17,11 +17,14 @@ Eventernote Dashboard is a React and TypeScript viewer for public Eventernote sc
 The current app is centered on the Eventernote viewer flow.
 
 1. The landing page collects a user ID and navigates to /{userId}.
-2. The app requests Eventernote pages through /api/eventernote to avoid browser CORS issues.
-3. The scraper follows pagination on the user's events pages.
-4. It fetches individual event detail pages to enrich performer information.
-5. Events are deduplicated by Eventernote event ID, sorted by time, and grouped by day for display.
-6. Venue and title text are used to infer a region-style category color for each event.
+2. The browser requests `GET /api/users/{userId}/events`; it does not scrape Eventernote directly.
+3. The API returns fresh PostgreSQL data immediately, or stale data while starting a background refresh.
+4. The server follows the user event-list pagination to discover event IDs.
+5. Missing or expired event detail pages are fetched with bounded concurrency, parsed, and saved as the authoritative event values.
+6. Missing or expired place pages are fetched separately for canonical addresses and coordinates.
+7. Events are deduplicated by Eventernote event ID, sorted by time, and grouped by day for display.
+
+The schema, API contract, refresh policy, and failure behavior are documented in [docs/data-api.md](docs/data-api.md).
 
 ## Current Routes
 
@@ -41,7 +44,9 @@ There is no dedicated, wired admin UI in the current app surface. The repository
 - dayjs
 - Vitest
 - ESLint
-- Nginx for the production container
+- PostgreSQL 17
+- Node.js API service
+- Nginx web/reverse-proxy service
 
 ## Getting Started
 
@@ -52,14 +57,15 @@ There is no dedicated, wired admin UI in the current app surface. The repository
 
 ### Development
 
+Start PostgreSQL first and provide `DATABASE_URL`, then run both Vite and the API watcher:
+
 ```bash
 npm install
+$env:DATABASE_URL = 'postgresql://eventernote:local-password@localhost:5432/eventernote'
 npm run dev
 ```
 
-The development server runs at http://localhost:5173.
-
-Important detail: both the Vite dev server and the production Nginx container proxy /api/eventernote to https://www.eventernote.com, so the scraper-based viewer can work without direct browser access to Eventernote.
+The web app runs at http://localhost:5173 and proxies application API calls to the API service on port 8787.
 
 ### Scripts
 
@@ -77,31 +83,21 @@ A pre-built image is published to GitHub Container Registry:
 
 ```bash
 docker pull ghcr.io/kitsunezu/eventernote-dashboard:latest
+docker pull ghcr.io/kitsunezu/eventernote-dashboard:api-latest
 ```
 
 ### docker-compose
 
-```yaml
-services:
-  eventernote-dashboard:
-    image: ghcr.io/kitsunezu/eventernote-dashboard:latest
-    restart: unless-stopped
-    ports:
-      - "3003:80"
-    environment:
-      - OTEL_BACKEND=http://signoz-otel-collector:4318
-      - EVENTERNOTE_UPSTREAM=https://www.eventernote.com
-      - EVENTERNOTE_HOST=www.eventernote.com
-```
+Set `POSTGRES_PASSWORD` in Portainer's stack environment, then deploy the committed `docker-compose.yml`. The stack creates the web, API, and PostgreSQL services plus the persistent `eventernote-db-data` volume.
 
 ### Build locally
 
 ```bash
-docker build -t eventernote-dashboard .
-docker run -p 3003:80 eventernote-dashboard
+docker build --target web -t eventernote-dashboard:web .
+docker build --target api -t eventernote-dashboard:api .
 ```
 
-The production image builds the app with Node 22 Alpine, serves the static bundle with Nginx, and keeps the /api/eventernote reverse proxy available inside the container.
+The production workflow publishes both targets before requesting the Portainer stack redeploy.
 
 If Eventernote's hostname ever resolves inconsistently from your deployment environment, you can override the proxy target without rebuilding the image:
 
@@ -151,6 +147,12 @@ src/
 ├── lib/                # Date, localization, storage, and parsing utilities
 ├── store/              # Zustand schedule store
 └── types/              # Shared TypeScript types
+server/
+├── db/schema.sql       # PostgreSQL schema
+├── index.ts            # HTTP API entrypoint
+├── parser.ts           # Eventernote list/detail/place parsing
+├── repository.ts       # Database reads and transactional writes
+└── sync.ts             # Freshness, locking, and upstream synchronization
 admin/
 └── index.html          # Reserved secondary entry, currently loading the main app entry
 ```

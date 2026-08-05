@@ -2,19 +2,71 @@ services:
   eventernote-dashboard:
     image: ghcr.io/kitsunezu/eventernote-dashboard:latest
     restart: unless-stopped
+    depends_on:
+      eventernote-api:
+        condition: service_healthy
     ports:
       - "3003:80"
     environment:
-      # SigNoz otel-collector (HTTP) — same signoz-net network
       - OTEL_BACKEND=http://signoz-otel-collector:4318
-      # Optional override when the upstream hostname resolves inconsistently.
-      # Example: EVENTERNOTE_UPSTREAM=https://35.75.153.225 with EVENTERNOTE_HOST=www.eventernote.com
       - EVENTERNOTE_UPSTREAM=https://www.eventernote.com
       - EVENTERNOTE_HOST=www.eventernote.com
+      - API_BACKEND=http://eventernote-api:8787
     networks:
+      - eventernote-internal
       - signoz-net
 
+  eventernote-api:
+    image: ghcr.io/kitsunezu/eventernote-dashboard:api-latest
+    restart: unless-stopped
+    depends_on:
+      eventernote-db:
+        condition: service_healthy
+    environment:
+      - PGHOST=eventernote-db
+      - PGPORT=5432
+      - PGDATABASE=eventernote
+      - PGUSER=eventernote
+      - PGPASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      - EVENTERNOTE_UPSTREAM=https://www.eventernote.com
+      - USER_INDEX_TTL_MS=${USER_INDEX_TTL_MS:-21600000}
+      - DETAIL_FETCH_LIMIT=${DETAIL_FETCH_LIMIT:-40}
+      - DETAIL_FETCH_CONCURRENCY=${DETAIL_FETCH_CONCURRENCY:-3}
+      - PLACE_FETCH_LIMIT=${PLACE_FETCH_LIMIT:-20}
+      - UPSTREAM_MIN_INTERVAL_MS=${UPSTREAM_MIN_INTERVAL_MS:-350}
+      - SYNC_RETRY_COOLDOWN_MS=${SYNC_RETRY_COOLDOWN_MS:-300000}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - eventernote-internal
+
+  eventernote-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=eventernote
+      - POSTGRES_USER=eventernote
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - eventernote-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eventernote -d eventernote"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - eventernote-internal
+
+volumes:
+  eventernote-db-data:
+
 networks:
+  eventernote-internal:
+    driver: bridge
   signoz-net:
     external: true
     name: signoz-net

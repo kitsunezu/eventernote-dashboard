@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseActorsFromEventDetailHtml } from './eventernoteSource'
+import { parseActorsFromEventDetailHtml, parsePlaceDetailsFromHtml } from './eventernoteSource'
 
 describe('parseActorsFromEventDetailHtml', () => {
   it('only extracts actors from the detail-page actor row', () => {
@@ -30,5 +30,35 @@ describe('parseActorsFromEventDetailHtml', () => {
       '瀬名航',
       "Poppin'Party",
     ])
+  })
+})
+
+describe('parsePlaceDetailsFromHtml', () => {
+  it('extracts the canonical address and map coordinates', () => {
+    const html = `
+      <div class="gb_place_detail_table">
+        <table><tr><td>所在地</td><td><a href="https://maps.example">〒161-0033 東京都新宿区下落合3-20-21</a></td></tr></table>
+      </div>
+      <script>
+        var lat = '35.72294019436244';
+        var lon = '139.7025679513937';
+      </script>
+    `
+
+    expect(parsePlaceDetailsFromHtml(html)).toEqual({
+      address: '〒161-0033 東京都新宿区下落合3-20-21',
+      latitude: 35.72294019436244,
+      longitude: 139.7025679513937,
+    })
+  })
+
+  it('ignores Eventernote placeholder coordinates near Null Island', () => {
+    const html = `<script>var lat = '0'; var lon = '0';</script>`
+
+    expect(parsePlaceDetailsFromHtml(html)).toEqual({
+      address: '',
+      latitude: undefined,
+      longitude: undefined,
+    })
   })
 })

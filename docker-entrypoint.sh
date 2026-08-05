@@ -6,10 +6,12 @@ set -e
 OTEL_BACKEND="${OTEL_BACKEND:-http://localhost:4318}"
 EVENTERNOTE_UPSTREAM="${EVENTERNOTE_UPSTREAM:-https://www.eventernote.com}"
 EVENTERNOTE_HOST="${EVENTERNOTE_HOST:-www.eventernote.com}"
+API_BACKEND="${API_BACKEND:-http://eventernote-api:8787}"
 
 sed -e "s|__OTEL_BACKEND__|${OTEL_BACKEND}|g" \
     -e "s|__EVENTERNOTE_UPSTREAM__|${EVENTERNOTE_UPSTREAM}|g" \
     -e "s|__EVENTERNOTE_HOST__|${EVENTERNOTE_HOST}|g" \
+    -e "s|__API_BACKEND__|${API_BACKEND}|g" \
     /etc/nginx/conf.d/default.conf.tmpl \
     > /etc/nginx/conf.d/default.conf
 

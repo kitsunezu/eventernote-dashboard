@@ -46,7 +46,8 @@ describe('date helpers', () => {
 
   it('includes past events when range is all', () => {
     const visible = getVisibleEvents(events, 'all', '', [])
-    expect(visible[0].id).toBe('past')
+    expect(visible[0].id).toBe('b')
+    expect(visible.at(-1)?.id).toBe('past')
     expect(visible).toHaveLength(3)
   })
 

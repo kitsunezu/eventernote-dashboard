@@ -53,6 +53,14 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      '/api/users': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+      },
+      '/health': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+      },
       '/api/eventernote': {
         target: 'https://www.eventernote.com',
         changeOrigin: true,

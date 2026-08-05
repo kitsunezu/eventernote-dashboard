@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { loadEventernoteUser } from '../adapters/eventernoteSource'
+import { loadEventernoteUserFromApi } from '../adapters/eventernoteApiSource'
 import { getEventCategories, getNextEvent, getVisibleEvents, sortEvents } from '../lib/date'
 import { getUiCopy } from '../lib/localize'
 import { readScheduleSnapshot, writeScheduleSnapshot } from '../lib/storage'
@@ -15,6 +15,7 @@ import type {
 } from '../types/events'
 
 function detectLocale(): SupportedLocale {
+  if (typeof navigator === 'undefined') return 'zh-Hant'
   const langs = navigator.languages?.length ? navigator.languages : [navigator.language]
   for (const lang of langs) {
     const lower = lang.toLowerCase()
@@ -41,7 +42,7 @@ export interface ScheduleStore extends ScheduleSnapshot {
   importEvents: (payload: ImportedScheduleData) => void
   upsertEvent: (event: ScheduleEvent) => void
   deleteEvent: (eventId: string) => void
-  loadFromEventernote: (userId: string) => Promise<void>
+  loadFromEventernote: (userId: string, forceRefresh?: boolean) => Promise<void>
 }
 
 const persisted = readScheduleSnapshot()
@@ -113,7 +114,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         statusMessage: removed ? `Deleted ${removed.title}.` : 'Deleted an event.',
       }
     }),
-  loadFromEventernote: async (userId: string) => {
+  loadFromEventernote: async (userId: string, forceRefresh = false) => {
     const switchingUser = get().cachedUserId !== userId
     set({
       loading: true,
@@ -123,16 +124,16 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       ...(switchingUser ? { events: [], cachedAt: undefined } : {}),
     })
     try {
-      const data = await loadEventernoteUser(userId, ({ events }) => {
+      const data = await loadEventernoteUserFromApi(userId, ({ events }) => {
         // Phase 1 & incremental phase 2: update events progressively while loading remains true
         set({ events, activeSource: 'backend' })
-      })
+      }, forceRefresh)
       const copy = getUiCopy(get().locale)
       set({
         events: data.events,
         activeSource: 'backend',
         loading: false,
-        cachedAt: new Date().toISOString(),
+        cachedAt: data.importedAt,
         cachedUserId: userId,
         statusMessage: copy.loadedCount(data.events.length),
       })

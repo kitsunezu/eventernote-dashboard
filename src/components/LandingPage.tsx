@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { BarChart3, CalendarDays } from 'lucide-react'
 import type { SupportedLocale, ThemeMode } from '../types/events'
-import { LOCALE_LABELS, SUPPORTED_LOCALES, getUiCopy } from '../lib/localize'
+import { LOCALE_LABELS, SUPPORTED_LOCALES, getReportCopy, getUiCopy } from '../lib/localize'
 import { MoonIcon, SunIcon } from './Icons'
 
 interface LandingPageProps {
@@ -13,6 +14,7 @@ interface LandingPageProps {
 export function LandingPage({ theme, locale, onThemeToggle, onLocaleChange }: LandingPageProps) {
   const [userId, setUserId] = useState('')
   const copy = getUiCopy(locale)
+  const reportCopy = getReportCopy(locale)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -20,6 +22,11 @@ export function LandingPage({ theme, locale, onThemeToggle, onLocaleChange }: La
     if (id) {
       window.location.href = `/${id}`
     }
+  }
+
+  function openReport() {
+    const id = userId.trim()
+    if (id) window.location.href = `/report/${id}`
   }
 
   return (
@@ -72,13 +79,17 @@ export function LandingPage({ theme, locale, onThemeToggle, onLocaleChange }: La
               spellCheck={false}
             />
           </div>
-          <button
-            type="submit"
-            className="landing-btn"
-            disabled={!userId.trim()}
-          >
-            {copy.landingSubmit}
-          </button>
+          <div className="landing-actions">
+            <button type="submit" className="landing-btn" disabled={!userId.trim()}>
+              <CalendarDays size={17} />
+              <span><strong>{copy.landingSubmit}</strong><small>{copy.landingTitle}</small></span>
+            </button>
+            <button type="button" className="landing-btn landing-btn--report" disabled={!userId.trim()} onClick={openReport}>
+              <BarChart3 size={17} />
+              <span><strong>{reportCopy.landingSubmit}</strong><small>{reportCopy.landingTitle}</small></span>
+            </button>
+          </div>
+          <p className="landing-report-hint">{reportCopy.landingDesc}</p>
         </form>
       </div>
     </div>
