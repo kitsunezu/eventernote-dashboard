@@ -21,8 +21,10 @@ The current app is centered on the Eventernote viewer flow.
 3. The API returns fresh PostgreSQL data immediately, or stale data while starting a background refresh.
 4. The server follows the user event-list pagination to discover event IDs.
 5. Missing or expired event detail pages are fetched with bounded concurrency, parsed, and saved as the authoritative event values.
-6. Missing or expired place pages are fetched separately for canonical addresses and coordinates.
+6. Missing or expired place pages are fetched separately for canonical addresses and coordinates. Invalid or absent Eventernote coordinates fall back through its map link, Japanese GSI address search, and address-level Nominatim results.
 7. Events are deduplicated by Eventernote event ID, sorted by time, and grouped by day for display.
+
+Opening an event detail or following its Eventernote link triggers a targeted refresh of that event and place before the updated database values are returned to the app.
 
 The schema, API contract, refresh policy, and failure behavior are documented in [docs/data-api.md](docs/data-api.md).
 

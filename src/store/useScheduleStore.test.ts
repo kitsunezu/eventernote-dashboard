@@ -11,11 +11,14 @@ type LoadFromApi = (
   onProgress?: ProgressCallback,
   forceRefresh?: boolean,
 ) => Promise<ImportedScheduleData>
+type RefreshFromApi = (userId: string, eventId: string) => Promise<ImportedScheduleData>
 
 const loadFromApi = vi.hoisted(() => vi.fn<LoadFromApi>())
+const refreshFromApi = vi.hoisted(() => vi.fn<RefreshFromApi>())
 
 vi.mock('../adapters/eventernoteApiSource', () => ({
   loadEventernoteUserFromApi: loadFromApi,
+  refreshEventernoteEvent: refreshFromApi,
 }))
 
 const testEvents: ScheduleEvent[] = [
@@ -85,6 +88,7 @@ function createState(overrides: Partial<ScheduleStore> = {}): ScheduleStore {
     loading: false,
     error: null,
     loadFromEventernote: async () => undefined,
+    refreshEvent: async () => undefined,
     ...overrides,
   }
 }
@@ -106,6 +110,7 @@ describe('useScheduleStore selectors', () => {
 describe('useScheduleStore Eventernote loading', () => {
   beforeEach(() => {
     loadFromApi.mockReset()
+    refreshFromApi.mockReset()
     useScheduleStore.setState({
       events: [],
       activeSource: 'backend',
@@ -170,6 +175,25 @@ describe('useScheduleStore Eventernote loading', () => {
       cachedUserId: 'B',
       loading: false,
       error: null,
+    })
+  })
+
+  it('replaces cached event data after an on-demand event refresh', async () => {
+    const refreshedEvents = [{ ...testEvents[0], title: 'Fresh title', location: 'Fresh venue' }]
+    refreshFromApi.mockResolvedValue(createApiResult('A', refreshedEvents))
+    useScheduleStore.setState({
+      events: testEvents,
+      cachedUserId: 'A',
+      selectedEventId: testEvents[0].id,
+    })
+
+    await useScheduleStore.getState().refreshEvent('A', testEvents[0].id)
+
+    expect(refreshFromApi).toHaveBeenCalledWith('A', testEvents[0].id)
+    expect(useScheduleStore.getState()).toMatchObject({
+      events: refreshedEvents,
+      cachedUserId: 'A',
+      selectedEventId: testEvents[0].id,
     })
   })
 })

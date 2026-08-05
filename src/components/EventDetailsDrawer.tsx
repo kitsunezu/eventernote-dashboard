@@ -7,9 +7,10 @@ interface EventDetailsDrawerProps {
   event: ScheduleEvent | null
   locale: SupportedLocale
   onClose: () => void
+  onRefreshEvent: (eventId: string) => void
 }
 
-export function EventDetailsDrawer({ event, locale, onClose }: EventDetailsDrawerProps) {
+export function EventDetailsDrawer({ event, locale, onClose, onRefreshEvent }: EventDetailsDrawerProps) {
   useEffect(() => {
     if (!event) {
       return undefined
@@ -92,7 +93,14 @@ export function EventDetailsDrawer({ event, locale, onClose }: EventDetailsDrawe
               <h3>{ui.links}</h3>
               <div className="detail-links">
                 {event.links.map((link) => (
-                  <a className="event-drawer__link" key={link.url} href={link.url} target="_blank" rel="noreferrer">
+                  <a
+                    className="event-drawer__link"
+                    key={link.url}
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => onRefreshEvent(event.id)}
+                  >
                     {resolveLinkLabel(link, locale)}
                   </a>
                 ))}

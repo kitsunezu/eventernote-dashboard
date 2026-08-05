@@ -21,6 +21,7 @@ interface VenueMapProps {
   eventCountLabel: (count: number) => string
   approximateLocationLabel: string
   onSelectVenue: (venue: string) => void
+  onRefreshEvent: (eventId: string) => void
 }
 
 function FitVenueBounds({ points }: { points: VenueMapPoint[] }) {
@@ -45,7 +46,7 @@ function FocusVenue({ point }: { point?: VenueMapPoint }) {
   return null
 }
 
-export function VenueMap({ points, selectedVenue, locale, eventCountLabel, approximateLocationLabel, onSelectVenue }: VenueMapProps) {
+export function VenueMap({ points, selectedVenue, locale, eventCountLabel, approximateLocationLabel, onSelectVenue, onRefreshEvent }: VenueMapProps) {
   const selectedPoint = points.find((point) => point.name === selectedVenue)
   const initialCenter: [number, number] = points[0]
     ? [points[0].latitude, points[0].longitude]
@@ -54,7 +55,7 @@ export function VenueMap({ points, selectedVenue, locale, eventCountLabel, appro
   return (
     <MapContainer center={initialCenter} zoom={5} scrollWheelZoom className="report-leaflet-map">
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Address coordinates: <a href="https://www.gsi.go.jp/">GSI Japan</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <FitVenueBounds points={points} />
@@ -96,6 +97,10 @@ export function VenueMap({ points, selectedVenue, locale, eventCountLabel, appro
                   href={mapUrl}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() => {
+                    const eventId = point.events[0]?.id
+                    if (eventId) onRefreshEvent(eventId)
+                  }}
                 >
                   {point.approximate && point.address ? 'Google Maps' : 'OpenStreetMap'}
                 </a>

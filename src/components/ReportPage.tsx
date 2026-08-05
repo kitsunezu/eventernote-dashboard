@@ -37,12 +37,14 @@ interface ReportPageProps {
   error: string | null
   onThemeToggle: () => void
   onRefresh: () => void
+  onRefreshEvent: (eventId: string) => void
 }
 
 function eventOccurrenceList(
   eventIds: string[],
   eventsById: Map<string, ScheduleEvent>,
   locale: SupportedLocale,
+  onRefreshEvent: (eventId: string) => void,
 ) {
   return (
     <div className="report-occurrences">
@@ -57,7 +59,7 @@ function eventOccurrenceList(
           </>
         )
         return eventUrl
-          ? [<a key={event.id} href={eventUrl} target="_blank" rel="noreferrer">{content}</a>]
+          ? [<a key={event.id} href={eventUrl} target="_blank" rel="noreferrer" onClick={() => onRefreshEvent(event.id)}>{content}</a>]
           : [<div key={event.id}>{content}</div>]
       })}
     </div>
@@ -70,6 +72,7 @@ function rankedRows(
   eventsById: Map<string, ScheduleEvent>,
   locale: SupportedLocale,
   expandLabel: (name: string, count: number) => string,
+  onRefreshEvent: (eventId: string) => void,
 ) {
   if (items.length === 0) return <p className="report-empty-inline">{emptyText}</p>
   const max = items[0]?.count ?? 1
@@ -89,7 +92,7 @@ function rankedRows(
               <strong>{item.count}</strong>
               <ChevronDown className="report-ranking__chevron" size={15} />
             </summary>
-            {eventOccurrenceList(item.eventIds, eventsById, locale)}
+            {eventOccurrenceList(item.eventIds, eventsById, locale, onRefreshEvent)}
           </details>
         </li>
       ))}
@@ -106,6 +109,7 @@ export function ReportPage({
   error,
   onThemeToggle,
   onRefresh,
+  onRefreshEvent,
 }: ReportPageProps) {
   const copy = getReportCopy(locale)
   const reportRef = useRef<HTMLDivElement>(null)
@@ -312,15 +316,15 @@ export function ReportPage({
             <section className="report-grid report-grid--rankings">
               <div className="report-section">
                 <h2>{copy.venueRanking}</h2>
-                {rankedRows(stats.venues, copy.unknownVenue, eventsById, locale, copy.expandEvents)}
+                {rankedRows(stats.venues, copy.unknownVenue, eventsById, locale, copy.expandEvents, onRefreshEvent)}
               </div>
               <div className="report-section">
                 <h2>{copy.artistRanking}</h2>
-                {rankedRows(stats.artists, copy.noArtistData, eventsById, locale, copy.expandEvents)}
+                {rankedRows(stats.artists, copy.noArtistData, eventsById, locale, copy.expandEvents, onRefreshEvent)}
               </div>
               <div className="report-section">
                 <h2>{copy.regionBreakdown}</h2>
-                {rankedRows(stats.regions, copy.unknownVenue, eventsById, locale, copy.expandEvents)}
+                {rankedRows(stats.regions, copy.unknownVenue, eventsById, locale, copy.expandEvents, onRefreshEvent)}
               </div>
               <div className="report-section">
                 <h2>{copy.activityByMonth}</h2>
@@ -350,6 +354,7 @@ export function ReportPage({
                   stats.months.find((item) => item.name === expandedMonth)?.eventIds ?? [],
                   eventsById,
                   locale,
+                  onRefreshEvent,
                 )}
               </div>
             </section>
@@ -368,6 +373,7 @@ export function ReportPage({
                     eventCountLabel={copy.eventOccurrences}
                     approximateLocationLabel={copy.approximateLocation}
                     onSelectVenue={setSelectedVenue}
+                    onRefreshEvent={onRefreshEvent}
                   />
                 </div>
                 <div className="report-venue-list">

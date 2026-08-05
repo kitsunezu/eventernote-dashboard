@@ -10,6 +10,10 @@ export interface ServerConfig {
   upstreamTimeoutMs: number
   maxListPages: number
   syncRetryCooldownMs: number
+  gsiGeocoderUrl: string
+  nominatimGeocoderUrl: string
+  geocoderTimeoutMs: number
+  nominatimMinIntervalMs: number
 }
 
 function positiveInteger(name: string, fallback: number): number {
@@ -35,5 +39,11 @@ export function loadConfig(): ServerConfig {
     upstreamTimeoutMs: positiveInteger('UPSTREAM_TIMEOUT_MS', 20_000),
     maxListPages: positiveInteger('MAX_LIST_PAGES', 30),
     syncRetryCooldownMs: positiveInteger('SYNC_RETRY_COOLDOWN_MS', 5 * 60 * 1000),
+    gsiGeocoderUrl: process.env.GSI_GEOCODER_URL
+      ?? 'https://msearch.gsi.go.jp/address-search/AddressSearch',
+    nominatimGeocoderUrl: process.env.NOMINATIM_GEOCODER_URL
+      ?? 'https://nominatim.openstreetmap.org/search',
+    geocoderTimeoutMs: positiveInteger('GEOCODER_TIMEOUT_MS', 10_000),
+    nominatimMinIntervalMs: positiveInteger('NOMINATIM_MIN_INTERVAL_MS', 1_100),
   }
 }

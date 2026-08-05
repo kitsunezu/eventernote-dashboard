@@ -8,6 +8,7 @@ interface EventCardProps {
   event: ScheduleEvent
   locale: SupportedLocale
   onOpen: (eventId: string) => void
+  onRefresh?: (eventId: string) => void
 }
 
 type TooltipStyle = CSSProperties & {
@@ -15,7 +16,7 @@ type TooltipStyle = CSSProperties & {
   '--tooltip-width'?: string
 }
 
-export function EventCard({ event, locale, onOpen }: EventCardProps) {
+export function EventCard({ event, locale, onOpen, onRefresh }: EventCardProps) {
   const preview = buildPreviewText(event, locale)
   const copy = resolveEventCopy(event, locale)
   const ui = getUiCopy(locale)
@@ -57,6 +58,7 @@ export function EventCard({ event, locale, onOpen }: EventCardProps) {
             rel="noreferrer"
             aria-label={resolveLinkLabel(primaryLink, locale)}
             title={resolveLinkLabel(primaryLink, locale)}
+            onClick={() => onRefresh?.(event.id)}
           >
             <LinkChainIcon className="ui-icon" />
             <span className="visually-hidden">{resolveLinkLabel(primaryLink, locale)}</span>

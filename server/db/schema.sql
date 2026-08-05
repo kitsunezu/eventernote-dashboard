@@ -15,10 +15,14 @@ CREATE TABLE IF NOT EXISTS places (
   latitude DOUBLE PRECISION,
   longitude DOUBLE PRECISION,
   detail_fetched_at TIMESTAMPTZ,
+  geocode_attempted_at TIMESTAMPTZ,
   raw_detail_hash TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE places
+  ADD COLUMN IF NOT EXISTS geocode_attempted_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS events (
   event_id TEXT PRIMARY KEY,

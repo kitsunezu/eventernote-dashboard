@@ -73,6 +73,7 @@ function App() {
         error={state.error}
         onThemeToggle={state.toggleTheme}
         onRefresh={() => state.loadFromEventernote(userId, true)}
+        onRefreshEvent={(eventId) => state.refreshEvent(userId, eventId)}
       />
     )
   }
@@ -132,7 +133,11 @@ function App() {
                   <TimelineView
                     events={visibleEvents}
                     locale={state.locale}
-                    onOpenEvent={state.selectEvent}
+                    onOpenEvent={(eventId) => {
+                      state.selectEvent(eventId)
+                      void state.refreshEvent(userId, eventId)
+                    }}
+                    onRefreshEvent={(eventId) => state.refreshEvent(userId, eventId)}
                   />
                 )}
               </div>
@@ -144,6 +149,7 @@ function App() {
           event={selectedEvent}
           locale={state.locale}
           onClose={() => state.selectEvent(null)}
+          onRefreshEvent={(eventId) => state.refreshEvent(userId, eventId)}
         />
       </div>
     </div>

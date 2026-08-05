@@ -12,18 +12,14 @@ describe('resolveVenueCoordinates', () => {
     })).toEqual({ latitude: 35.7, longitude: 139.7, approximate: false })
   })
 
-  it('falls back to a city-level coordinate for physical venues', () => {
-    const coordinates = resolveVenueCoordinates({
+  it('does not invent a city-level coordinate for physical venues', () => {
+    expect(resolveVenueCoordinates({
       name: 'Venue B',
       address: '東京都新宿区',
       region: '東京',
       latitude: 0,
       longitude: 0,
-    })
-
-    expect(coordinates?.approximate).toBe(true)
-    expect(coordinates?.latitude).toBeCloseTo(35.6762, 1)
-    expect(coordinates?.longitude).toBeCloseTo(139.6503, 1)
+    })).toBeUndefined()
   })
 
   it('does not invent a location for virtual venues', () => {

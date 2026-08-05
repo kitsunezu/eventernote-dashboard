@@ -5,6 +5,7 @@ import type {
   EventDetail,
   EventSeed,
   PlaceDetail,
+  StoredPlaceDetail,
   StoredEvent,
   StoredUserSnapshot,
   SyncStats,
@@ -36,6 +37,7 @@ interface PlaceRow {
   latitude: number | null
   longitude: number | null
   detail_fetched_at: Date | null
+  geocode_attempted_at: Date | null
 }
 
 function actorsFromRow(value: string[] | string): string[] {
@@ -340,15 +342,59 @@ export class EventRepository {
     return result.rows
   }
 
-  async savePlaceDetail(detail: PlaceDetail, rawHash: string): Promise<void> {
+  async getPlace(placeId: string): Promise<StoredPlaceDetail | undefined> {
+    const result = await this.pool.query<PlaceRow>(
+      `SELECT place_id, name, address, region, latitude, longitude,
+              detail_fetched_at, geocode_attempted_at
+       FROM places
+       WHERE place_id = $1`,
+      [placeId],
+    )
+    const row = result.rows[0]
+    if (!row) return undefined
+    return {
+      id: row.place_id,
+      name: row.name,
+      address: row.address,
+      region: row.region,
+      ...(row.latitude === null ? {} : { latitude: row.latitude }),
+      ...(row.longitude === null ? {} : { longitude: row.longitude }),
+      ...(row.geocode_attempted_at === null
+        ? {}
+        : { geocodeAttemptedAt: row.geocode_attempted_at.toISOString() }),
+    }
+  }
+
+  async hasActiveEvent(userId: string, eventId: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `SELECT 1
+       FROM user_events
+       WHERE user_id = $1 AND event_id = $2 AND active = TRUE
+       LIMIT 1`,
+      [userId, eventId],
+    )
+    return result.rowCount === 1
+  }
+
+  async savePlaceDetail(
+    detail: PlaceDetail,
+    rawHash: string,
+    geocodeAttempted = false,
+  ): Promise<void> {
     await this.pool.query(
       `INSERT INTO places (
-         place_id, name, address, region, latitude, longitude, detail_fetched_at, raw_detail_hash
-       ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+         place_id, name, address, region, latitude, longitude, detail_fetched_at,
+         raw_detail_hash, geocode_attempted_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, CASE WHEN $8 THEN NOW() END)
        ON CONFLICT (place_id) DO UPDATE SET
          name = EXCLUDED.name, address = EXCLUDED.address, region = EXCLUDED.region,
          latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
          detail_fetched_at = NOW(), raw_detail_hash = EXCLUDED.raw_detail_hash,
+         geocode_attempted_at = CASE
+           WHEN places.address <> EXCLUDED.address THEN EXCLUDED.geocode_attempted_at
+           WHEN $8 THEN NOW()
+           ELSE places.geocode_attempted_at
+         END,
          updated_at = NOW()`,
       [
         detail.id,
@@ -358,6 +404,7 @@ export class EventRepository {
         detail.latitude ?? null,
         detail.longitude ?? null,
         rawHash,
+        geocodeAttempted,
       ],
     )
   }

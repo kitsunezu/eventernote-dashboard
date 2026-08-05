@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { loadEventernoteUserFromApi } from '../adapters/eventernoteApiSource'
+import { loadEventernoteUserFromApi, refreshEventernoteEvent } from '../adapters/eventernoteApiSource'
 import { getEventCategories, getNextEvent, getVisibleEvents, sortEvents } from '../lib/date'
 import { getUiCopy } from '../lib/localize'
 import { readScheduleSnapshot, writeScheduleSnapshot } from '../lib/storage'
@@ -43,6 +43,7 @@ export interface ScheduleStore extends ScheduleSnapshot {
   upsertEvent: (event: ScheduleEvent) => void
   deleteEvent: (eventId: string) => void
   loadFromEventernote: (userId: string, forceRefresh?: boolean) => Promise<void>
+  refreshEvent: (userId: string, eventId: string) => Promise<void>
 }
 
 const persisted = readScheduleSnapshot()
@@ -149,6 +150,19 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         loading: false,
         error: err instanceof Error ? err.message : copy.loadFailed,
       })
+    }
+  },
+  refreshEvent: async (userId, eventId) => {
+    try {
+      const data = await refreshEventernoteEvent(userId, eventId)
+      if (get().cachedUserId !== userId) return
+      set({
+        events: sortEvents(data.events),
+        activeSource: 'backend',
+        cachedAt: data.importedAt,
+      })
+    } catch (error) {
+      console.error(`Failed to refresh Eventernote event ${eventId}`, error)
     }
   },
 }))

@@ -35,6 +35,10 @@ services:
       - PLACE_FETCH_LIMIT=${PLACE_FETCH_LIMIT:-20}
       - UPSTREAM_MIN_INTERVAL_MS=${UPSTREAM_MIN_INTERVAL_MS:-350}
       - SYNC_RETRY_COOLDOWN_MS=${SYNC_RETRY_COOLDOWN_MS:-300000}
+      - GSI_GEOCODER_URL=${GSI_GEOCODER_URL:-https://msearch.gsi.go.jp/address-search/AddressSearch}
+      - NOMINATIM_GEOCODER_URL=${NOMINATIM_GEOCODER_URL:-https://nominatim.openstreetmap.org/search}
+      - GEOCODER_TIMEOUT_MS=${GEOCODER_TIMEOUT_MS:-10000}
+      - NOMINATIM_MIN_INTERVAL_MS=${NOMINATIM_MIN_INTERVAL_MS:-1100}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 15s

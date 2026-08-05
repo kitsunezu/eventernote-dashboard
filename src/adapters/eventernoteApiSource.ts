@@ -50,6 +50,25 @@ async function fetchUserEvents(userId: string, forceRefresh = false): Promise<Ap
   return payload
 }
 
+async function refreshUserEvent(userId: string, eventId: string): Promise<ApiResponse> {
+  const response = await fetch(
+    `/api/users/${encodeURIComponent(userId)}/events/${encodeURIComponent(eventId)}/refresh`,
+    {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+    },
+  )
+  const payload = await response.json().catch(() => null) as unknown
+  if (!response.ok) {
+    const message = payload && typeof payload === 'object' && 'error' in payload
+      ? String(payload.error)
+      : `HTTP ${response.status}`
+    throw new Error(message)
+  }
+  if (!isApiResponse(payload)) throw new Error('Event refresh API returned an invalid response')
+  return payload
+}
+
 function persistPlaces(response: ApiResponse): void {
   for (const [placeId, place] of Object.entries(response.places)) {
     const current = getPlace(placeId)
@@ -76,6 +95,20 @@ export async function loadEventernoteUserFromApi(
     response = updated
   }
 
+  return {
+    events: response.events,
+    warnings: response.warnings,
+    sourceType: 'backend',
+    importedAt: response.importedAt,
+  }
+}
+
+export async function refreshEventernoteEvent(
+  userId: string,
+  eventId: string,
+): Promise<ImportedScheduleData> {
+  const response = await refreshUserEvent(userId, eventId)
+  persistPlaces(response)
   return {
     events: response.events,
     warnings: response.warnings,

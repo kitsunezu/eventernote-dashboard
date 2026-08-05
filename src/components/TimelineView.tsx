@@ -6,9 +6,10 @@ interface TimelineViewProps {
   events: ScheduleEvent[]
   locale: SupportedLocale
   onOpenEvent: (eventId: string) => void
+  onRefreshEvent: (eventId: string) => void
 }
 
-export function TimelineView({ events, locale, onOpenEvent }: TimelineViewProps) {
+export function TimelineView({ events, locale, onOpenEvent, onRefreshEvent }: TimelineViewProps) {
   const groups = groupEventsByDay(events)
 
   return (
@@ -22,7 +23,13 @@ export function TimelineView({ events, locale, onOpenEvent }: TimelineViewProps)
 
           <div className="event-list">
             {group.events.map((event) => (
-              <EventCard key={event.id} event={event} locale={locale} onOpen={onOpenEvent} />
+              <EventCard
+                key={event.id}
+                event={event}
+                locale={locale}
+                onOpen={onOpenEvent}
+                onRefresh={onRefreshEvent}
+              />
             ))}
           </div>
         </section>

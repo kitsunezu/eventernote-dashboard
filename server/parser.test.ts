@@ -112,4 +112,19 @@ describe('parsePlaceDetail', () => {
       longitude: undefined,
     })
   })
+
+  it('uses coordinates embedded in the address map link as a fallback', () => {
+    const html = `
+      <div class="gb_place_detail_title"><h2>Example Hall</h2></div>
+      <div class="gb_place_detail_table"><table>
+        <tr><td>所在地</td><td><a href="https://maps.google.com/maps?q=35.663025,139.696213">東京都渋谷区宇田川町9番5号</a></td></tr>
+      </table></div>
+      <script>var lat = '0'; var lon = '0';</script>
+    `
+
+    expect(parsePlaceDetail(html, '18844', 'Fallback')).toMatchObject({
+      latitude: 35.663025,
+      longitude: 139.696213,
+    })
+  })
 })

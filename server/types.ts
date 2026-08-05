@@ -25,6 +25,10 @@ export interface PlaceDetail {
   longitude?: number
 }
 
+export interface StoredPlaceDetail extends PlaceDetail {
+  geocodeAttemptedAt?: string
+}
+
 export interface ParsedUserEventsPage {
   events: EventSeed[]
   paginationPaths: string[]

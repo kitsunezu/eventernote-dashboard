@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto'
 import type { Pool } from 'pg'
 import type { ServerConfig } from './config.js'
+import { hasUsableCoordinates } from './coordinates.js'
+import type { Coordinates } from './coordinates.js'
+import { VenueGeocoder } from './geocoder.js'
 import { parseEventDetail, parsePlaceDetail, parseUserEventsPage } from './parser.js'
 import { EventRepository } from './repository.js'
 import type { EventSeed, StoredEvent, SyncStats } from './types.js'
@@ -10,6 +13,7 @@ const PLACE_TTL_MS = 90 * 24 * 60 * 60 * 1000
 const CLOSE_EVENT_TTL_MS = 60 * 60 * 1000
 const FUTURE_EVENT_TTL_MS = 6 * 60 * 60 * 1000
 const PAST_EVENT_TTL_MS = 30 * 24 * 60 * 60 * 1000
+const FAILED_GEOCODE_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 function hashHtml(html: string): string {
   return createHash('sha256').update(html).digest('hex')
@@ -56,17 +60,20 @@ export class EventSyncService {
   private readonly pool: Pool
   private readonly repository: EventRepository
   private readonly upstream: EventernoteClient
+  private readonly geocoder: VenueGeocoder
   private readonly config: ServerConfig
 
   constructor(
     pool: Pool,
     repository: EventRepository,
     upstream: EventernoteClient,
+    geocoder: VenueGeocoder,
     config: ServerConfig,
   ) {
     this.pool = pool
     this.repository = repository
     this.upstream = upstream
+    this.geocoder = geocoder
     this.config = config
   }
 
@@ -81,6 +88,26 @@ export class EventSyncService {
       .finally(() => this.inFlight.delete(userId))
     this.inFlight.set(userId, synchronization)
     return synchronization
+  }
+
+  async refreshEvent(userId: string, eventId: string): Promise<string[]> {
+    if (!await this.repository.hasActiveEvent(userId, eventId)) {
+      throw new Error(`Event ${eventId} is not active for ${userId}`)
+    }
+
+    const warnings: string[] = []
+    const html = await this.upstream.fetchHtml(`/events/${eventId}`)
+    const detail = parseEventDetail(html, eventId)
+    await this.repository.saveEventDetail(detail, hashHtml(html))
+
+    if (detail.placeId) {
+      try {
+        await this.refreshPlace(detail.placeId, detail.venue)
+      } catch (error) {
+        warnings.push(`Place ${detail.placeId}: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+    return warnings
   }
 
   private async synchronizeWithLock(userId: string): Promise<void> {
@@ -160,9 +187,7 @@ export class EventSyncService {
       )
       await mapWithConcurrency(placeCandidates, 2, async (place) => {
         try {
-          const html = await this.upstream.fetchHtml(`/places/${place.place_id}`)
-          const detail = parsePlaceDetail(html, place.place_id, place.name)
-          await this.repository.savePlaceDetail(detail, hashHtml(html))
+          await this.refreshPlace(place.place_id, place.name)
           stats.refreshedPlaces += 1
         } catch (error) {
           stats.warnings.push(
@@ -198,5 +223,28 @@ export class EventSyncService {
       for (const event of page.events) byId.set(event.id, event)
     }
     return Array.from(byId.values())
+  }
+
+  private async refreshPlace(placeId: string, fallbackName: string): Promise<void> {
+    const html = await this.upstream.fetchHtml(`/places/${placeId}`)
+    const detail = parsePlaceDetail(html, placeId, fallbackName)
+    let geocodeAttempted = false
+    if (!hasUsableCoordinates(detail)) {
+      const stored = await this.repository.getPlace(placeId)
+      const storedCoordinatesAreCurrent = stored?.address === detail.address && hasUsableCoordinates(stored)
+      const recentFailedAttempt = stored?.address === detail.address
+        && stored.geocodeAttemptedAt !== undefined
+        && Date.now() - new Date(stored.geocodeAttemptedAt).getTime() < FAILED_GEOCODE_TTL_MS
+      let resolved: Coordinates | undefined = storedCoordinatesAreCurrent ? stored : undefined
+      if (!resolved && !recentFailedAttempt) {
+        geocodeAttempted = true
+        resolved = await this.geocoder.geocode(detail.name, detail.address)
+      }
+      if (resolved) {
+        detail.latitude = resolved.latitude
+        detail.longitude = resolved.longitude
+      }
+    }
+    await this.repository.savePlaceDetail(detail, hashHtml(html), geocodeAttempted)
   }
 }

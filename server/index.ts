@@ -1,6 +1,7 @@
 import { createServer } from 'node:http'
 import { loadConfig } from './config.js'
 import { createPool, migrate } from './db.js'
+import { VenueGeocoder } from './geocoder.js'
 import { EventRepository } from './repository.js'
 import { EventSyncService } from './sync.js'
 import type { EventApiResponse } from './types.js'
@@ -27,7 +28,13 @@ async function main(): Promise<void> {
     config.upstreamTimeoutMs,
     config.upstreamMinIntervalMs,
   )
-  const syncService = new EventSyncService(pool, repository, upstream, config)
+  const geocoder = new VenueGeocoder(
+    config.gsiGeocoderUrl,
+    config.nominatimGeocoderUrl,
+    config.geocoderTimeoutMs,
+    config.nominatimMinIntervalMs,
+  )
+  const syncService = new EventSyncService(pool, repository, upstream, geocoder, config)
 
   const server = createServer(async (request, response) => {
     try {
@@ -35,6 +42,34 @@ async function main(): Promise<void> {
       if (request.method === 'GET' && url.pathname === '/health') {
         await pool.query('SELECT 1')
         jsonResponse(response, 200, { ok: true })
+        return
+      }
+
+      const refreshRoute = url.pathname.match(/^\/api\/users\/([^/]+)\/events\/(\d+)\/refresh$/)
+      if (request.method === 'POST' && refreshRoute) {
+        const userId = decodeURIComponent(refreshRoute[1])
+        if (!USER_ID_PATTERN.test(userId)) {
+          jsonResponse(response, 400, { error: 'Invalid Eventernote user ID' })
+          return
+        }
+        const warnings = await syncService.refreshEvent(userId, refreshRoute[2])
+        const snapshot = await repository.getSnapshot(userId)
+        const userIndexFresh = snapshot.lastIndexSuccessAt !== undefined
+          && Date.now() - new Date(snapshot.lastIndexSuccessAt).getTime() < config.userIndexTtlMs
+        const payload: EventApiResponse = {
+          events: snapshot.events,
+          warnings,
+          sourceType: 'backend',
+          importedAt: snapshot.lastIndexSuccessAt ?? new Date().toISOString(),
+          places: snapshot.places,
+          cache: {
+            status: userIndexFresh ? 'fresh' : 'stale',
+            refreshing: syncService.isRunning(userId),
+            userIndexCheckedAt: snapshot.lastIndexSuccessAt,
+            pendingDetailCount: snapshot.pendingDetailCount,
+          },
+        }
+        jsonResponse(response, 200, payload)
         return
       }
 

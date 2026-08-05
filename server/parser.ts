@@ -1,4 +1,5 @@
 import { load } from 'cheerio'
+import { hasUsableCoordinates } from './coordinates.js'
 import type { EventDetail, EventSeed, ParsedUserEventsPage, PlaceDetail } from './types.js'
 import { detectRegion } from './regions.js'
 
@@ -18,12 +19,27 @@ function addDays(date: string, days: number): string {
   return value.toISOString().slice(0, 10)
 }
 
-function hasUsableCoordinates(latitude: number, longitude: number): boolean {
-  return Number.isFinite(latitude)
-    && Number.isFinite(longitude)
-    && Math.abs(latitude) <= 90
-    && Math.abs(longitude) <= 180
-    && !(Math.abs(latitude) < 1 && Math.abs(longitude) < 1)
+function coordinatesFromMapHref(href: string | undefined): { latitude: number; longitude: number } | undefined {
+  if (!href) return undefined
+  let decoded: string
+  let url: URL
+  try {
+    decoded = decodeURIComponent(href)
+    url = new URL(decoded, 'https://maps.google.com')
+  } catch {
+    return undefined
+  }
+  const candidates = [url.searchParams.get('q'), url.searchParams.get('query'), url.searchParams.get('ll')]
+  const pathCoordinates = decoded.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/)
+  if (pathCoordinates) candidates.unshift(`${pathCoordinates[1]},${pathCoordinates[2]}`)
+
+  for (const candidate of candidates) {
+    const match = candidate?.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/)
+    if (!match) continue
+    const value = { latitude: Number(match[1]), longitude: Number(match[2]) }
+    if (hasUsableCoordinates(value)) return value
+  }
+  return undefined
 }
 
 export function parseEventTimes(date: string, text: string): { startAt: string; endAt: string } {
@@ -144,18 +160,20 @@ export function parsePlaceDetail(html: string, placeId: string, fallbackName: st
   const address = addressRow
     ? $(addressRow).find('td').eq(1).text().replace(/\s+/g, ' ').trim()
     : ''
+  const mapCoordinates = coordinatesFromMapHref($(addressRow).find('td').eq(1).find('a').attr('href'))
   const scripts = $('script').toArray().map((script) => $(script).text()).join('\n')
   const latitude = Number(scripts.match(/\bvar\s+lat\s*=\s*['"](-?\d+(?:\.\d+)?)['"]/)?.[1])
   const longitude = Number(scripts.match(/\bvar\s+lon\s*=\s*['"](-?\d+(?:\.\d+)?)['"]/)?.[1])
   const name = $('.gb_place_detail_title h2').first().text().trim() || fallbackName
-  const hasCoordinates = hasUsableCoordinates(latitude, longitude)
+  const scriptCoordinates = { latitude, longitude }
+  const resolvedCoordinates = hasUsableCoordinates(scriptCoordinates) ? scriptCoordinates : mapCoordinates
 
   return {
     id: placeId,
     name,
     address,
     region: detectRegion(name, '', address),
-    latitude: hasCoordinates ? latitude : undefined,
-    longitude: hasCoordinates ? longitude : undefined,
+    latitude: resolvedCoordinates?.latitude,
+    longitude: resolvedCoordinates?.longitude,
   }
 }

@@ -9,6 +9,14 @@ GET /api/users/{userId}/events
 Accept: application/json
 ```
 
+Opening an event detail or following an Eventernote event link also starts an immediate targeted refresh:
+
+```http
+POST /api/users/{userId}/events/{eventId}/refresh
+```
+
+The targeted refresh verifies that the event belongs to the user's active schedule, then fetches the event detail and its place page without applying the normal freshness TTL. The response uses the same event API shape so the open drawer and report cache can update in place.
+
 The server validates `userId` and reads PostgreSQL before contacting Eventernote.
 
 1. Fresh user index: return the database snapshot.
@@ -53,6 +61,8 @@ The user list page is only a discovery source. Once an event detail page has bee
 
 When a place has a canonical address, its prefecture or overseas region is authoritative. Venue names and event titles are only used as a fallback, preventing tour names from assigning an event to the wrong region. Eventernote's `0,0` placeholder map coordinates are discarded while the address is retained in PostgreSQL.
 
+Venue coordinates are resolved in order: valid Eventernote coordinates, coordinates embedded in its map link, the Japanese GSI address service with progressively simplified address queries, then address-level Nominatim results. Successful coordinates and unsuccessful geocoding attempts are cached in PostgreSQL while the canonical address is unchanged; a failed address is retried after 30 days instead of querying on every click. Nominatim requests are serialized and spaced by at least 1.1 seconds; synthetic city-center map points are not generated.
+
 The entire paginated index must succeed before `user_events.active` is updated. A partial pagination failure therefore cannot incorrectly remove older database relationships.
 
 ## Freshness and load limits
@@ -82,5 +92,9 @@ At most 40 event details are refreshed in one user synchronization, ordered by m
 | `UPSTREAM_TIMEOUT_MS` | No | `20000` |
 | `MAX_LIST_PAGES` | No | `30` |
 | `SYNC_RETRY_COOLDOWN_MS` | No | `300000` |
+| `GSI_GEOCODER_URL` | No | `https://msearch.gsi.go.jp/address-search/AddressSearch` |
+| `NOMINATIM_GEOCODER_URL` | No | `https://nominatim.openstreetmap.org/search` |
+| `GEOCODER_TIMEOUT_MS` | No | `10000` |
+| `NOMINATIM_MIN_INTERVAL_MS` | No | `1100` |
 
 Only variable names belong in git. Set the real PostgreSQL password in the Portainer stack environment.

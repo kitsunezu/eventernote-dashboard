@@ -24,8 +24,12 @@ const JAPANESE_PREFECTURES = [
   '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県',
 ] as const
 
+export function extractJapanesePrefecture(address: string): string | undefined {
+  return JAPANESE_PREFECTURES.find((candidate) => address.includes(candidate))
+}
+
 function detectRegionFromAddress(address: string): string | undefined {
-  const prefecture = JAPANESE_PREFECTURES.find((candidate) => address.includes(candidate))
+  const prefecture = extractJapanesePrefecture(address)
   if (prefecture) return prefecture.replace(/[都府県]$/, '')
   if (/hong.?kong|香港/i.test(address)) return '香港'
   if (/taipei|台北|taiwan|台湾/i.test(address)) return '台北'
