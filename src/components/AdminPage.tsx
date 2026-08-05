@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { colorForCategory, formatEventDate, formatEventTime } from '../lib/date'
 import { LOCALE_LABELS, SUPPORTED_LOCALES, getUiCopy, resolveCategoryLabel, resolveEventCopy, resolveLinkLabel } from '../lib/localize'
 import type { EventCategory, EventLink, EventSourceKind, ScheduleEvent, SupportedLocale } from '../types/events'
@@ -265,31 +265,37 @@ export function AdminPage({
   const copy = getUiCopy(locale)
   const [selectedEventId, setSelectedEventId] = useState<string | null>(events[0]?.id ?? null)
   const [mode, setMode] = useState<EditorMode>(events.length > 0 ? 'edit' : 'create')
-  const [draft, setDraft] = useState<AdminEventDraft>(() => createEmptyDraft(categories))
-  const [formError, setFormError] = useState('')
-  const editingEvent = mode === 'edit' ? events.find((event) => event.id === selectedEventId) ?? null : null
+  const selectedEvent = mode === 'edit'
+    ? events.find((event) => event.id === selectedEventId) ?? events[0] ?? null
+    : null
+  const editorMode: EditorMode = mode === 'edit' && !selectedEvent ? 'create' : mode
+  const editingEvent = editorMode === 'edit' ? selectedEvent : null
+  const defaultDraft = editingEvent
+    ? createDraftFromEvent(editingEvent, locale)
+    : createEmptyDraft(categories)
+  const draftKey = editingEvent
+    ? `edit:${editingEvent.id}:${locale}:${JSON.stringify(defaultDraft)}`
+    : `create:${locale}:${categories[0]?.id ?? ''}`
+  const [draftState, setDraftState] = useState<{ key: string; value: AdminEventDraft }>(() => ({
+    key: '',
+    value: createEmptyDraft(categories),
+  }))
+  const [formErrorState, setFormErrorState] = useState<{ key: string; value: string }>({ key: '', value: '' })
+  const draft = draftState.key === draftKey
+    ? draftState.value
+    : defaultDraft
+  const formError = formErrorState.key === draftKey ? formErrorState.value : ''
 
-  useEffect(() => {
-    if (mode === 'edit' && editingEvent) {
-      setDraft(createDraftFromEvent(editingEvent, locale))
-      setFormError('')
-    }
-  }, [editingEvent, locale, mode])
+  function setDraft(update: AdminEventDraft | ((current: AdminEventDraft) => AdminEventDraft)) {
+    setDraftState({
+      key: draftKey,
+      value: typeof update === 'function' ? update(draft) : update,
+    })
+  }
 
-  useEffect(() => {
-    if (mode !== 'edit' || editingEvent) {
-      return
-    }
-
-    if (events[0]) {
-      setSelectedEventId(events[0].id)
-      return
-    }
-
-    setMode('create')
-    setDraft(createEmptyDraft(categories))
-    setFormError('')
-  }, [categories, editingEvent, events, mode])
+  function setFormError(value: string) {
+    setFormErrorState({ key: draftKey, value })
+  }
 
   function updateDraft<Field extends keyof AdminEventDraft>(field: Field, value: AdminEventDraft[Field]) {
     setDraft((current) => ({ ...current, [field]: value }))
@@ -472,7 +478,7 @@ export function AdminPage({
                       <button
                         key={event.id}
                         type="button"
-                        className={`admin-eventRow ${selectedEventId === event.id && mode === 'edit' ? 'is-active' : ''}`}
+                        className={`admin-eventRow ${editingEvent?.id === event.id && editorMode === 'edit' ? 'is-active' : ''}`}
                         onClick={() => selectEvent(event.id)}
                       >
                         <span className="admin-eventRow__swatch" style={{ background: event.category.color }} aria-hidden="true" />
@@ -496,9 +502,9 @@ export function AdminPage({
               <div className="admin-card__head">
                 <div>
                   <p className="eyebrow">{copy.manageEvents}</p>
-                  <strong>{mode === 'create' ? copy.createEvent : copy.editEvent}</strong>
+                  <strong>{editorMode === 'create' ? copy.createEvent : copy.editEvent}</strong>
                 </div>
-                {mode === 'edit' ? (
+                {editorMode === 'edit' ? (
                   <button className="button button--ghost" type="button" onClick={startCreateEvent}>
                     {copy.createNewEvent}
                   </button>
@@ -704,7 +710,7 @@ export function AdminPage({
 
                 <div className="admin-form__actions">
                   <button className="button button--solid" type="submit">
-                    {mode === 'create' ? copy.createEvent : copy.saveChanges}
+                    {editorMode === 'create' ? copy.createEvent : copy.saveChanges}
                   </button>
 
                   <button

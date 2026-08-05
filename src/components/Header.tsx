@@ -27,12 +27,17 @@ export function Header({
   const copy = getUiCopy(locale)
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement | null>(null)
-  const [, tick] = useState(0)
+  const [currentTime, setCurrentTime] = useState<number | null>(null)
 
   // Re-render every minute so "X min ago" stays accurate
   useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 60_000)
-    return () => clearInterval(id)
+    const updateCurrentTime = () => setCurrentTime(Date.now())
+    const initialId = setTimeout(updateCurrentTime, 0)
+    const intervalId = setInterval(updateCurrentTime, 60_000)
+    return () => {
+      clearTimeout(initialId)
+      clearInterval(intervalId)
+    }
   }, [])
 
   useEffect(() => {
@@ -50,8 +55,8 @@ export function Header({
     if (e.key === 'Escape') setOpen(false)
   }
 
-  const minutesAgo = cachedAt
-    ? Math.floor((Date.now() - new Date(cachedAt).getTime()) / 60_000)
+  const minutesAgo = cachedAt && currentTime !== null
+    ? Math.floor((currentTime - new Date(cachedAt).getTime()) / 60_000)
     : null
 
   return (

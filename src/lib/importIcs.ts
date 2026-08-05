@@ -19,7 +19,7 @@ function cleanDescription(description?: string): { description?: string; notes?:
   }
 }
 
-function mapComponentToEvent(component: any, occurrenceStart?: any): ScheduleEvent {
+function mapComponentToEvent(component: ICAL.Component, occurrenceStart?: ICAL.Time): ScheduleEvent {
   const calendarEvent = new ICAL.Event(component)
   const startDate = occurrenceStart ?? calendarEvent.startDate
   const duration = calendarEvent.duration ?? calendarEvent.endDate.subtractDate(calendarEvent.startDate)

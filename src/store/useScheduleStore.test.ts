@@ -1,9 +1,22 @@
 import dayjs from 'dayjs'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { colorForCategory } from '../lib/date'
-import type { ScheduleEvent } from '../types/events'
+import type { ImportedScheduleData, ScheduleEvent } from '../types/events'
 import type { ScheduleStore } from './useScheduleStore'
-import { selectCategories, selectVisibleEvents } from './useScheduleStore'
+import { selectCategories, selectVisibleEvents, useScheduleStore } from './useScheduleStore'
+
+type ProgressCallback = (partial: { events: ScheduleEvent[]; warnings: string[] }) => void
+type LoadFromApi = (
+  userId: string,
+  onProgress?: ProgressCallback,
+  forceRefresh?: boolean,
+) => Promise<ImportedScheduleData>
+
+const loadFromApi = vi.hoisted(() => vi.fn<LoadFromApi>())
+
+vi.mock('../adapters/eventernoteApiSource', () => ({
+  loadEventernoteUserFromApi: loadFromApi,
+}))
 
 const testEvents: ScheduleEvent[] = [
   {
@@ -27,6 +40,25 @@ const testEvents: ScheduleEvent[] = [
     sourceType: 'sample',
   },
 ]
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
+function createApiResult(userId: string, events: ScheduleEvent[]): ImportedScheduleData {
+  return {
+    events,
+    warnings: [],
+    sourceType: 'backend',
+    importedAt: `2026-08-05T10:00:0${userId === 'A' ? '1' : '2'}.000Z`,
+  }
+}
 
 function createState(overrides: Partial<ScheduleStore> = {}): ScheduleStore {
   return {
@@ -68,5 +100,76 @@ describe('useScheduleStore selectors', () => {
     const visible = selectVisibleEvents(state)
     expect(visible).toHaveLength(1)
     expect(visible[0].category.id).toBe('health')
+  })
+})
+
+describe('useScheduleStore Eventernote loading', () => {
+  beforeEach(() => {
+    loadFromApi.mockReset()
+    useScheduleStore.setState({
+      events: [],
+      activeSource: 'backend',
+      cachedAt: undefined,
+      cachedUserId: undefined,
+      selectedEventId: null,
+      statusMessage: '',
+      loading: false,
+      error: null,
+    })
+  })
+
+  it('ignores stale progress and completion after switching users', async () => {
+    const requests = new Map<string, {
+      deferred: ReturnType<typeof createDeferred<ImportedScheduleData>>
+      onProgress?: ProgressCallback
+    }>()
+    loadFromApi.mockImplementation((userId, onProgress) => {
+      const request = { deferred: createDeferred<ImportedScheduleData>(), onProgress }
+      requests.set(userId, request)
+      return request.deferred.promise
+    })
+
+    const userAEvents = [{ ...testEvents[0], id: 'user-a-event', title: 'User A' }]
+    const userBEvents = [{ ...testEvents[1], id: 'user-b-event', title: 'User B' }]
+    const userALoad = useScheduleStore.getState().loadFromEventernote('A')
+    const userBLoad = useScheduleStore.getState().loadFromEventernote('B')
+
+    requests.get('B')?.onProgress?.({ events: userBEvents, warnings: [] })
+    requests.get('B')?.deferred.resolve(createApiResult('B', userBEvents))
+    await userBLoad
+
+    requests.get('A')?.onProgress?.({ events: userAEvents, warnings: [] })
+    requests.get('A')?.deferred.resolve(createApiResult('A', userAEvents))
+    await userALoad
+
+    expect(useScheduleStore.getState()).toMatchObject({
+      events: userBEvents,
+      cachedUserId: 'B',
+      cachedAt: '2026-08-05T10:00:02.000Z',
+      loading: false,
+      error: null,
+    })
+  })
+
+  it('ignores a stale failure after the active user finishes loading', async () => {
+    const userARequest = createDeferred<ImportedScheduleData>()
+    const userBRequest = createDeferred<ImportedScheduleData>()
+    loadFromApi.mockImplementation((userId) => userId === 'A' ? userARequest.promise : userBRequest.promise)
+
+    const userBEvents = [{ ...testEvents[1], id: 'user-b-event', title: 'User B' }]
+    const userALoad = useScheduleStore.getState().loadFromEventernote('A')
+    const userBLoad = useScheduleStore.getState().loadFromEventernote('B')
+
+    userBRequest.resolve(createApiResult('B', userBEvents))
+    await userBLoad
+    userARequest.reject(new Error('User A failed late'))
+    await userALoad
+
+    expect(useScheduleStore.getState()).toMatchObject({
+      events: userBEvents,
+      cachedUserId: 'B',
+      loading: false,
+      error: null,
+    })
   })
 })
