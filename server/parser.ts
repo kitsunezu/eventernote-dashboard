@@ -18,6 +18,14 @@ function addDays(date: string, days: number): string {
   return value.toISOString().slice(0, 10)
 }
 
+function hasUsableCoordinates(latitude: number, longitude: number): boolean {
+  return Number.isFinite(latitude)
+    && Number.isFinite(longitude)
+    && Math.abs(latitude) <= 90
+    && Math.abs(longitude) <= 180
+    && !(Math.abs(latitude) < 1 && Math.abs(longitude) < 1)
+}
+
 export function parseEventTimes(date: string, text: string): { startAt: string; endAt: string } {
   const openTime = text.match(/開場\s*(\d{1,2}:\d{2})/)?.[1]
   const startTime = text.match(/開演\s*(\d{1,2}:\d{2})/)?.[1]
@@ -140,13 +148,14 @@ export function parsePlaceDetail(html: string, placeId: string, fallbackName: st
   const latitude = Number(scripts.match(/\bvar\s+lat\s*=\s*['"](-?\d+(?:\.\d+)?)['"]/)?.[1])
   const longitude = Number(scripts.match(/\bvar\s+lon\s*=\s*['"](-?\d+(?:\.\d+)?)['"]/)?.[1])
   const name = $('.gb_place_detail_title h2').first().text().trim() || fallbackName
+  const hasCoordinates = hasUsableCoordinates(latitude, longitude)
 
   return {
     id: placeId,
     name,
     address,
     region: detectRegion(name, '', address),
-    latitude: Number.isFinite(latitude) ? latitude : undefined,
-    longitude: Number.isFinite(longitude) ? longitude : undefined,
+    latitude: hasCoordinates ? latitude : undefined,
+    longitude: hasCoordinates ? longitude : undefined,
   }
 }

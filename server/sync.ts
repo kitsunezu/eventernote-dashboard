@@ -140,13 +140,11 @@ export class EventSyncService {
         .sort((left, right) => compareRefreshPriority(left, right, now))
         .slice(0, this.config.detailFetchLimit)
 
-      const refreshedPlaceIds = new Set<string>()
       await mapWithConcurrency(detailCandidates, this.config.detailFetchConcurrency, async (event) => {
         try {
           const html = await this.upstream.fetchHtml(`/events/${event.id}`)
           const detail = parseEventDetail(html, event.id)
           await this.repository.saveEventDetail(detail, hashHtml(html))
-          if (detail.placeId) refreshedPlaceIds.add(detail.placeId)
           stats.refreshedDetails += 1
         } catch (error) {
           stats.warnings.push(
@@ -155,8 +153,8 @@ export class EventSyncService {
         }
       })
 
-      const placeCandidates = await this.repository.getPlaceCandidates(
-        Array.from(refreshedPlaceIds),
+      const placeCandidates = await this.repository.getPlaceCandidatesForUser(
+        userId,
         new Date(Date.now() - PLACE_TTL_MS),
         this.config.placeFetchLimit,
       )

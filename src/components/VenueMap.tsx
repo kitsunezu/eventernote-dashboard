@@ -61,6 +61,9 @@ export function VenueMap({ points, selectedVenue, locale, eventCountLabel, appro
       <FocusVenue point={selectedPoint} />
       {points.map((point) => {
         const isSelected = point.name === selectedVenue
+        const mapUrl = point.approximate && point.address
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(point.address)}`
+          : `https://www.openstreetmap.org/?mlat=${point.latitude}&mlon=${point.longitude}#map=16/${point.latitude}/${point.longitude}`
         return (
           <CircleMarker
             key={point.name}
@@ -90,11 +93,11 @@ export function VenueMap({ points, selectedVenue, locale, eventCountLabel, appro
                   ))}
                 </ul>
                 <a
-                  href={`https://www.openstreetmap.org/?mlat=${point.latitude}&mlon=${point.longitude}#map=16/${point.latitude}/${point.longitude}`}
+                  href={mapUrl}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  OpenStreetMap
+                  {point.approximate && point.address ? 'Google Maps' : 'OpenStreetMap'}
                 </a>
               </div>
             </Popup>

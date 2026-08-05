@@ -93,4 +93,23 @@ describe('parsePlaceDetail', () => {
       longitude: 139.70256,
     })
   })
+
+  it('keeps an address but rejects Eventernote placeholder coordinates', () => {
+    const html = `
+      <div class="gb_place_detail_title"><h2>Shibuya LOVEZ</h2></div>
+      <div class="gb_place_detail_table"><table>
+        <tr><td>所在地</td><td><a>〒150-0042 東京都渋谷区宇田川町9番5号 Shibuya LOVEZ</a></td></tr>
+      </table></div>
+      <script>var lat = '0'; var lon = '0';</script>
+    `
+
+    expect(parsePlaceDetail(html, '18844', 'Fallback')).toEqual({
+      id: '18844',
+      name: 'Shibuya LOVEZ',
+      address: '〒150-0042 東京都渋谷区宇田川町9番5号 Shibuya LOVEZ',
+      region: '東京',
+      latitude: undefined,
+      longitude: undefined,
+    })
+  })
 })

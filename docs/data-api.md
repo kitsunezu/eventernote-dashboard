@@ -49,7 +49,9 @@ The browser polls the same API briefly when `cache.refreshing` is true. Polling 
 | `places` | Canonical address, region, coordinates, and place freshness |
 | `sync_jobs` | Auditable synchronization state, statistics, and warnings |
 
-The user list page is only a discovery source. Once an event detail page has been stored, later list-page parsing does not overwrite its title, time, venue, actors, or image.
+The user list page is only a discovery source. Once an event detail page has been stored, later list-page parsing does not overwrite its title, time, venue, actors, or image. Place IDs from every active user event are independently eligible for refresh, so canonical addresses are populated even when the related event detail does not need refreshing.
+
+When a place has a canonical address, its prefecture or overseas region is authoritative. Venue names and event titles are only used as a fallback, preventing tour names from assigning an event to the wrong region. Eventernote's `0,0` placeholder map coordinates are discarded while the address is retained in PostgreSQL.
 
 The entire paginated index must succeed before `user_events.active` is updated. A partial pagination failure therefore cannot incorrectly remove older database relationships.
 

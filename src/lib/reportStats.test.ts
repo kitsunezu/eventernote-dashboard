@@ -81,4 +81,34 @@ describe('report statistics', () => {
       { name: '大阪', count: 1, eventIds: ['2'] },
     ])
   })
+
+  it('joins venue metadata by Eventernote place ID when names differ', () => {
+    const event = {
+      ...baseEvent,
+      location: 'Venue alias from event',
+      sourceMeta: { placeId: 'canonical' },
+    }
+    const stats = buildReportStats(
+      [event],
+      'all',
+      {
+        canonical: {
+          name: 'Canonical venue name',
+          address: '〒150-0042 東京都渋谷区宇田川町9番5号',
+          region: '東京',
+          latitude: 35.662,
+          longitude: 139.698,
+        },
+      },
+      {},
+      new Date('2026-01-01T00:00:00.000Z'),
+    )
+
+    expect(stats.venues[0]).toMatchObject({
+      name: 'Venue alias from event',
+      address: '〒150-0042 東京都渋谷区宇田川町9番5号',
+      latitude: 35.662,
+      longitude: 139.698,
+    })
+  })
 })

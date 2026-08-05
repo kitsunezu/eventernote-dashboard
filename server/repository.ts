@@ -17,6 +17,7 @@ interface EventRow {
   end_at: string
   place_id: string | null
   venue_name: string
+  place_name: string | null
   actors: string[] | string
   image_url: string | null
   image_alt: string | null
@@ -73,7 +74,7 @@ export class EventRepository {
       this.pool.query<EventRow>(
         `SELECT e.event_id, e.title, e.start_at, e.end_at, e.place_id, e.venue_name,
                 e.actors, e.image_url, e.image_alt, e.detail_fetched_at,
-                p.address, p.region, p.latitude, p.longitude
+                p.name AS place_name, p.address, p.region, p.latitude, p.longitude
          FROM user_events ue
          JOIN events e ON e.event_id = ue.event_id
          LEFT JOIN places p ON p.place_id = e.place_id
@@ -87,11 +88,11 @@ export class EventRepository {
     let pendingDetailCount = 0
     const events = eventsResult.rows.map((row): ScheduleEvent => {
       const actors = actorsFromRow(row.actors)
-      const region = row.region || detectRegion(row.venue_name, row.title, row.address ?? '')
+      const region = detectRegion(row.venue_name, row.title, row.address ?? '')
       if (!row.detail_fetched_at) pendingDetailCount += 1
       if (row.place_id) {
         places[row.place_id] = {
-          name: row.venue_name,
+          name: row.place_name || row.venue_name,
           address: row.address ?? '',
           region,
           ...(row.latitude === null ? {} : { latitude: row.latitude }),
@@ -255,7 +256,7 @@ export class EventRepository {
     const result = await this.pool.query<EventRow>(
       `SELECT e.event_id, e.title, e.start_at, e.end_at, e.place_id, e.venue_name,
               e.actors, e.image_url, e.image_alt, e.detail_fetched_at,
-              p.address, p.region, p.latitude, p.longitude
+              p.name AS place_name, p.address, p.region, p.latitude, p.longitude
        FROM user_events ue
        JOIN events e ON e.event_id = ue.event_id
        LEFT JOIN places p ON p.place_id = e.place_id
@@ -320,16 +321,21 @@ export class EventRepository {
     }
   }
 
-  async getPlaceCandidates(placeIds: string[], staleBefore: Date, limit: number): Promise<PlaceRow[]> {
-    if (placeIds.length === 0) return []
+  async getPlaceCandidatesForUser(userId: string, staleBefore: Date, limit: number): Promise<PlaceRow[]> {
     const result = await this.pool.query<PlaceRow>(
-      `SELECT place_id, name, address, region, latitude, longitude, detail_fetched_at
-       FROM places
-       WHERE place_id = ANY($1::text[])
-         AND (detail_fetched_at IS NULL OR detail_fetched_at < $2)
-       ORDER BY detail_fetched_at ASC NULLS FIRST, place_id ASC
+      `SELECT p.place_id, p.name, p.address, p.region, p.latitude, p.longitude,
+              p.detail_fetched_at
+       FROM places p
+       WHERE EXISTS (
+         SELECT 1
+         FROM user_events ue
+         JOIN events e ON e.event_id = ue.event_id
+         WHERE ue.user_id = $1 AND ue.active = TRUE AND e.place_id = p.place_id
+       )
+         AND (p.detail_fetched_at IS NULL OR p.detail_fetched_at < $2)
+       ORDER BY p.detail_fetched_at ASC NULLS FIRST, p.place_id ASC
        LIMIT $3`,
-      [placeIds, staleBefore, limit],
+      [userId, staleBefore, limit],
     )
     return result.rows
   }

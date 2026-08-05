@@ -74,9 +74,17 @@ export function buildReportStats(
     if (place.name) placesByName.set(place.name, place)
   }
 
+  const placesByVenue = new Map<string, PlaceEntry>()
+  for (const event of attendedEvents) {
+    const venue = event.location?.trim()
+    const placeId = event.sourceMeta?.placeId
+    const place = placeId ? places[placeId] : undefined
+    if (venue && place && !placesByVenue.has(venue)) placesByVenue.set(venue, place)
+  }
+
   const venueCounts = rank(attendedEvents.map((event) => ({ name: event.location ?? '', eventId: event.id })))
   const venues = venueCounts.map((venue) => {
-    const place = placesByName.get(venue.name)
+    const place = placesByVenue.get(venue.name) ?? placesByName.get(venue.name)
     const latitude = place && hasUsablePlaceCoordinates(place) ? place.latitude : undefined
     const longitude = place && hasUsablePlaceCoordinates(place) ? place.longitude : undefined
     const fallbackRegion = attendedEvents.find((event) => event.location === venue.name)?.category.label ?? ''
