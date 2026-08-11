@@ -3,7 +3,7 @@ import type { Pool } from 'pg'
 import type { ServerConfig } from './config.js'
 import { hasUsableCoordinates } from './coordinates.js'
 import type { Coordinates } from './coordinates.js'
-import { VenueGeocoder } from './geocoder.js'
+import { GEOCODER_STRATEGY_VERSION, VenueGeocoder } from './geocoder.js'
 import { parseEventDetail, parsePlaceDetail, parseUserEventsPage } from './parser.js'
 import { EventRepository } from './repository.js'
 import type { EventSeed, StoredEvent, SyncStats } from './types.js'
@@ -234,6 +234,7 @@ export class EventSyncService {
       const storedCoordinatesAreCurrent = stored?.address === detail.address && hasUsableCoordinates(stored)
       const recentFailedAttempt = stored?.address === detail.address
         && stored.geocodeAttemptedAt !== undefined
+        && stored.geocodeVersion === GEOCODER_STRATEGY_VERSION
         && Date.now() - new Date(stored.geocodeAttemptedAt).getTime() < FAILED_GEOCODE_TTL_MS
       let resolved: Coordinates | undefined = storedCoordinatesAreCurrent ? stored : undefined
       if (!resolved && !recentFailedAttempt) {
@@ -245,6 +246,10 @@ export class EventSyncService {
         detail.longitude = resolved.longitude
       }
     }
-    await this.repository.savePlaceDetail(detail, hashHtml(html), geocodeAttempted)
+    await this.repository.savePlaceDetail(
+      detail,
+      hashHtml(html),
+      geocodeAttempted ? GEOCODER_STRATEGY_VERSION : undefined,
+    )
   }
 }

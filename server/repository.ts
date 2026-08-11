@@ -38,6 +38,7 @@ interface PlaceRow {
   longitude: number | null
   detail_fetched_at: Date | null
   geocode_attempted_at: Date | null
+  geocode_version: number
 }
 
 function actorsFromRow(value: string[] | string): string[] {
@@ -345,7 +346,7 @@ export class EventRepository {
   async getPlace(placeId: string): Promise<StoredPlaceDetail | undefined> {
     const result = await this.pool.query<PlaceRow>(
       `SELECT place_id, name, address, region, latitude, longitude,
-              detail_fetched_at, geocode_attempted_at
+              detail_fetched_at, geocode_attempted_at, geocode_version
        FROM places
        WHERE place_id = $1`,
       [placeId],
@@ -362,6 +363,7 @@ export class EventRepository {
       ...(row.geocode_attempted_at === null
         ? {}
         : { geocodeAttemptedAt: row.geocode_attempted_at.toISOString() }),
+      geocodeVersion: row.geocode_version,
     }
   }
 
@@ -379,21 +381,27 @@ export class EventRepository {
   async savePlaceDetail(
     detail: PlaceDetail,
     rawHash: string,
-    geocodeAttempted = false,
+    geocodeVersion?: number,
   ): Promise<void> {
     await this.pool.query(
       `INSERT INTO places (
          place_id, name, address, region, latitude, longitude, detail_fetched_at,
-         raw_detail_hash, geocode_attempted_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, CASE WHEN $8 THEN NOW() END)
+         raw_detail_hash, geocode_attempted_at, geocode_version
+       ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7,
+         CASE WHEN $8::INTEGER IS NOT NULL THEN NOW() END, COALESCE($8, 0))
        ON CONFLICT (place_id) DO UPDATE SET
          name = EXCLUDED.name, address = EXCLUDED.address, region = EXCLUDED.region,
          latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
          detail_fetched_at = NOW(), raw_detail_hash = EXCLUDED.raw_detail_hash,
          geocode_attempted_at = CASE
            WHEN places.address <> EXCLUDED.address THEN EXCLUDED.geocode_attempted_at
-           WHEN $8 THEN NOW()
+           WHEN $8::INTEGER IS NOT NULL THEN NOW()
            ELSE places.geocode_attempted_at
+         END,
+         geocode_version = CASE
+           WHEN places.address <> EXCLUDED.address THEN EXCLUDED.geocode_version
+           WHEN $8::INTEGER IS NOT NULL THEN $8
+           ELSE places.geocode_version
          END,
          updated_at = NOW()`,
       [
@@ -404,7 +412,7 @@ export class EventRepository {
         detail.latitude ?? null,
         detail.longitude ?? null,
         rawHash,
-        geocodeAttempted,
+        geocodeVersion ?? null,
       ],
     )
   }

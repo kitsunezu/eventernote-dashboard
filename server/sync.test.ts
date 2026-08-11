@@ -44,7 +44,14 @@ describe('EventSyncService.refreshEvent', () => {
     const repository = {
       hasActiveEvent: vi.fn().mockResolvedValue(true),
       saveEventDetail: vi.fn().mockResolvedValue(undefined),
-      getPlace: vi.fn().mockResolvedValue(undefined),
+      getPlace: vi.fn().mockResolvedValue({
+        id: '18844',
+        name: 'Shibuya LOVEZ',
+        address: '〒150-0042 東京都渋谷区宇田川町9番5号',
+        region: '東京',
+        geocodeAttemptedAt: new Date().toISOString(),
+        geocodeVersion: 0,
+      }),
       savePlaceDetail: vi.fn().mockResolvedValue(undefined),
     }
     const upstream = {
@@ -79,7 +86,7 @@ describe('EventSyncService.refreshEvent', () => {
         longitude: 139.696213,
       }),
       expect.any(String),
-      true,
+      1,
     )
   })
 })

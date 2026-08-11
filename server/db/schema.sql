@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS places (
   longitude DOUBLE PRECISION,
   detail_fetched_at TIMESTAMPTZ,
   geocode_attempted_at TIMESTAMPTZ,
+  geocode_version INTEGER NOT NULL DEFAULT 0,
   raw_detail_hash TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -23,6 +24,9 @@ CREATE TABLE IF NOT EXISTS places (
 
 ALTER TABLE places
   ADD COLUMN IF NOT EXISTS geocode_attempted_at TIMESTAMPTZ;
+
+ALTER TABLE places
+  ADD COLUMN IF NOT EXISTS geocode_version INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS events (
   event_id TEXT PRIMARY KEY,
