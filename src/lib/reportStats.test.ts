@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PlaceEntry } from './placeCache'
 import type { ScheduleEvent } from '../types/events'
-import { buildReportStats, getReportYears } from './reportStats'
+import { buildReportStats, getReportYears, getUnmappedVenuePlaceIds } from './reportStats'
 
 const baseEvent: ScheduleEvent = {
   id: '1',
@@ -110,5 +110,24 @@ describe('report statistics', () => {
       latitude: 35.662,
       longitude: 139.698,
     })
+  })
+
+  it('selects unique place IDs only for venues that are not mapped', () => {
+    const retryEvents: ScheduleEvent[] = [
+      { ...baseEvent, id: '10', location: 'Venue A', sourceMeta: { placeId: '101' } },
+      { ...baseEvent, id: '11', location: 'Venue A', sourceMeta: { placeId: '101' } },
+      { ...baseEvent, id: '12', location: 'Venue B', sourceMeta: { placeId: '202' } },
+      { ...baseEvent, id: '13', location: 'Virtual venue' },
+    ]
+    const stats = buildReportStats(
+      retryEvents,
+      'all',
+      {},
+      {},
+      new Date('2026-01-01T00:00:00.000Z'),
+    )
+    const eventsById = new Map(stats.events.map((event) => [event.id, event]))
+
+    expect(getUnmappedVenuePlaceIds(stats.venues, new Set(['Venue B']), eventsById)).toEqual(['101'])
   })
 })

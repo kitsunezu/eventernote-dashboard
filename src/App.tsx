@@ -74,6 +74,7 @@ function App() {
         onThemeToggle={state.toggleTheme}
         onRefresh={() => state.loadFromEventernote(userId, true)}
         onRefreshEvent={(eventId) => state.refreshEvent(userId, eventId)}
+        onRefreshUnmappedPlaces={(placeIds) => state.refreshUnmappedPlaces(userId, placeIds)}
       />
     )
   }

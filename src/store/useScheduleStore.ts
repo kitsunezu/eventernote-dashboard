@@ -1,5 +1,9 @@
 import { create } from 'zustand'
-import { loadEventernoteUserFromApi, refreshEventernoteEvent } from '../adapters/eventernoteApiSource'
+import {
+  loadEventernoteUserFromApi,
+  refreshEventernoteEvent,
+  refreshEventernotePlaces,
+} from '../adapters/eventernoteApiSource'
 import { getEventCategories, getNextEvent, getVisibleEvents, sortEvents } from '../lib/date'
 import { getUiCopy } from '../lib/localize'
 import { readScheduleSnapshot, writeScheduleSnapshot } from '../lib/storage'
@@ -44,6 +48,7 @@ export interface ScheduleStore extends ScheduleSnapshot {
   deleteEvent: (eventId: string) => void
   loadFromEventernote: (userId: string, forceRefresh?: boolean) => Promise<void>
   refreshEvent: (userId: string, eventId: string) => Promise<void>
+  refreshUnmappedPlaces: (userId: string, placeIds: string[]) => Promise<string[]>
 }
 
 const persisted = readScheduleSnapshot()
@@ -164,6 +169,14 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     } catch (error) {
       console.error(`Failed to refresh Eventernote event ${eventId}`, error)
     }
+  },
+  refreshUnmappedPlaces: async (userId, placeIds) => {
+    const data = await refreshEventernotePlaces(userId, placeIds)
+    if (get().cachedUserId !== userId) return data.warnings
+    // The adapter has already updated the place cache. Keep the freshest event
+    // snapshot and replace only its array reference so report data recomputes.
+    set((state) => ({ events: [...state.events] }))
+    return data.warnings
   },
 }))
 

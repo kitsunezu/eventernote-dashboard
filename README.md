@@ -92,6 +92,8 @@ docker pull ghcr.io/kitsunezu/eventernote-dashboard:api-latest
 
 Set `POSTGRES_PASSWORD` in Portainer's stack environment, then deploy the committed `docker-compose.yml`. The stack creates the web, API, and PostgreSQL services plus the persistent `eventernote-db-data` volume.
 
+To accept reviewed events from the separate `eventernote-autofill` service, also set a long random `DASHBOARD_IMPORT_TOKEN` in both stacks. The import route is disabled when this value is empty and should only be called over the shared `eventernote-internal` Docker network.
+
 ### Build locally
 
 ```bash

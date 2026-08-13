@@ -14,6 +14,7 @@ export interface ServerConfig {
   nominatimGeocoderUrl: string
   geocoderTimeoutMs: number
   nominatimMinIntervalMs: number
+  internalImportToken?: string
 }
 
 function positiveInteger(name: string, fallback: number): number {
@@ -45,5 +46,6 @@ export function loadConfig(): ServerConfig {
       ?? 'https://nominatim.openstreetmap.org/search',
     geocoderTimeoutMs: positiveInteger('GEOCODER_TIMEOUT_MS', 10_000),
     nominatimMinIntervalMs: positiveInteger('NOMINATIM_MIN_INTERVAL_MS', 1_100),
+    internalImportToken: process.env.DASHBOARD_IMPORT_TOKEN,
   }
 }

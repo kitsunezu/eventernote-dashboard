@@ -4,6 +4,7 @@ import { colorForRegion, detectRegion } from './regions.js'
 import type {
   EventDetail,
   EventSeed,
+  ExternalEventImport,
   PlaceDetail,
   StoredPlaceDetail,
   StoredEvent,
@@ -59,6 +60,63 @@ export class EventRepository {
 
   constructor(pool: Pool) {
     this.pool = pool
+  }
+
+  async importExternalEvent(input: ExternalEventImport): Promise<void> {
+    const { event, userId } = input
+    const startTime = event.startTime || event.openTime || '00:00'
+    const endTime = event.endTime || startTime
+    const startAt = `${event.date}T${startTime}:00`
+    const endAt = `${event.date}T${endTime}:00`
+    const region = detectRegion(event.venue, event.title, event.placeAddress)
+    const client = await this.pool.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query(
+        `INSERT INTO eventernote_users (user_id, last_index_attempt_at, last_index_success_at, updated_at)
+         VALUES ($1, NOW(), NOW(), NOW())
+         ON CONFLICT (user_id) DO UPDATE SET
+           last_index_attempt_at = NOW(), last_index_success_at = NOW(),
+           last_index_error = NULL, updated_at = NOW()`,
+        [userId],
+      )
+      if (event.placeId) {
+        await client.query(
+          `INSERT INTO places (place_id, name, address, region, detail_fetched_at, updated_at)
+           VALUES ($1, $2, $3, $4, NOW(), NOW())
+           ON CONFLICT (place_id) DO UPDATE SET
+             name = EXCLUDED.name, address = EXCLUDED.address, region = EXCLUDED.region,
+             detail_fetched_at = NOW(), updated_at = NOW()`,
+          [event.placeId, event.venue, event.placeAddress, region],
+        )
+      }
+      await client.query(
+        `INSERT INTO events (
+           event_id, title, start_at, end_at, place_id, venue_name, actors,
+           detail_description, image_url, image_alt, list_seen_at, detail_fetched_at, updated_at
+         ) VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7::jsonb, $8, NULLIF($9, ''), $10, NOW(), NOW(), NOW())
+         ON CONFLICT (event_id) DO UPDATE SET
+           title = EXCLUDED.title, start_at = EXCLUDED.start_at, end_at = EXCLUDED.end_at,
+           place_id = EXCLUDED.place_id, venue_name = EXCLUDED.venue_name,
+           actors = EXCLUDED.actors, detail_description = EXCLUDED.detail_description,
+           image_url = COALESCE(EXCLUDED.image_url, events.image_url),
+           image_alt = EXCLUDED.image_alt, detail_fetched_at = NOW(), updated_at = NOW()`,
+        [event.id, event.title, startAt, endAt, event.placeId, event.venue,
+          JSON.stringify(event.actors), event.description, event.imageUrl, event.title],
+      )
+      await client.query(
+        `INSERT INTO user_events (user_id, event_id, active, first_seen_at, last_seen_at)
+         VALUES ($1, $2, TRUE, NOW(), NOW())
+         ON CONFLICT (user_id, event_id) DO UPDATE SET active = TRUE, last_seen_at = NOW()`,
+        [userId, event.id],
+      )
+      await client.query('COMMIT')
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
   }
 
   async getSnapshot(userId: string): Promise<StoredUserSnapshot> {
@@ -342,6 +400,35 @@ export class EventRepository {
     return result.rows
   }
 
+  async getRequestedPlacesForUser(userId: string, placeIds: string[]): Promise<StoredPlaceDetail[]> {
+    if (placeIds.length === 0) return []
+    const result = await this.pool.query<PlaceRow>(
+      `SELECT p.place_id, p.name, p.address, p.region, p.latitude, p.longitude,
+              p.detail_fetched_at, p.geocode_attempted_at
+       FROM places p
+       WHERE p.place_id = ANY($2::text[])
+         AND EXISTS (
+           SELECT 1
+           FROM user_events ue
+           JOIN events e ON e.event_id = ue.event_id
+           WHERE ue.user_id = $1 AND ue.active = TRUE AND e.place_id = p.place_id
+         )
+       ORDER BY array_position($2::text[], p.place_id)`,
+      [userId, placeIds],
+    )
+    return result.rows.map((row) => ({
+      id: row.place_id,
+      name: row.name,
+      address: row.address,
+      region: row.region,
+      ...(row.latitude === null ? {} : { latitude: row.latitude }),
+      ...(row.longitude === null ? {} : { longitude: row.longitude }),
+      ...(row.geocode_attempted_at === null
+        ? {}
+        : { geocodeAttemptedAt: row.geocode_attempted_at.toISOString() }),
+    }))
+  }
+
   async getPlace(placeId: string): Promise<StoredPlaceDetail | undefined> {
     const result = await this.pool.query<PlaceRow>(
       `SELECT place_id, name, address, region, latitude, longitude,
@@ -387,9 +474,20 @@ export class EventRepository {
          raw_detail_hash, geocode_attempted_at
        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, CASE WHEN $8 THEN NOW() END)
        ON CONFLICT (place_id) DO UPDATE SET
-         name = EXCLUDED.name, address = EXCLUDED.address, region = EXCLUDED.region,
-         latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
-         detail_fetched_at = NOW(), raw_detail_hash = EXCLUDED.raw_detail_hash,
+          name = EXCLUDED.name, address = EXCLUDED.address, region = EXCLUDED.region,
+          latitude = CASE
+            WHEN places.address = EXCLUDED.address
+              AND (EXCLUDED.latitude IS NULL OR EXCLUDED.longitude IS NULL)
+            THEN places.latitude
+            ELSE EXCLUDED.latitude
+          END,
+          longitude = CASE
+            WHEN places.address = EXCLUDED.address
+              AND (EXCLUDED.latitude IS NULL OR EXCLUDED.longitude IS NULL)
+            THEN places.longitude
+            ELSE EXCLUDED.longitude
+          END,
+          detail_fetched_at = NOW(), raw_detail_hash = EXCLUDED.raw_detail_hash,
          geocode_attempted_at = CASE
            WHEN places.address <> EXCLUDED.address THEN EXCLUDED.geocode_attempted_at
            WHEN $8 THEN NOW()

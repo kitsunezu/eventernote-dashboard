@@ -14,6 +14,13 @@ const CLOSE_EVENT_TTL_MS = 60 * 60 * 1000
 const FUTURE_EVENT_TTL_MS = 6 * 60 * 60 * 1000
 const PAST_EVENT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const FAILED_GEOCODE_TTL_MS = 30 * 24 * 60 * 60 * 1000
+const MANUAL_PLACE_REFRESH_COOLDOWN_MS = 60 * 1000
+const MAX_MANUAL_USER_REFRESHES = 4
+
+interface PlaceRefreshInFlight {
+  forceGeocode: boolean
+  promise: Promise<boolean>
+}
 
 function hashHtml(html: string): string {
   return createHash('sha256').update(html).digest('hex')
@@ -57,6 +64,12 @@ async function mapWithConcurrency<T>(
 
 export class EventSyncService {
   private readonly inFlight = new Map<string, Promise<void>>()
+  private readonly placeRefreshes = new Map<string, PlaceRefreshInFlight>()
+  private readonly manualUserRefreshes = new Map<string, Promise<string[]>>()
+  private readonly manualPlaceRefreshes = new Map<string, Promise<boolean>>()
+  private readonly manualPlaceRefreshStartedAt = new Map<string, number>()
+  private manualPlaceActiveCount = 0
+  private readonly manualPlaceWaiters: Array<() => void> = []
   private readonly pool: Pool
   private readonly repository: EventRepository
   private readonly upstream: EventernoteClient
@@ -108,6 +121,72 @@ export class EventSyncService {
       }
     }
     return warnings
+  }
+
+  refreshUnmappedPlaces(userId: string, placeIds: string[]): Promise<string[]> {
+    if (this.manualUserRefreshes.has(userId)) {
+      return Promise.resolve(['Another manual place refresh is already running'])
+    }
+    if (this.manualUserRefreshes.size >= MAX_MANUAL_USER_REFRESHES) {
+      return Promise.resolve(['Manual place refresh is temporarily busy'])
+    }
+    const refresh = this.performUnmappedPlaceRefresh(userId, placeIds).finally(() => {
+      if (this.manualUserRefreshes.get(userId) === refresh) this.manualUserRefreshes.delete(userId)
+    })
+    this.manualUserRefreshes.set(userId, refresh)
+    return refresh
+  }
+
+  private async performUnmappedPlaceRefresh(userId: string, placeIds: string[]): Promise<string[]> {
+    const requestedIds = Array.from(new Set(placeIds))
+    const places = (await this.repository.getRequestedPlacesForUser(userId, requestedIds))
+      .filter((place) => !hasUsableCoordinates(place))
+    const warnings: string[] = []
+    const now = Date.now()
+    for (const [placeId, startedAt] of this.manualPlaceRefreshStartedAt) {
+      if (now - startedAt >= MANUAL_PLACE_REFRESH_COOLDOWN_MS) {
+        this.manualPlaceRefreshStartedAt.delete(placeId)
+      }
+    }
+
+    await mapWithConcurrency(places, 2, async (place) => {
+      try {
+        let refresh = this.manualPlaceRefreshes.get(place.id)
+        if (!refresh) {
+          const startedAt = this.manualPlaceRefreshStartedAt.get(place.id)
+          if (startedAt !== undefined && now - startedAt < MANUAL_PLACE_REFRESH_COOLDOWN_MS) {
+            warnings.push(`Place ${place.id}: manual retry is temporarily throttled`)
+            return
+          }
+          this.manualPlaceRefreshStartedAt.set(place.id, now)
+          refresh = this.withManualPlaceSlot(
+            () => this.refreshPlace(place.id, place.name, true),
+          ).finally(() => {
+            if (this.manualPlaceRefreshes.get(place.id) === refresh) {
+              this.manualPlaceRefreshes.delete(place.id)
+            }
+          })
+          this.manualPlaceRefreshes.set(place.id, refresh)
+        }
+        if (!await refresh) warnings.push(`Place ${place.id}: no coordinates found`)
+      } catch (error) {
+        warnings.push(`Place ${place.id}: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    })
+    return warnings
+  }
+
+  private async withManualPlaceSlot<T>(work: () => Promise<T>): Promise<T> {
+    if (this.manualPlaceActiveCount >= 2) {
+      await new Promise<void>((resolve) => this.manualPlaceWaiters.push(resolve))
+    }
+    this.manualPlaceActiveCount += 1
+    try {
+      return await work()
+    } finally {
+      this.manualPlaceActiveCount -= 1
+      this.manualPlaceWaiters.shift()?.()
+    }
   }
 
   private async synchronizeWithLock(userId: string): Promise<void> {
@@ -225,7 +304,25 @@ export class EventSyncService {
     return Array.from(byId.values())
   }
 
-  private async refreshPlace(placeId: string, fallbackName: string): Promise<void> {
+  private refreshPlace(placeId: string, fallbackName: string, forceGeocode = false): Promise<boolean> {
+    const existing = this.placeRefreshes.get(placeId)
+    if (existing) {
+      if (!forceGeocode || existing.forceGeocode) return existing.promise
+      return existing.promise.then(() => this.refreshPlace(placeId, fallbackName, true))
+    }
+
+    const promise = this.performPlaceRefresh(placeId, fallbackName, forceGeocode).finally(() => {
+      if (this.placeRefreshes.get(placeId)?.promise === promise) this.placeRefreshes.delete(placeId)
+    })
+    this.placeRefreshes.set(placeId, { forceGeocode, promise })
+    return promise
+  }
+
+  private async performPlaceRefresh(
+    placeId: string,
+    fallbackName: string,
+    forceGeocode: boolean,
+  ): Promise<boolean> {
     const html = await this.upstream.fetchHtml(`/places/${placeId}`)
     const detail = parsePlaceDetail(html, placeId, fallbackName)
     let geocodeAttempted = false
@@ -236,7 +333,7 @@ export class EventSyncService {
         && stored.geocodeAttemptedAt !== undefined
         && Date.now() - new Date(stored.geocodeAttemptedAt).getTime() < FAILED_GEOCODE_TTL_MS
       let resolved: Coordinates | undefined = storedCoordinatesAreCurrent ? stored : undefined
-      if (!resolved && !recentFailedAttempt) {
+      if (!resolved && (forceGeocode || !recentFailedAttempt)) {
         geocodeAttempted = true
         resolved = await this.geocoder.geocode(detail.name, detail.address)
       }
@@ -246,5 +343,6 @@ export class EventSyncService {
       }
     }
     await this.repository.savePlaceDetail(detail, hashHtml(html), geocodeAttempted)
+    return hasUsableCoordinates(detail)
   }
 }

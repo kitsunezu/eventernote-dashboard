@@ -348,6 +348,12 @@ export interface ReportCopy {
   openMap: string
   mapHint: string
   mapCoverage: (mapped: number, total: number) => string
+  mapRefresh: string
+  mapRefreshing: string
+  mapRefreshUnavailable: string
+  mapRefreshComplete: string
+  mapRefreshPartial: string
+  mapRefreshFailed: string
   eventOccurrences: (count: number) => string
   approximateLocation: string
   expandEvents: (name: string, count: number) => string
@@ -393,6 +399,12 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     openMap: '在地圖開啟',
     mapHint: '目前統計範圍內的會場會同時標記在地圖上。',
     mapCoverage: (mapped, total) => `已標記 ${mapped} / ${total} 個會場`,
+    mapRefresh: '重新尋找未標記會場',
+    mapRefreshing: '正在重新尋找未標記會場',
+    mapRefreshUnavailable: '沒有可重新搜尋的未標記會場',
+    mapRefreshComplete: '未標記會場已重新尋找完成。',
+    mapRefreshPartial: '重新尋找完成，部分會場仍無法標記。',
+    mapRefreshFailed: '無法重新尋找未標記會場，請稍後再試。',
     eventOccurrences: (count) => `${count} 場活動`,
     approximateLocation: '城市級約略位置',
     expandEvents: (name, count) => `展開 ${name} 的 ${count} 場活動`,
@@ -436,6 +448,12 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     openMap: 'Open in maps',
     mapHint: 'All venues in the current report range are shown together.',
     mapCoverage: (mapped, total) => `${mapped} of ${total} venues mapped`,
+    mapRefresh: 'Retry unmapped venues',
+    mapRefreshing: 'Retrying unmapped venues',
+    mapRefreshUnavailable: 'No unmapped venues can be retried',
+    mapRefreshComplete: 'Finished retrying unmapped venues.',
+    mapRefreshPartial: 'Retry finished, but some venues are still unmapped.',
+    mapRefreshFailed: 'Could not retry unmapped venues. Please try again later.',
     eventOccurrences: (count) => `${count} event${count === 1 ? '' : 's'}`,
     approximateLocation: 'Approximate city location',
     expandEvents: (name, count) => `Show ${count} events for ${name}`,
@@ -479,6 +497,12 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     openMap: '地図で開く',
     mapHint: '現在の集計範囲にあるすべての会場を表示します。',
     mapCoverage: (mapped, total) => `${mapped} / ${total} 会場を表示`,
+    mapRefresh: '未表示の会場を再検索',
+    mapRefreshing: '未表示の会場を再検索中',
+    mapRefreshUnavailable: '再検索できる未表示の会場はありません',
+    mapRefreshComplete: '未表示の会場を再検索しました。',
+    mapRefreshPartial: '再検索しましたが、一部の会場はまだ表示できません。',
+    mapRefreshFailed: '未表示の会場を再検索できませんでした。後でもう一度お試しください。',
     eventOccurrences: (count) => `${count} 件のイベント`,
     approximateLocation: '都市単位の概算位置',
     expandEvents: (name, count) => `${name}のイベント ${count} 件を表示`,

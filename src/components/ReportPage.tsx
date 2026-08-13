@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { getReportCopy } from '../lib/localize'
 import { getAllPlaces } from '../lib/placeCache'
-import { buildReportStats } from '../lib/reportStats'
+import { buildReportStats, getUnmappedVenuePlaceIds } from '../lib/reportStats'
 import type { RankedStat, ReportScope } from '../lib/reportStats'
 import {
   REPORT_CURRENCIES,
@@ -38,6 +38,7 @@ interface ReportPageProps {
   onThemeToggle: () => void
   onRefresh: () => void
   onRefreshEvent: (eventId: string) => void
+  onRefreshUnmappedPlaces: (placeIds: string[]) => Promise<string[]>
 }
 
 function eventOccurrenceList(
@@ -110,6 +111,7 @@ export function ReportPage({
   onThemeToggle,
   onRefresh,
   onRefreshEvent,
+  onRefreshUnmappedPlaces,
 }: ReportPageProps) {
   const copy = getReportCopy(locale)
   const reportRef = useRef<HTMLDivElement>(null)
@@ -118,6 +120,7 @@ export function ReportPage({
   const [selectedVenue, setSelectedVenue] = useState('')
   const [expandedMonth, setExpandedMonth] = useState('')
   const [status, setStatus] = useState('')
+  const [refreshingUnmapped, setRefreshingUnmapped] = useState(false)
   const statusTimerRef = useRef<number | null>(null)
 
   const stats = useMemo(
@@ -144,6 +147,10 @@ export function ReportPage({
     [eventsById, stats.venues],
   )
   const mappedVenueNames = useMemo(() => new Set(mapPoints.map((point) => point.name)), [mapPoints])
+  const unmappedPlaceIds = useMemo(
+    () => getUnmappedVenuePlaceIds(stats.venues, mappedVenueNames, eventsById),
+    [eventsById, mappedVenueNames, stats.venues],
+  )
   const formatter = useMemo(
     () => new Intl.NumberFormat(locale, { style: 'currency', currency: ticketData.currency, maximumFractionDigits: 0 }),
     [locale, ticketData.currency],
@@ -174,6 +181,25 @@ export function ReportPage({
     setStatus(message)
     statusTimerRef.current = window.setTimeout(() => setStatus(''), 3200)
   }
+
+  async function refreshUnmappedPlaces() {
+    if (refreshingUnmapped || unmappedPlaceIds.length === 0) return
+    setRefreshingUnmapped(true)
+    try {
+      const warnings = await onRefreshUnmappedPlaces(unmappedPlaceIds)
+      showStatus(warnings.length > 0 ? copy.mapRefreshPartial : copy.mapRefreshComplete)
+    } catch {
+      showStatus(copy.mapRefreshFailed)
+    } finally {
+      setRefreshingUnmapped(false)
+    }
+  }
+
+  const mapRefreshLabel = refreshingUnmapped
+    ? copy.mapRefreshing
+    : unmappedPlaceIds.length === 0
+      ? copy.mapRefreshUnavailable
+      : copy.mapRefresh
 
   async function createReportBlob(): Promise<Blob | null> {
     if (!reportRef.current) return null
@@ -362,7 +388,21 @@ export function ReportPage({
             <section className="report-section report-map-section">
               <div className="report-section__heading">
                 <div><h2>{copy.venueMap}</h2><p>{copy.mapHint}</p></div>
-                <span className="report-map-coverage">{copy.mapCoverage(mapPoints.length, stats.venues.length)}</span>
+                <div className="report-map-actions">
+                  <span className="report-map-coverage">{copy.mapCoverage(mapPoints.length, stats.venues.length)}</span>
+                  <button
+                    type="button"
+                    className="report-map-refresh"
+                    data-capture="exclude"
+                    onClick={() => void refreshUnmappedPlaces()}
+                    disabled={refreshingUnmapped}
+                    aria-disabled={refreshingUnmapped || unmappedPlaceIds.length === 0}
+                    title={mapRefreshLabel}
+                    aria-label={mapRefreshLabel}
+                  >
+                    <RefreshCw size={15} className={refreshingUnmapped ? 'is-spinning' : ''} />
+                  </button>
+                </div>
               </div>
               <div className="report-map-layout">
                 <div className="report-map__embed" data-capture="exclude">

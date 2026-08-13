@@ -17,6 +17,17 @@ POST /api/users/{userId}/events/{eventId}/refresh
 
 The targeted refresh verifies that the event belongs to the user's active schedule, then fetches the event detail and its place page without applying the normal freshness TTL. The response uses the same event API shape so the open drawer and report cache can update in place.
 
+The attendance report can explicitly retry places that still have no usable coordinates:
+
+```http
+POST /api/users/{userId}/places/refresh
+Content-Type: application/json
+
+{ "placeIds": ["18844"] }
+```
+
+The endpoint accepts at most 20 numeric place IDs per request. It only refreshes places connected to that user's active events and still lacking usable coordinates. Unlike background synchronization, this explicit action bypasses the 30-day failed-geocode cooldown. Concurrent work for the same place is coalesced, global manual geocoding and queued user jobs are bounded, and each place has a 60-second manual retry cooldown. The response uses the same event API shape so the report map updates in place; places that remain unresolved are returned as warnings.
+
 The server validates `userId` and reads PostgreSQL before contacting Eventernote.
 
 1. Fresh user index: return the database snapshot.
@@ -96,5 +107,18 @@ At most 40 event details are refreshed in one user synchronization, ordered by m
 | `NOMINATIM_GEOCODER_URL` | No | `https://nominatim.openstreetmap.org/search` |
 | `GEOCODER_TIMEOUT_MS` | No | `10000` |
 | `NOMINATIM_MIN_INTERVAL_MS` | No | `1100` |
+| `DASHBOARD_IMPORT_TOKEN` | For autofill import | Endpoint disabled when unset |
 
 Only variable names belong in git. Set the real PostgreSQL password in the Portainer stack environment.
+
+## Internal reviewed-event import
+
+The separate `eventernote-autofill` service can persist a newly created Eventernote event through:
+
+```http
+POST /api/internal/events/import
+Authorization: Bearer <DASHBOARD_IMPORT_TOKEN>
+Content-Type: application/json
+```
+
+The endpoint is disabled when `DASHBOARD_IMPORT_TOKEN` is unset. It validates the Eventernote user, event ID, date/time, place ID, actor list, and field lengths, then transactionally upserts `eventernote_users`, `places`, `events`, and `user_events`. It is intended for the shared `eventernote-internal` Docker network; do not expose it as a separately routed public API.

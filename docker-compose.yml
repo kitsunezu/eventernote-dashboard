@@ -39,6 +39,7 @@ services:
       - NOMINATIM_GEOCODER_URL=${NOMINATIM_GEOCODER_URL:-https://nominatim.openstreetmap.org/search}
       - GEOCODER_TIMEOUT_MS=${GEOCODER_TIMEOUT_MS:-10000}
       - NOMINATIM_MIN_INTERVAL_MS=${NOMINATIM_MIN_INTERVAL_MS:-1100}
+      - DASHBOARD_IMPORT_TOKEN=${DASHBOARD_IMPORT_TOKEN:-}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 15s
@@ -71,6 +72,7 @@ volumes:
 networks:
   eventernote-internal:
     driver: bridge
+    name: eventernote-dashboard_eventernote-internal
   signoz-net:
     external: true
     name: signoz-net

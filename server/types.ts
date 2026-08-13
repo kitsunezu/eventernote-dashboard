@@ -64,3 +64,22 @@ export interface SyncStats {
   refreshedPlaces: number
   warnings: string[]
 }
+
+export interface ExternalEventImport {
+  userId: string
+  event: {
+    id: string
+    title: string
+    date: string
+    openTime: string
+    startTime: string
+    endTime: string
+    description: string
+    officialUrl: string
+    imageUrl: string
+    venue: string
+    placeId: string
+    placeAddress: string
+    actors: string[]
+  }
+}

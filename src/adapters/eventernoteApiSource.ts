@@ -3,6 +3,7 @@ import type { ImportedScheduleData, ScheduleEvent } from '../types/events'
 
 const POLL_INTERVAL_MS = 2_000
 const MAX_REFRESH_POLLS = 10
+const PLACE_REFRESH_BATCH_SIZE = 20
 
 interface ApiResponse extends ImportedScheduleData {
   places: Record<string, {
@@ -69,6 +70,26 @@ async function refreshUserEvent(userId: string, eventId: string): Promise<ApiRes
   return payload
 }
 
+async function refreshUserPlaces(userId: string, placeIds: string[]): Promise<ApiResponse> {
+  const response = await fetch(`/api/users/${encodeURIComponent(userId)}/places/refresh`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ placeIds }),
+  })
+  const payload = await response.json().catch(() => null) as unknown
+  if (!response.ok) {
+    const message = payload && typeof payload === 'object' && 'error' in payload
+      ? String(payload.error)
+      : `HTTP ${response.status}`
+    throw new Error(message)
+  }
+  if (!isApiResponse(payload)) throw new Error('Place refresh API returned an invalid response')
+  return payload
+}
+
 function persistPlaces(response: ApiResponse): void {
   for (const [placeId, place] of Object.entries(response.places)) {
     const current = getPlace(placeId)
@@ -114,5 +135,30 @@ export async function refreshEventernoteEvent(
     warnings: response.warnings,
     sourceType: 'backend',
     importedAt: response.importedAt,
+  }
+}
+
+export async function refreshEventernotePlaces(
+  userId: string,
+  placeIds: string[],
+): Promise<ImportedScheduleData> {
+  const uniquePlaceIds = Array.from(new Set(placeIds))
+  let latest: ApiResponse | undefined
+  const warnings: string[] = []
+  for (let index = 0; index < uniquePlaceIds.length; index += PLACE_REFRESH_BATCH_SIZE) {
+    try {
+      latest = await refreshUserPlaces(userId, uniquePlaceIds.slice(index, index + PLACE_REFRESH_BATCH_SIZE))
+      persistPlaces(latest)
+      warnings.push(...latest.warnings)
+    } catch (error) {
+      warnings.push(error instanceof Error ? error.message : 'Place refresh failed')
+    }
+  }
+  if (!latest) throw new Error(warnings[0] ?? 'No places were selected for refresh')
+  return {
+    events: latest.events,
+    warnings,
+    sourceType: 'backend',
+    importedAt: latest.importedAt,
   }
 }

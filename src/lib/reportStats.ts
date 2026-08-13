@@ -28,6 +28,22 @@ export interface ReportStats {
   pricedEventCount: number
 }
 
+export function getUnmappedVenuePlaceIds(
+  venues: VenueStat[],
+  mappedVenueNames: ReadonlySet<string>,
+  eventsById: ReadonlyMap<string, ScheduleEvent>,
+): string[] {
+  const placeIds = new Set<string>()
+  for (const venue of venues) {
+    if (mappedVenueNames.has(venue.name)) continue
+    for (const eventId of venue.eventIds) {
+      const placeId = eventsById.get(eventId)?.sourceMeta?.placeId
+      if (placeId && /^\d+$/.test(placeId)) placeIds.add(placeId)
+    }
+  }
+  return Array.from(placeIds)
+}
+
 function rank(entries: Array<{ name: string; eventId: string }>): RankedStat[] {
   const counts = new Map<string, string[]>()
   for (const entry of entries) {

@@ -2030,6 +2030,38 @@ button {
   white-space: nowrap;
 }
 
+.report-map-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.report-map-refresh {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--report-green);
+}
+
+.report-map-refresh:hover:not(:disabled):not([aria-disabled='true']),
+.report-map-refresh:focus-visible {
+  outline: none;
+  border-color: var(--report-green);
+  color: var(--text);
+}
+
+.report-map-refresh:disabled,
+.report-map-refresh[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.42;
+}
+
 .report-map-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.75fr);
@@ -2314,6 +2346,8 @@ button {
   .report-hero h1 { font-size: 1.75rem; }
   .report-metrics > div { padding: 16px 12px; }
   .report-metrics strong { font-size: 1.55rem; }
+  .report-map-section .report-section__heading { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .report-map-actions { align-self: stretch; justify-content: space-between; }
   .report-ticket-list > label { grid-template-columns: 1fr; gap: 6px; padding: 10px 0; }
   .report-ticket-input { width: 100%; }
 }

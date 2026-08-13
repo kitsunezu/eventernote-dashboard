@@ -12,13 +12,16 @@ type LoadFromApi = (
   forceRefresh?: boolean,
 ) => Promise<ImportedScheduleData>
 type RefreshFromApi = (userId: string, eventId: string) => Promise<ImportedScheduleData>
+type RefreshPlacesFromApi = (userId: string, placeIds: string[]) => Promise<ImportedScheduleData>
 
 const loadFromApi = vi.hoisted(() => vi.fn<LoadFromApi>())
 const refreshFromApi = vi.hoisted(() => vi.fn<RefreshFromApi>())
+const refreshPlacesFromApi = vi.hoisted(() => vi.fn<RefreshPlacesFromApi>())
 
 vi.mock('../adapters/eventernoteApiSource', () => ({
   loadEventernoteUserFromApi: loadFromApi,
   refreshEventernoteEvent: refreshFromApi,
+  refreshEventernotePlaces: refreshPlacesFromApi,
 }))
 
 const testEvents: ScheduleEvent[] = [
@@ -89,6 +92,7 @@ function createState(overrides: Partial<ScheduleStore> = {}): ScheduleStore {
     error: null,
     loadFromEventernote: async () => undefined,
     refreshEvent: async () => undefined,
+    refreshUnmappedPlaces: async () => [],
     ...overrides,
   }
 }
@@ -111,6 +115,7 @@ describe('useScheduleStore Eventernote loading', () => {
   beforeEach(() => {
     loadFromApi.mockReset()
     refreshFromApi.mockReset()
+    refreshPlacesFromApi.mockReset()
     useScheduleStore.setState({
       events: [],
       activeSource: 'backend',
@@ -194,6 +199,45 @@ describe('useScheduleStore Eventernote loading', () => {
       events: refreshedEvents,
       cachedUserId: 'A',
       selectedEventId: testEvents[0].id,
+    })
+  })
+
+  it('keeps current event data while triggering a map recomputation', async () => {
+    const refreshedEvents = [{ ...testEvents[0], location: 'Mapped venue' }]
+    refreshPlacesFromApi.mockResolvedValue(createApiResult('A', refreshedEvents))
+    useScheduleStore.setState({
+      events: testEvents,
+      cachedUserId: 'A',
+      cachedAt: '2026-08-05T09:00:00.000Z',
+    })
+    const previousEvents = useScheduleStore.getState().events
+
+    await expect(useScheduleStore.getState().refreshUnmappedPlaces('A', ['101', '202']))
+      .resolves.toEqual([])
+
+    expect(refreshPlacesFromApi).toHaveBeenCalledWith('A', ['101', '202'])
+    expect(useScheduleStore.getState()).toMatchObject({
+      events: testEvents,
+      cachedUserId: 'A',
+      cachedAt: '2026-08-05T09:00:00.000Z',
+    })
+    expect(useScheduleStore.getState().events).not.toBe(previousEvents)
+  })
+
+  it('does not apply an unmapped-place refresh after switching users', async () => {
+    const request = createDeferred<ImportedScheduleData>()
+    refreshPlacesFromApi.mockReturnValue(request.promise)
+    useScheduleStore.setState({ events: testEvents, cachedUserId: 'A' })
+
+    const refresh = useScheduleStore.getState().refreshUnmappedPlaces('A', ['101'])
+    const userBEvents = [{ ...testEvents[1], id: 'user-b-event' }]
+    useScheduleStore.setState({ events: userBEvents, cachedUserId: 'B' })
+    request.resolve(createApiResult('A', [{ ...testEvents[0], location: 'Late venue' }]))
+    await refresh
+
+    expect(useScheduleStore.getState()).toMatchObject({
+      events: userBEvents,
+      cachedUserId: 'B',
     })
   })
 })
