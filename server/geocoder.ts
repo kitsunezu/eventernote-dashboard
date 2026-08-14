@@ -1,10 +1,10 @@
 import { hasUsableCoordinates } from './coordinates.js'
 import type { Coordinates } from './coordinates.js'
-import { extractJapanesePrefecture } from './regions.js'
+import { detectCountry, extractJapanesePrefecture } from './regions.js'
 
 type Fetcher = (input: string | URL, init?: RequestInit) => Promise<Response>
 
-export const GEOCODER_STRATEGY_VERSION = 1
+export const GEOCODER_STRATEGY_VERSION = 2
 
 interface GsiFeature {
   geometry?: {
@@ -156,6 +156,12 @@ function venueCandidateMatches(candidate: NominatimResult, name: string, address
     if (!candidateText.includes(normalized(prefecture))) return false
     const administrativeArea = japaneseAdministrativeArea(address).slice(prefecture.length)
     return !administrativeArea || candidateText.includes(normalized(administrativeArea))
+  }
+
+  const expectedCountry = detectCountry(address)
+  if (expectedCountry) {
+    const candidateCountry = detectCountry(nominatimCandidateText(candidate))
+    if (candidateCountry) return candidateCountry === expectedCountry
   }
 
   const addressSegments = address.replace(/〒?\s*\d{3}-?\d{4}\s*/g, '')

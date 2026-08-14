@@ -166,4 +166,33 @@ describe('VenueGeocoder', () => {
     )).resolves.toBeUndefined()
   })
 
+  it('accepts a matching overseas venue when Nominatim localizes the country name', async () => {
+    const fetcher = async (input: string | URL) => {
+      const query = new URL(input).searchParams.get('q') ?? ''
+      const body = query === 'Calgary TELUS Convention Centre, Alberta, Canada'
+        ? [{
+            lat: '51.0458853',
+            lon: '-114.0612817',
+            place_rank: 30,
+            name: 'Calgary TELUS Convention Centre North Building',
+            display_name: 'Calgary TELUS Convention Centre North Building, カルガリー, アルバータ州, カナダ',
+            address: { city: 'カルガリー', state: 'アルバータ州', country: 'カナダ', country_code: 'ca' },
+          }]
+        : []
+      return new Response(JSON.stringify(body), { status: 200 })
+    }
+    const geocoder = new VenueGeocoder(
+      'https://msearch.gsi.go.jp/address-search/AddressSearch',
+      'https://nominatim.openstreetmap.org/search',
+      1_000,
+      1,
+      fetcher,
+    )
+
+    await expect(geocoder.geocode(
+      'Calgary TELUS Convention Centre',
+      'T2G 0K6 136 8th Avenue SE Calgary, Alberta, Canada',
+    )).resolves.toEqual({ latitude: 51.0458853, longitude: -114.0612817 })
+  })
+
 })

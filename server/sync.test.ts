@@ -87,7 +87,7 @@ describe('EventSyncService.refreshEvent', () => {
         longitude: 139.696213,
       }),
       expect.any(String),
-      1,
+      GEOCODER_STRATEGY_VERSION,
     )
   })
 
