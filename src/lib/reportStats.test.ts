@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { PlaceEntry } from './placeCache'
 import type { ScheduleEvent } from '../types/events'
-import { buildReportStats, getReportYears, getUnmappedVenuePlaceIds } from './reportStats'
+import {
+  buildReportStats,
+  getReportYears,
+  getUnmappedVenuePlaceIds,
+  sortVenuesByMapAvailability,
+} from './reportStats'
 
 const baseEvent: ScheduleEvent = {
   id: '1',
@@ -112,6 +117,29 @@ describe('report statistics', () => {
     })
   })
 
+  it('uses refreshed place region instead of the event fallback region', () => {
+    const event = {
+      ...baseEvent,
+      category: { ...baseEvent.category, id: 'other', label: 'Other region' },
+      sourceMeta: { placeId: 'saitama-place' },
+    }
+    const stats = buildReportStats(
+      [event],
+      'all',
+      {
+        'saitama-place': {
+          name: 'Venue A',
+          address: 'Saitama address',
+          region: 'Saitama',
+        },
+      },
+      {},
+      new Date('2026-01-01T00:00:00.000Z'),
+    )
+
+    expect(stats.regions).toEqual([{ name: 'Saitama', count: 1, eventIds: ['1'] }])
+  })
+
   it('selects unique place IDs only for venues that are not mapped', () => {
     const retryEvents: ScheduleEvent[] = [
       { ...baseEvent, id: '10', location: 'Venue A', sourceMeta: { placeId: '101' } },
@@ -129,5 +157,23 @@ describe('report statistics', () => {
     const eventsById = new Map(stats.events.map((event) => [event.id, event]))
 
     expect(getUnmappedVenuePlaceIds(stats.venues, new Set(['Venue B']), eventsById)).toEqual(['101'])
+  })
+
+  it('moves unmapped venues to the bottom while preserving ranking order', () => {
+    const venues = [
+      { name: 'Unmapped popular', count: 4, eventIds: ['1'], address: '', region: '' },
+      { name: 'Mapped first', count: 3, eventIds: ['2'], address: '', region: '' },
+      { name: 'Unmapped second', count: 2, eventIds: ['3'], address: '', region: '' },
+      { name: 'Mapped second', count: 1, eventIds: ['4'], address: '', region: '' },
+    ]
+
+    expect(sortVenuesByMapAvailability(venues, new Set(['Mapped first', 'Mapped second']))
+      .map((venue) => venue.name)).toEqual([
+      'Mapped first',
+      'Mapped second',
+      'Unmapped popular',
+      'Unmapped second',
+    ])
+    expect(venues.map((venue) => venue.name)[0]).toBe('Unmapped popular')
   })
 })

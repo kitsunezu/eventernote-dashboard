@@ -129,6 +129,7 @@ async function main(): Promise<void> {
             refreshing: syncService.isRunning(userId),
             userIndexCheckedAt: snapshot.lastIndexSuccessAt,
             pendingDetailCount: snapshot.pendingDetailCount,
+            pendingPlaceCount: snapshot.pendingPlaceCount,
           },
         }
         jsonResponse(response, 200, payload)
@@ -157,6 +158,7 @@ async function main(): Promise<void> {
             refreshing: syncService.isRunning(userId),
             userIndexCheckedAt: snapshot.lastIndexSuccessAt,
             pendingDetailCount: snapshot.pendingDetailCount,
+            pendingPlaceCount: snapshot.pendingPlaceCount,
           },
         }
         jsonResponse(response, 200, payload)
@@ -197,6 +199,13 @@ async function main(): Promise<void> {
         throw new Error('The previous synchronization failed; retry is temporarily throttled')
       }
 
+      if ((snapshot.pendingDetailCount > 0 || snapshot.pendingPlaceCount > 0)
+        && !syncService.isRunning(userId)) {
+        void syncService.startEnrichment(userId).catch((error) => {
+          console.error(`Background enrichment failed for ${userId}`, error)
+        })
+      }
+
       const stillStale = !snapshot.lastIndexSuccessAt
         || Date.now() - new Date(snapshot.lastIndexSuccessAt).getTime() >= config.userIndexTtlMs
       const payload: EventApiResponse = {
@@ -210,6 +219,7 @@ async function main(): Promise<void> {
           refreshing: syncService.isRunning(userId),
           userIndexCheckedAt: snapshot.lastIndexSuccessAt,
           pendingDetailCount: snapshot.pendingDetailCount,
+          pendingPlaceCount: snapshot.pendingPlaceCount,
         },
       }
       jsonResponse(response, 200, payload)

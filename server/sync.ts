@@ -16,6 +16,7 @@ const PAST_EVENT_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const FAILED_GEOCODE_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const MANUAL_PLACE_REFRESH_COOLDOWN_MS = 60 * 1000
 const MAX_MANUAL_USER_REFRESHES = 4
+const ENRICHMENT_RETRY_COOLDOWN_MS = 5 * 60 * 1000
 
 interface PlaceRefreshInFlight {
   forceGeocode: boolean
@@ -119,6 +120,8 @@ export async function fetchUserEventIndex(
 
 export class EventSyncService {
   private readonly inFlight = new Map<string, Promise<void>>()
+  private readonly enrichmentInFlight = new Map<string, Promise<void>>()
+  private readonly enrichmentCompletedAt = new Map<string, number>()
   private readonly placeRefreshes = new Map<string, PlaceRefreshInFlight>()
   private readonly manualUserRefreshes = new Map<string, Promise<string[]>>()
   private readonly manualPlaceRefreshes = new Map<string, Promise<boolean>>()
@@ -146,16 +149,47 @@ export class EventSyncService {
   }
 
   isRunning(userId: string): boolean {
-    return this.inFlight.has(userId)
+    return this.inFlight.has(userId) || this.enrichmentInFlight.has(userId)
   }
 
   start(userId: string): Promise<void> {
     const existing = this.inFlight.get(userId)
     if (existing) return existing
-    const synchronization = this.synchronizeWithLock(userId)
+    const synchronization = this.synchronizeIndexWithLock(userId)
+      .then(() => {
+        void this.startEnrichment(userId, true).catch((error) => {
+          console.error(`Background enrichment failed for ${userId}`, error)
+        })
+      })
       .finally(() => this.inFlight.delete(userId))
     this.inFlight.set(userId, synchronization)
     return synchronization
+  }
+
+  startEnrichment(userId: string, bypassCooldown = false): Promise<void> {
+    const existing = this.enrichmentInFlight.get(userId)
+    if (existing) return existing
+    const completedAt = this.enrichmentCompletedAt.get(userId)
+    if (!bypassCooldown && completedAt !== undefined
+      && Date.now() - completedAt < ENRICHMENT_RETRY_COOLDOWN_MS) {
+      return Promise.resolve()
+    }
+    const enrichment = this.synchronizeEnrichmentWithLock(userId)
+      .finally(() => {
+        const completedAt = Date.now()
+        this.enrichmentCompletedAt.set(userId, completedAt)
+        const cleanup = setTimeout(() => {
+          if (this.enrichmentCompletedAt.get(userId) === completedAt) {
+            this.enrichmentCompletedAt.delete(userId)
+          }
+        }, ENRICHMENT_RETRY_COOLDOWN_MS)
+        cleanup.unref()
+        if (this.enrichmentInFlight.get(userId) === enrichment) {
+          this.enrichmentInFlight.delete(userId)
+        }
+      })
+    this.enrichmentInFlight.set(userId, enrichment)
+    return enrichment
   }
 
   async refreshEvent(userId: string, eventId: string): Promise<string[]> {
@@ -244,7 +278,7 @@ export class EventSyncService {
     }
   }
 
-  private async synchronizeWithLock(userId: string): Promise<void> {
+  private async synchronizeIndexWithLock(userId: string): Promise<void> {
     const lockClient = await this.pool.connect()
     let acquired = false
     try {
@@ -257,10 +291,30 @@ export class EventSyncService {
         await this.waitForPeerSync(userId)
         return
       }
-      await this.synchronize(userId)
+      await this.synchronizeIndex(userId)
     } finally {
       if (acquired) {
         await lockClient.query('SELECT pg_advisory_unlock(hashtext($1))', [`eventernote-user:${userId}`])
+          .catch(() => undefined)
+      }
+      lockClient.release()
+    }
+  }
+
+  private async synchronizeEnrichmentWithLock(userId: string): Promise<void> {
+    const lockClient = await this.pool.connect()
+    let acquired = false
+    try {
+      const result = await lockClient.query<{ acquired: boolean }>(
+        'SELECT pg_try_advisory_lock(hashtext($1)) AS acquired',
+        [`eventernote-enrichment:${userId}`],
+      )
+      acquired = result.rows[0].acquired
+      if (!acquired) return
+      await this.synchronizeEnrichment(userId)
+    } finally {
+      if (acquired) {
+        await lockClient.query('SELECT pg_advisory_unlock(hashtext($1))', [`eventernote-enrichment:${userId}`])
           .catch(() => undefined)
       }
       lockClient.release()
@@ -277,7 +331,7 @@ export class EventSyncService {
     throw new Error(`Timed out waiting for another synchronization of ${userId}`)
   }
 
-  private async synchronize(userId: string): Promise<void> {
+  private async synchronizeIndex(userId: string): Promise<void> {
     const jobId = await this.repository.createSyncJob(userId)
     const stats: SyncStats = {
       discoveredEvents: 0,
@@ -291,15 +345,52 @@ export class EventSyncService {
       stats.discoveredEvents = events.length
       await this.repository.saveUserIndex(userId, events)
 
-      const storedEvents = await this.repository.getStoredEvents(userId)
+      await this.repository.completeSyncJob(jobId, stats)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      await this.repository.failSyncJob(userId, jobId, message)
+      throw error
+    }
+  }
+
+  private async synchronizeEnrichment(userId: string): Promise<void> {
+    const jobId = await this.repository.createEnrichmentJob(userId)
+    const stats: SyncStats = {
+      discoveredEvents: 0,
+      refreshedDetails: 0,
+      refreshedPlaces: 0,
+      warnings: [],
+    }
+
+    try {
+      const attemptedPlaceIds = new Set<string>()
+      await Promise.all([
+        this.refreshPendingEventDetails(userId, stats),
+        this.refreshPendingPlaces(userId, stats, attemptedPlaceIds),
+      ])
+      await this.refreshPendingPlaces(userId, stats, attemptedPlaceIds)
+      await this.repository.completeSyncJob(jobId, stats)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      await this.repository.failEnrichmentJob(jobId, message)
+      throw error
+    }
+  }
+
+  private async refreshPendingEventDetails(userId: string, stats: SyncStats): Promise<void> {
+    const attemptedEventIds = new Set<string>()
+    while (true) {
       const now = Date.now()
-      const detailCandidates = storedEvents
+      const detailCandidates = (await this.repository.getStoredEvents(userId))
         .filter((event) => {
+          if (attemptedEventIds.has(event.id)) return false
           if (!event.detailFetchedAt) return true
           return now - new Date(event.detailFetchedAt).getTime() >= detailTtlMs(event, now)
         })
         .sort((left, right) => compareRefreshPriority(left, right, now))
         .slice(0, this.config.detailFetchLimit)
+      if (detailCandidates.length === 0) return
+      detailCandidates.forEach((event) => attemptedEventIds.add(event.id))
 
       await mapWithConcurrency(detailCandidates, this.config.detailFetchConcurrency, async (event) => {
         try {
@@ -313,12 +404,25 @@ export class EventSyncService {
           )
         }
       })
+    }
+  }
 
-      const placeCandidates = await this.repository.getPlaceCandidatesForUser(
+  private async refreshPendingPlaces(
+    userId: string,
+    stats: SyncStats,
+    attemptedPlaceIds: Set<string>,
+  ): Promise<void> {
+    while (true) {
+      const placeCandidates = (await this.repository.getPlaceCandidatesForUser(
         userId,
         new Date(Date.now() - PLACE_TTL_MS),
-        this.config.placeFetchLimit,
-      )
+        attemptedPlaceIds.size + this.config.placeFetchLimit,
+      ))
+        .filter((place) => !attemptedPlaceIds.has(place.place_id))
+        .slice(0, this.config.placeFetchLimit)
+      if (placeCandidates.length === 0) return
+      placeCandidates.forEach((place) => attemptedPlaceIds.add(place.place_id))
+
       await mapWithConcurrency(placeCandidates, 2, async (place) => {
         try {
           await this.refreshPlace(place.place_id, place.name)
@@ -329,12 +433,6 @@ export class EventSyncService {
           )
         }
       })
-
-      await this.repository.completeSyncJob(jobId, stats)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      await this.repository.failSyncJob(userId, jobId, message)
-      throw error
     }
   }
 

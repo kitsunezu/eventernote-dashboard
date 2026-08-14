@@ -5,7 +5,11 @@ import type { ImportedScheduleData, ScheduleEvent } from '../types/events'
 import type { ScheduleStore } from './useScheduleStore'
 import { selectCategories, selectVisibleEvents, useScheduleStore } from './useScheduleStore'
 
-type ProgressCallback = (partial: { events: ScheduleEvent[]; warnings: string[] }) => void
+type ProgressCallback = (partial: {
+  events: ScheduleEvent[]
+  warnings: string[]
+  importedAt: string
+}) => void
 type LoadFromApi = (
   userId: string,
   onProgress?: ProgressCallback,
@@ -144,11 +148,19 @@ describe('useScheduleStore Eventernote loading', () => {
     const userALoad = useScheduleStore.getState().loadFromEventernote('A')
     const userBLoad = useScheduleStore.getState().loadFromEventernote('B')
 
-    requests.get('B')?.onProgress?.({ events: userBEvents, warnings: [] })
+    requests.get('B')?.onProgress?.({
+      events: userBEvents,
+      warnings: [],
+      importedAt: '2026-08-05T10:00:02.000Z',
+    })
     requests.get('B')?.deferred.resolve(createApiResult('B', userBEvents))
     await userBLoad
 
-    requests.get('A')?.onProgress?.({ events: userAEvents, warnings: [] })
+    requests.get('A')?.onProgress?.({
+      events: userAEvents,
+      warnings: [],
+      importedAt: '2026-08-05T10:00:01.000Z',
+    })
     requests.get('A')?.deferred.resolve(createApiResult('A', userAEvents))
     await userALoad
 
@@ -200,6 +212,30 @@ describe('useScheduleStore Eventernote loading', () => {
       cachedUserId: 'A',
       selectedEventId: testEvents[0].id,
     })
+  })
+
+  it('renders the first database snapshot while background polling continues', async () => {
+    const request = createDeferred<ImportedScheduleData>()
+    const initialEvents = [{ ...testEvents[0], id: 'initial-event' }]
+    loadFromApi.mockImplementation((_userId, onProgress) => {
+      onProgress?.({
+        events: initialEvents,
+        warnings: [],
+        importedAt: '2026-08-05T10:00:03.000Z',
+      })
+      return request.promise
+    })
+
+    const loading = useScheduleStore.getState().loadFromEventernote('A')
+
+    expect(useScheduleStore.getState()).toMatchObject({
+      events: initialEvents,
+      cachedUserId: 'A',
+      cachedAt: '2026-08-05T10:00:03.000Z',
+      loading: false,
+    })
+    request.resolve(createApiResult('A', initialEvents))
+    await loading
   })
 
   it('keeps current event data while triggering a map recomputation', async () => {

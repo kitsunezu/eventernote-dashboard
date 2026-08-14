@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { getReportCopy } from '../lib/localize'
 import { getAllPlaces } from '../lib/placeCache'
-import { buildReportStats, getUnmappedVenuePlaceIds } from '../lib/reportStats'
+import { buildReportStats, getUnmappedVenuePlaceIds, sortVenuesByMapAvailability } from '../lib/reportStats'
 import type { RankedStat, ReportScope } from '../lib/reportStats'
 import {
   REPORT_CURRENCIES,
@@ -147,6 +147,10 @@ export function ReportPage({
     [eventsById, stats.venues],
   )
   const mappedVenueNames = useMemo(() => new Set(mapPoints.map((point) => point.name)), [mapPoints])
+  const mapVenueList = useMemo(
+    () => sortVenuesByMapAvailability(stats.venues, mappedVenueNames),
+    [mappedVenueNames, stats.venues],
+  )
   const unmappedPlaceIds = useMemo(
     () => getUnmappedVenuePlaceIds(stats.venues, mappedVenueNames, eventsById),
     [eventsById, mappedVenueNames, stats.venues],
@@ -417,7 +421,7 @@ export function ReportPage({
                   />
                 </div>
                 <div className="report-venue-list">
-                  {stats.venues.map((venue) => (
+                  {mapVenueList.map((venue) => (
                     <button key={venue.name} type="button" className={selectedVenue === venue.name ? 'is-active' : ''} onClick={() => setSelectedVenue(venue.name)} disabled={!mappedVenueNames.has(venue.name)}>
                       <MapPin size={16} />
                       <span><strong>{venue.name}</strong><small>{venue.address || venue.region}</small></span>

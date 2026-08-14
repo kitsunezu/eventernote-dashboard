@@ -47,6 +47,7 @@ export interface StoredUserSnapshot {
   lastIndexAttemptAt?: string
   lastError?: string
   pendingDetailCount: number
+  pendingPlaceCount: number
 }
 
 export interface EventApiResponse extends ImportedScheduleData {
@@ -56,6 +57,7 @@ export interface EventApiResponse extends ImportedScheduleData {
     refreshing: boolean
     userIndexCheckedAt?: string
     pendingDetailCount: number
+    pendingPlaceCount: number
   }
 }
 

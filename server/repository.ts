@@ -24,6 +24,7 @@ interface EventRow {
   image_url: string | null
   image_alt: string | null
   detail_fetched_at: Date | null
+  place_detail_fetched_at: Date | null
   address: string | null
   region: string | null
   latitude: number | null
@@ -135,7 +136,8 @@ export class EventRepository {
       this.pool.query<EventRow>(
         `SELECT e.event_id, e.title, e.start_at, e.end_at, e.place_id, e.venue_name,
                 e.actors, e.image_url, e.image_alt, e.detail_fetched_at,
-                p.name AS place_name, p.address, p.region, p.latitude, p.longitude
+                p.name AS place_name, p.address, p.region, p.latitude, p.longitude,
+                p.detail_fetched_at AS place_detail_fetched_at
          FROM user_events ue
          JOIN events e ON e.event_id = ue.event_id
          LEFT JOIN places p ON p.place_id = e.place_id
@@ -147,10 +149,12 @@ export class EventRepository {
 
     const places: StoredUserSnapshot['places'] = {}
     let pendingDetailCount = 0
+    const pendingPlaceIds = new Set<string>()
     const events = eventsResult.rows.map((row): ScheduleEvent => {
       const actors = actorsFromRow(row.actors)
-      const region = detectRegion(row.venue_name, row.title, row.address ?? '')
+      const region = row.region || detectRegion(row.venue_name, row.title, row.address ?? '')
       if (!row.detail_fetched_at) pendingDetailCount += 1
+      if (row.place_id && !row.place_detail_fetched_at) pendingPlaceIds.add(row.place_id)
       if (row.place_id) {
         places[row.place_id] = {
           name: row.place_name || row.venue_name,
@@ -191,6 +195,7 @@ export class EventRepository {
       lastIndexAttemptAt: user?.last_index_attempt_at?.toISOString(),
       lastError: user?.last_index_error ?? undefined,
       pendingDetailCount,
+      pendingPlaceCount: pendingPlaceIds.size,
     }
   }
 
@@ -202,6 +207,16 @@ export class EventRepository {
        SET last_index_attempt_at = NOW(), updated_at = NOW()`,
       [userId],
     )
+    const result = await this.pool.query<{ id: string }>(
+      `INSERT INTO sync_jobs (user_id, state)
+       VALUES ($1, 'running')
+       RETURNING id`,
+      [userId],
+    )
+    return result.rows[0].id
+  }
+
+  async createEnrichmentJob(userId: string): Promise<string> {
     const result = await this.pool.query<{ id: string }>(
       `INSERT INTO sync_jobs (user_id, state)
        VALUES ($1, 'running')
@@ -232,6 +247,15 @@ export class EventRepository {
        SET last_index_error = $2, updated_at = NOW()
        WHERE user_id = $1`,
       [userId, error],
+    )
+  }
+
+  async failEnrichmentJob(jobId: string, error: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE sync_jobs
+       SET state = 'failed', completed_at = NOW(), error = $2
+       WHERE id = $1`,
+      [jobId, error],
     )
   }
 
@@ -317,7 +341,8 @@ export class EventRepository {
     const result = await this.pool.query<EventRow>(
       `SELECT e.event_id, e.title, e.start_at, e.end_at, e.place_id, e.venue_name,
               e.actors, e.image_url, e.image_alt, e.detail_fetched_at,
-              p.name AS place_name, p.address, p.region, p.latitude, p.longitude
+              p.name AS place_name, p.address, p.region, p.latitude, p.longitude,
+              p.detail_fetched_at AS place_detail_fetched_at
        FROM user_events ue
        JOIN events e ON e.event_id = ue.event_id
        LEFT JOIN places p ON p.place_id = e.place_id

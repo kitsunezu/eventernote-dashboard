@@ -32,11 +32,11 @@ The server validates `userId` and reads PostgreSQL before contacting Eventernote
 
 1. Fresh user index: return the database snapshot.
 2. Expired user index with an existing snapshot: return stale data immediately and start one background synchronization.
-3. No successful snapshot: wait for the first synchronization and return its database snapshot.
+3. No successful snapshot: wait only for the complete paginated user index, then return its database snapshot.
 4. Concurrent requests for the same user share an in-process promise. PostgreSQL advisory locks prevent duplicate work across API replicas.
 5. A failed refresh keeps the previous active event relationships and records the failure in `eventernote_users` and `sync_jobs`.
 
-The browser polls the same API briefly when `cache.refreshing` is true. Polling only reads PostgreSQL; it does not start duplicate upstream work.
+Event and place enrichment continues in the background after the index is available. Each configured batch remains bounded, but one background job keeps taking batches until every currently eligible record has been attempted. The browser polls the same API while `cache.refreshing` is true, renders the first database snapshot immediately, and applies place-only changes to both the map and report region statistics. Polling only reads PostgreSQL; it does not start duplicate upstream work.
 
 ## Response
 
@@ -51,7 +51,8 @@ The browser polls the same API briefly when `cache.refreshing` is true. Polling 
     "status": "fresh",
     "refreshing": false,
     "userIndexCheckedAt": "2026-08-05T08:00:00.000Z",
-    "pendingDetailCount": 0
+    "pendingDetailCount": 0,
+    "pendingPlaceCount": 0
   }
 }
 ```
@@ -86,7 +87,7 @@ The server recursively follows newly discovered pagination links, deduplicating 
 | Past event detail | 30 days |
 | Place detail | 90 days |
 
-At most 40 event details are refreshed in one user synchronization, ordered by missing detail, upcoming events, then recent history. Detail concurrency defaults to 3 and upstream request starts are spaced by at least 350 ms. These values are configurable.
+Event and place enrichment uses batches of at most 40 event details and 20 places by default. It continues with later batches in the same background job, ordered by missing detail, upcoming events, then recent history. Detail concurrency defaults to 3 and upstream request starts are spaced by at least 350 ms. These values are configurable.
 
 ## Environment variables
 

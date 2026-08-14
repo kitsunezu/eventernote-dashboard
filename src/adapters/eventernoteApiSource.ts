@@ -2,7 +2,7 @@ import { getPlace, setPlace } from '../lib/placeCache'
 import type { ImportedScheduleData, ScheduleEvent } from '../types/events'
 
 const POLL_INTERVAL_MS = 2_000
-const MAX_REFRESH_POLLS = 10
+const MAX_REFRESH_POLLS = 900
 const PLACE_REFRESH_BATCH_SIZE = 20
 
 interface ApiResponse extends ImportedScheduleData {
@@ -18,6 +18,7 @@ interface ApiResponse extends ImportedScheduleData {
     refreshing: boolean
     userIndexCheckedAt?: string
     pendingDetailCount: number
+    pendingPlaceCount: number
   }
 }
 
@@ -99,20 +100,18 @@ function persistPlaces(response: ApiResponse): void {
 
 export async function loadEventernoteUserFromApi(
   userId: string,
-  onProgress?: (partial: { events: ScheduleEvent[]; warnings: string[] }) => void,
+  onProgress?: (partial: { events: ScheduleEvent[]; warnings: string[]; importedAt: string }) => void,
   forceRefresh = false,
 ): Promise<ImportedScheduleData> {
   let response = await fetchUserEvents(userId, forceRefresh)
   persistPlaces(response)
-  onProgress?.({ events: response.events, warnings: response.warnings })
+  onProgress?.({ events: response.events, warnings: response.warnings, importedAt: response.importedAt })
 
   for (let attempt = 0; response.cache.refreshing && attempt < MAX_REFRESH_POLLS; attempt += 1) {
     await delay(POLL_INTERVAL_MS)
     const updated = await fetchUserEvents(userId)
     persistPlaces(updated)
-    if (updated.importedAt !== response.importedAt || updated.events.length !== response.events.length) {
-      onProgress?.({ events: updated.events, warnings: updated.warnings })
-    }
+    onProgress?.({ events: updated.events, warnings: updated.warnings, importedAt: updated.importedAt })
     response = updated
   }
 

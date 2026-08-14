@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ScheduleEvent } from '../types/events'
-import { refreshEventernotePlaces } from './eventernoteApiSource'
+import { loadEventernoteUserFromApi, refreshEventernotePlaces } from './eventernoteApiSource'
 
 const placeCache = vi.hoisted(() => ({
   getPlace: vi.fn(),
@@ -20,7 +20,7 @@ const event: ScheduleEvent = {
   sourceType: 'backend',
 }
 
-function response(placeId: string): Response {
+function response(placeId: string, refreshing = false): Response {
   return new Response(JSON.stringify({
     events: [event],
     warnings: [],
@@ -35,14 +35,34 @@ function response(placeId: string): Response {
         longitude: 139.76,
       },
     },
-    cache: { status: 'fresh', refreshing: false, pendingDetailCount: 0 },
+    cache: { status: 'fresh', refreshing, pendingDetailCount: 0, pendingPlaceCount: 0 },
   }), { status: 200, headers: { 'Content-Type': 'application/json' } })
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   placeCache.getPlace.mockReset()
   placeCache.setPlace.mockReset()
+})
+
+describe('loadEventernoteUserFromApi', () => {
+  it('publishes place-only changes while background enrichment is running', async () => {
+    vi.useFakeTimers()
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(response('1', true))
+      .mockResolvedValueOnce(response('2'))
+    vi.stubGlobal('fetch', fetcher)
+    const onProgress = vi.fn()
+
+    const loading = loadEventernoteUserFromApi('test-user', onProgress)
+    await vi.advanceTimersByTimeAsync(2_000)
+    await expect(loading).resolves.toMatchObject({ events: [event] })
+
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(placeCache.setPlace).toHaveBeenCalledTimes(2)
+    expect(onProgress).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('refreshEventernotePlaces', () => {

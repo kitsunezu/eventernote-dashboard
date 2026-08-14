@@ -134,9 +134,16 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       ...(switchingUser ? { events: [], cachedAt: undefined } : {}),
     })
     try {
-      const data = await loadEventernoteUserFromApi(userId, ({ events }) => {
-        // Phase 1 & incremental phase 2: update events progressively while loading remains true
-        if (isActiveLoad()) set({ events, activeSource: 'backend' })
+      const data = await loadEventernoteUserFromApi(userId, ({ events, importedAt }) => {
+        if (isActiveLoad()) {
+          set({
+            events: sortEvents(events),
+            activeSource: 'backend',
+            loading: false,
+            cachedAt: importedAt,
+            cachedUserId: userId,
+          })
+        }
       }, forceRefresh)
       if (!isActiveLoad()) return
       const copy = getUiCopy(get().locale)

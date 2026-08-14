@@ -187,6 +187,56 @@ describe('EventSyncService.refreshEvent', () => {
   })
 })
 
+describe('EventSyncService.startEnrichment', () => {
+  it('drains place candidates across bounded batches', async () => {
+    const lockClient = {
+      query: vi.fn().mockResolvedValue({ rows: [{ acquired: true }] }),
+      release: vi.fn(),
+    }
+    const pool = { connect: vi.fn().mockResolvedValue(lockClient) }
+    const candidates = [
+      { place_id: '101', name: 'Venue 101' },
+      { place_id: '202', name: 'Venue 202' },
+    ]
+    const repository = {
+      createEnrichmentJob: vi.fn().mockResolvedValue('job-1'),
+      getStoredEvents: vi.fn().mockResolvedValue([]),
+      getPlaceCandidatesForUser: vi.fn(async (_userId: string, _staleBefore: Date, limit: number) => (
+        candidates.slice(0, limit)
+      )),
+      getPlace: vi.fn().mockResolvedValue(undefined),
+      savePlaceDetail: vi.fn().mockResolvedValue(undefined),
+      completeSyncJob: vi.fn().mockResolvedValue(undefined),
+      failEnrichmentJob: vi.fn().mockResolvedValue(undefined),
+    }
+    const upstream = {
+      fetchHtml: vi.fn(async (path: string) => `
+        <div class="gb_place_detail_title"><h2>${path}</h2></div>
+        <script>var lat = '35.68'; var lon = '139.76';</script>
+      `),
+    }
+    const geocoder = { geocode: vi.fn() }
+    const service = new EventSyncService(
+      pool as unknown as Pool,
+      repository as unknown as EventRepository,
+      upstream as unknown as EventernoteClient,
+      geocoder as unknown as VenueGeocoder,
+      config,
+    )
+
+    const enrichment = service.startEnrichment('test-user')
+    expect(service.isRunning('test-user')).toBe(true)
+    await enrichment
+
+    expect(upstream.fetchHtml.mock.calls.map(([path]) => path)).toEqual(['/places/101', '/places/202'])
+    expect(repository.savePlaceDetail).toHaveBeenCalledTimes(2)
+    expect(repository.completeSyncJob).toHaveBeenCalledWith('job-1', expect.objectContaining({
+      refreshedPlaces: 2,
+    }))
+    expect(service.isRunning('test-user')).toBe(false)
+  })
+})
+
 describe('EventSyncService.refreshUnmappedPlaces', () => {
   it('forces a new geocode attempt after a recent failure', async () => {
     const placeHtml = `

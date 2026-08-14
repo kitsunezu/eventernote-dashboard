@@ -44,6 +44,21 @@ export function getUnmappedVenuePlaceIds(
   return Array.from(placeIds)
 }
 
+export function sortVenuesByMapAvailability(
+  venues: VenueStat[],
+  mappedVenueNames: ReadonlySet<string>,
+): VenueStat[] {
+  const mapped: VenueStat[] = []
+  const unmapped: VenueStat[] = []
+
+  for (const venue of venues) {
+    if (mappedVenueNames.has(venue.name)) mapped.push(venue)
+    else unmapped.push(venue)
+  }
+
+  return [...mapped, ...unmapped]
+}
+
 function rank(entries: Array<{ name: string; eventId: string }>): RankedStat[] {
   const counts = new Map<string, string[]>()
   for (const entry of entries) {
@@ -127,6 +142,13 @@ export function buildReportStats(
     })),
   ).sort((a, b) => Number(a.name) - Number(b.name))
 
+  const regions = rank(attendedEvents.map((event) => {
+    const venue = event.location?.trim()
+    const placeId = event.sourceMeta?.placeId
+    const place = (placeId ? places[placeId] : undefined) ?? (venue ? placesByName.get(venue) : undefined)
+    return { name: place?.region || event.category.label, eventId: event.id }
+  }))
+
   const pricedEvents = attendedEvents.filter((event) => {
     const amount = ticketCosts[event.id]
     return Number.isFinite(amount) && amount >= 0
@@ -136,7 +158,7 @@ export function buildReportStats(
     events: attendedEvents,
     years: getReportYears(events, now),
     venues,
-    regions: rank(attendedEvents.map((event) => ({ name: event.category.label, eventId: event.id }))),
+    regions,
     artists,
     months,
     ticketTotal: pricedEvents.reduce((sum, event) => sum + ticketCosts[event.id], 0),
