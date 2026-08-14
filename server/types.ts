@@ -27,6 +27,7 @@ export interface PlaceDetail {
 
 export interface StoredPlaceDetail extends PlaceDetail {
   geocodeAttemptedAt?: string
+  geocodeVersion?: number
 }
 
 export interface ParsedUserEventsPage {

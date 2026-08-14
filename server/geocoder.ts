@@ -4,6 +4,8 @@ import { extractJapanesePrefecture } from './regions.js'
 
 type Fetcher = (input: string | URL, init?: RequestInit) => Promise<Response>
 
+export const GEOCODER_STRATEGY_VERSION = 1
+
 interface GsiFeature {
   geometry?: {
     coordinates?: unknown
@@ -17,6 +19,10 @@ interface NominatimResult {
   lat?: unknown
   lon?: unknown
   place_rank?: unknown
+  display_name?: unknown
+  name?: unknown
+  address?: unknown
+  namedetails?: unknown
 }
 
 function unique(values: string[]): string[] {
@@ -45,8 +51,59 @@ export function buildGeocodingQueries(name: string, address: string): string[] {
     japaneseStreetAddress,
     numberedJapaneseAddress,
     ...internationalSuffixes,
-    prefecture ? `${name} ${prefecture}` : '',
   ])
+}
+
+function nameVariants(name: string): string[] {
+  const bracketed = Array.from(name.matchAll(/[（(]([^）)]+)[）)]/g), (match) => match[1])
+  return unique([
+    name,
+    name.replace(/[（(][^）)]+[）)]/g, ' '),
+    ...bracketed,
+  ])
+}
+
+function japaneseAdministrativeArea(address: string): string {
+  const prefecture = extractJapanesePrefecture(address)
+  if (!prefecture) return ''
+  const remainder = address.slice(address.indexOf(prefecture) + prefecture.length)
+  const municipality = remainder.match(/^[^0-9０-９\s,，-]{1,12}?(?:市|区|町|村|郡)/)?.[0] ?? ''
+  return `${prefecture}${municipality}`
+}
+
+export function buildVenueSearchQueries(name: string, address: string): string[] {
+  const names = nameVariants(name)
+  if (names.length === 0) return []
+
+  const withoutPostalCode = address.replace(/〒?\s*\d{3}-?\d{4}\s*/g, '').trim()
+  const withoutExactName = withoutPostalCode.replace(name, '')
+    .replace(/(?:[,，]\s*){2,}/g, ', ')
+    .replace(/^[,，]\s*|\s*[,，]$/g, '')
+    .trim()
+  const prefecture = extractJapanesePrefecture(withoutExactName) ?? ''
+  const commaSegments = withoutExactName.split(/[,，]/).map((value) => value.trim()).filter(Boolean)
+  const locationScopes = prefecture
+    ? unique([withoutExactName, japaneseAdministrativeArea(withoutExactName), prefecture])
+    : unique([
+        withoutExactName,
+        ...commaSegments.slice(1).map((_, index) => commaSegments.slice(index + 1).join(', ')),
+      ])
+
+  const exactLocation = locationScopes[0]
+  const broaderLocations = locationScopes.slice(1)
+  const preferredFallbackLocation = broaderLocations[0] ?? exactLocation
+  const broadestLocation = locationScopes.at(-1)
+  return unique([
+    exactLocation ? `${names[0]}, ${exactLocation}` : '',
+    ...broaderLocations.map((location) => `${names[0]}, ${location}`),
+    ...(preferredFallbackLocation
+      ? names.slice(1).map((venueName) => `${venueName}, ${preferredFallbackLocation}`)
+      : []),
+    ...(broadestLocation
+      ? names.slice(1).map((venueName) => `${venueName}, ${broadestLocation}`)
+      : []),
+    names[0],
+  ]).slice(0, 8)
 }
 
 function coordinates(latitude: unknown, longitude: unknown): Coordinates | undefined {
@@ -67,11 +124,59 @@ function gsiCoordinates(value: unknown, expectedPrefecture: string): Coordinates
   return undefined
 }
 
-function nominatimCoordinates(value: unknown): Coordinates | undefined {
+function normalized(value: string): string {
+  return value.normalize('NFKC').toLocaleLowerCase().replace(/〒?\s*\d{3}-?\d{4}/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, '')
+}
+
+function objectStrings(value: unknown): string[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return []
+  return Object.values(value).filter((item): item is string => typeof item === 'string')
+}
+
+function nominatimCandidateText(candidate: NominatimResult): string {
+  return [
+    typeof candidate.display_name === 'string' ? candidate.display_name : '',
+    typeof candidate.name === 'string' ? candidate.name : '',
+    ...objectStrings(candidate.address),
+    ...objectStrings(candidate.namedetails),
+  ].join(' ')
+}
+
+function venueCandidateMatches(candidate: NominatimResult, name: string, address: string): boolean {
+  const candidateText = normalized(nominatimCandidateText(candidate))
+  const matchesName = nameVariants(name)
+    .map(normalized)
+    .filter((value) => value.length >= 2)
+    .some((value) => candidateText.includes(value))
+  if (!matchesName) return false
+
+  const prefecture = extractJapanesePrefecture(address)
+  if (prefecture) {
+    if (!candidateText.includes(normalized(prefecture))) return false
+    const administrativeArea = japaneseAdministrativeArea(address).slice(prefecture.length)
+    return !administrativeArea || candidateText.includes(normalized(administrativeArea))
+  }
+
+  const addressSegments = address.replace(/〒?\s*\d{3}-?\d{4}\s*/g, '')
+    .split(/[,，]/)
+    .map(normalized)
+    .filter((value) => value.length >= 4)
+    .filter((value) => !nameVariants(name).map(normalized).some((venueName) => {
+      return venueName.length >= 3 && (value.includes(venueName) || venueName.includes(value))
+    }))
+  return addressSegments.some((segment) => candidateText.includes(segment))
+}
+
+function nominatimCoordinates(
+  value: unknown,
+  matches: (candidate: NominatimResult) => boolean = () => true,
+): Coordinates | undefined {
   if (!Array.isArray(value)) return undefined
   for (const candidate of value as NominatimResult[]) {
     const placeRank = Number(candidate.place_rank)
     if (!Number.isFinite(placeRank) || placeRank < 28) continue
+    if (!matches(candidate)) continue
     const result = coordinates(candidate.lat, candidate.lon)
     if (result) return result
   }
@@ -117,6 +222,16 @@ export class VenueGeocoder {
       const result = await this.searchNominatim(query, Boolean(expectedPrefecture))
       if (result) return result
     }
+
+    for (const query of buildVenueSearchQueries(name, address)) {
+      const result = await this.searchNominatim(
+        query,
+        Boolean(expectedPrefecture),
+        (candidate) => venueCandidateMatches(candidate, name, address),
+      )
+      if (result) return result
+    }
+
     return undefined
   }
 
@@ -126,18 +241,23 @@ export class VenueGeocoder {
     return gsiCoordinates(await this.fetchJson(url), expectedPrefecture)
   }
 
-  private async searchNominatim(query: string, japaneseAddress: boolean): Promise<Coordinates | undefined> {
+  private async searchNominatim(
+    query: string,
+    japaneseAddress: boolean,
+    matches?: (candidate: NominatimResult) => boolean,
+  ): Promise<Coordinates | undefined> {
     await this.waitForNominatimSlot()
     const url = new URL(this.nominatimUrl)
     url.searchParams.set('format', 'jsonv2')
     url.searchParams.set('addressdetails', '1')
-    url.searchParams.set('limit', '3')
+    url.searchParams.set('namedetails', '1')
+    url.searchParams.set('limit', '5')
     url.searchParams.set('q', query)
     if (japaneseAddress) url.searchParams.set('countrycodes', 'jp')
     return nominatimCoordinates(await this.fetchJson(url, {
       'User-Agent': 'eventernote-dashboard/1.0 (https://github.com/kitsunezu/eventernote-dashboard)',
       'Accept-Language': 'ja,en;q=0.8',
-    }))
+    }), matches)
   }
 
   private async fetchJson(url: URL, headers?: Record<string, string>): Promise<unknown> {

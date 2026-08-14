@@ -1,5 +1,7 @@
 # Eventernote Dashboard
 
+English | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md)
+
 Eventernote Dashboard is a React and TypeScript viewer for public Eventernote schedules. Enter an Eventernote user ID on the landing page, load the database-backed schedule API, and browse the results in a timeline-oriented dashboard.
 
 ## Current Features
@@ -21,7 +23,7 @@ The current app is centered on the Eventernote viewer flow.
 3. The API returns fresh PostgreSQL data immediately, or stale data while starting a background refresh.
 4. The server follows the user event-list pagination to discover event IDs.
 5. Missing or expired event detail pages are fetched with bounded concurrency, parsed, and saved as the authoritative event values.
-6. Missing or expired place pages are fetched separately for canonical addresses and coordinates. Invalid or absent Eventernote coordinates fall back through its map link, Japanese GSI address search, and address-level Nominatim results.
+6. Missing or expired place pages are fetched separately for canonical addresses and coordinates. Invalid or absent Eventernote coordinates fall back through its map link, progressively simplified Japanese GSI and Nominatim address searches, then validated venue-name POI search.
 7. Events are deduplicated by Eventernote event ID, sorted by time, and grouped by day for display.
 
 Opening an event detail or following its Eventernote link triggers a targeted refresh of that event and place before the updated database values are returned to the app.
