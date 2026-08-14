@@ -343,15 +343,11 @@ export class EventSyncService {
         detail.longitude = resolved.longitude
       }
     }
-<<<<<<< HEAD
-    await this.repository.savePlaceDetail(detail, hashHtml(html), geocodeAttempted)
-    return hasUsableCoordinates(detail)
-=======
     await this.repository.savePlaceDetail(
       detail,
       hashHtml(html),
       geocodeAttempted ? GEOCODER_STRATEGY_VERSION : undefined,
     )
->>>>>>> 8f550b968f7ee5493243cb206947401873283be2
+    return hasUsableCoordinates(detail)
   }
 }

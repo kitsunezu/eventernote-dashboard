@@ -1,5 +1,6 @@
 import type { Pool } from 'pg'
 import { describe, expect, it, vi } from 'vitest'
+import { GEOCODER_STRATEGY_VERSION } from './geocoder.js'
 import { EventRepository } from './repository.js'
 
 describe('EventRepository.getRequestedPlacesForUser', () => {
@@ -54,12 +55,21 @@ describe('EventRepository.savePlaceDetail', () => {
       name: 'Venue 202',
       address: 'Osaka',
       region: '大阪',
-    }, 'hash', true)
+    }, 'hash', GEOCODER_STRATEGY_VERSION)
 
     const [sql, parameters] = query.mock.calls[0]
     expect(String(sql)).toContain('WHEN places.address = EXCLUDED.address')
     expect(String(sql)).toContain('THEN places.latitude')
     expect(String(sql)).toContain('THEN places.longitude')
-    expect(parameters).toEqual(['202', 'Venue 202', 'Osaka', '大阪', null, null, 'hash', true])
+    expect(parameters).toEqual([
+      '202',
+      'Venue 202',
+      'Osaka',
+      '大阪',
+      null,
+      null,
+      'hash',
+      GEOCODER_STRATEGY_VERSION,
+    ])
   })
 })

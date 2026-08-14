@@ -1,6 +1,7 @@
 import type { Pool } from 'pg'
 import { describe, expect, it, vi } from 'vitest'
 import type { ServerConfig } from './config.js'
+import { GEOCODER_STRATEGY_VERSION } from './geocoder.js'
 import type { VenueGeocoder } from './geocoder.js'
 import type { EventRepository } from './repository.js'
 import { EventSyncService } from './sync.js'
@@ -114,6 +115,7 @@ describe('EventSyncService.refreshEvent', () => {
         address: '〒150-0042 東京都渋谷区宇田川町9番5号',
         region: '東京',
         geocodeAttemptedAt: new Date().toISOString(),
+        geocodeVersion: GEOCODER_STRATEGY_VERSION,
       }),
       savePlaceDetail: vi.fn().mockResolvedValue(undefined),
     }
@@ -132,7 +134,7 @@ describe('EventSyncService.refreshEvent', () => {
     await service.refreshEvent('test-user', '475077')
 
     expect(geocoder.geocode).not.toHaveBeenCalled()
-    expect(repository.savePlaceDetail).toHaveBeenCalledWith(expect.any(Object), expect.any(String), false)
+    expect(repository.savePlaceDetail).toHaveBeenCalledWith(expect.any(Object), expect.any(String), undefined)
   })
 })
 
@@ -175,7 +177,7 @@ describe('EventSyncService.refreshUnmappedPlaces', () => {
     expect(repository.savePlaceDetail).toHaveBeenCalledWith(
       expect.objectContaining({ latitude: 35.663025, longitude: 139.696213 }),
       expect.any(String),
-      true,
+      GEOCODER_STRATEGY_VERSION,
     )
   })
 
@@ -217,7 +219,7 @@ describe('EventSyncService.refreshUnmappedPlaces', () => {
     expect(repository.savePlaceDetail).toHaveBeenCalledWith(
       expect.objectContaining({ id: '202', latitude: 34.6937, longitude: 135.5023 }),
       expect.any(String),
-      true,
+      GEOCODER_STRATEGY_VERSION,
     )
   })
 
@@ -246,7 +248,11 @@ describe('EventSyncService.refreshUnmappedPlaces', () => {
 
     await expect(service.refreshUnmappedPlaces('test-user', ['303']))
       .resolves.toEqual(['Place 303: no coordinates found'])
-    expect(repository.savePlaceDetail).toHaveBeenCalledWith(expect.any(Object), expect.any(String), true)
+    expect(repository.savePlaceDetail).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.any(String),
+      GEOCODER_STRATEGY_VERSION,
+    )
   })
 
   it('throttles an immediate second manual retry for the same place', async () => {
