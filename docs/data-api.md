@@ -74,7 +74,7 @@ When a place has a canonical address, its prefecture or overseas region is autho
 
 Venue coordinates are resolved in order: valid Eventernote coordinates, coordinates embedded in its map link, the Japanese GSI address service with progressively simplified address queries, then address-level Nominatim results. If address lookup still fails, Nominatim searches the venue name with progressively broader address scopes and accepts a POI only when its name and administrative location match the canonical venue data. Successful coordinates and unsuccessful geocoding attempts are cached in PostgreSQL while the canonical address is unchanged; a failed address is retried after 30 days instead of querying on every click. A newer geocoding strategy retries failures recorded by an older strategy once, then resumes the same cache interval. Nominatim requests are serialized and spaced by at least 1.1 seconds; unmatched POIs and synthetic city-center map points are not used.
 
-The entire paginated index must succeed before `user_events.active` is updated. A partial pagination failure therefore cannot incorrectly remove older database relationships.
+The server recursively follows newly discovered pagination links, deduplicating pages by page number, until the entire user index has been fetched. The complete paginated index must succeed before `user_events.active` is updated. A partial pagination failure therefore cannot incorrectly remove older database relationships.
 
 ## Freshness and load limits
 
@@ -101,7 +101,7 @@ At most 40 event details are refreshed in one user synchronization, ordered by m
 | `PLACE_FETCH_LIMIT` | No | `20` |
 | `UPSTREAM_MIN_INTERVAL_MS` | No | `350` |
 | `UPSTREAM_TIMEOUT_MS` | No | `20000` |
-| `MAX_LIST_PAGES` | No | `30` |
+| `MAX_LIST_PAGES` | No | `100` |
 | `SYNC_RETRY_COOLDOWN_MS` | No | `300000` |
 | `GSI_GEOCODER_URL` | No | `https://msearch.gsi.go.jp/address-search/AddressSearch` |
 | `NOMINATIM_GEOCODER_URL` | No | `https://nominatim.openstreetmap.org/search` |

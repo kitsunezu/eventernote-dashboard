@@ -62,6 +62,61 @@ async function mapWithConcurrency<T>(
   await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()))
 }
 
+function paginationPageNumber(path: string, expectedPathname: string): number | undefined {
+  try {
+    const url = new URL(path, 'https://www.eventernote.com')
+    if (url.origin !== 'https://www.eventernote.com' || url.pathname !== expectedPathname) return undefined
+    const rawPage = url.searchParams.get('page')
+    if (!rawPage || !/^\d+$/.test(rawPage)) return undefined
+    const page = Number(rawPage)
+    return Number.isSafeInteger(page) && page > 1 ? page : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export async function fetchUserEventIndex(
+  userId: string,
+  fetchHtml: (path: string) => Promise<string>,
+  maxPages: number,
+): Promise<EventSeed[]> {
+  const expectedPathname = `/users/${encodeURIComponent(userId)}/events`
+  const firstPage = parseUserEventsPage(await fetchHtml(expectedPathname))
+  const pages = [firstPage]
+  const discoveredPages = new Set([1])
+  const queuedPaths: string[] = []
+
+  function enqueue(paths: string[]): void {
+    for (const path of paths) {
+      const page = paginationPageNumber(path, expectedPathname)
+      if (page === undefined || discoveredPages.has(page)) continue
+      if (page > maxPages) {
+        throw new Error(`User index has at least ${page} pages; maximum is ${maxPages}`)
+      }
+      discoveredPages.add(page)
+      queuedPaths.push(path)
+    }
+  }
+
+  enqueue(firstPage.paginationPaths)
+  while (queuedPaths.length > 0) {
+    const batch = queuedPaths.splice(0, 2)
+    const fetchedPages = await Promise.all(batch.map(async (path) => {
+      return parseUserEventsPage(await fetchHtml(path))
+    }))
+    for (const page of fetchedPages) {
+      pages.push(page)
+      enqueue(page.paginationPaths)
+    }
+  }
+
+  const byId = new Map<string, EventSeed>()
+  for (const page of pages) {
+    for (const event of page.events) byId.set(event.id, event)
+  }
+  return Array.from(byId.values())
+}
+
 export class EventSyncService {
   private readonly inFlight = new Map<string, Promise<void>>()
   private readonly placeRefreshes = new Map<string, PlaceRefreshInFlight>()
@@ -284,24 +339,11 @@ export class EventSyncService {
   }
 
   private async fetchUserIndex(userId: string): Promise<EventSeed[]> {
-    const firstPath = `/users/${encodeURIComponent(userId)}/events`
-    const firstPage = parseUserEventsPage(await this.upstream.fetchHtml(firstPath))
-    if (firstPage.paginationPaths.length > this.config.maxListPages) {
-      throw new Error(
-        `User index has ${firstPage.paginationPaths.length} pages; maximum is ${this.config.maxListPages}`,
-      )
-    }
-
-    const pages = [firstPage]
-    await mapWithConcurrency(firstPage.paginationPaths, 2, async (path) => {
-      pages.push(parseUserEventsPage(await this.upstream.fetchHtml(path)))
-    })
-
-    const byId = new Map<string, EventSeed>()
-    for (const page of pages) {
-      for (const event of page.events) byId.set(event.id, event)
-    }
-    return Array.from(byId.values())
+    return fetchUserEventIndex(
+      userId,
+      (path) => this.upstream.fetchHtml(path),
+      this.config.maxListPages,
+    )
   }
 
   private refreshPlace(placeId: string, fallbackName: string, forceGeocode = false): Promise<boolean> {

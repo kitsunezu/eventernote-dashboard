@@ -4,7 +4,7 @@ import type { ServerConfig } from './config.js'
 import { GEOCODER_STRATEGY_VERSION } from './geocoder.js'
 import type { VenueGeocoder } from './geocoder.js'
 import type { EventRepository } from './repository.js'
-import { EventSyncService } from './sync.js'
+import { EventSyncService, fetchUserEventIndex } from './sync.js'
 import type { EventernoteClient } from './upstream.js'
 
 const config: ServerConfig = {
@@ -23,6 +23,55 @@ const config: ServerConfig = {
   geocoderTimeoutMs: 1_000,
   nominatimMinIntervalMs: 1_100,
 }
+
+function userEventPage(eventId: string, paginationPages: number[]): string {
+  return `
+    <ul>
+      <li class="clearfix">
+        <div class="date"><p>2026-08-14</p></div>
+        <div class="event">
+          <h4><a href="/events/${eventId}">Event ${eventId}</a></h4>
+          <div class="place"><a href="/places/${eventId}">Venue ${eventId}</a><span class="s">開演 20:00</span></div>
+        </div>
+      </li>
+    </ul>
+    <div class="pagination">
+      ${paginationPages.map((page) => `<a href="/users/test-user/events?page=${page}">${page}</a>`).join('')}
+    </div>
+  `
+}
+
+describe('fetchUserEventIndex', () => {
+  it('follows pagination links discovered on later pages', async () => {
+    const htmlByPage = new Map<number, string>([
+      [1, userEventPage('101', [2, 3, 5])],
+      [2, userEventPage('102', [1, 3, 4, 5])],
+      [3, userEventPage('103', [1, 2, 4, 5])],
+      [4, userEventPage('104', [2, 3, 5])],
+      [5, userEventPage('105', [1, 3, 4])],
+    ])
+    const fetchHtml = vi.fn(async (path: string) => {
+      const page = Number(new URL(path, 'https://www.eventernote.com').searchParams.get('page') ?? '1')
+      return htmlByPage.get(page) ?? ''
+    })
+
+    const events = await fetchUserEventIndex('test-user', fetchHtml, 5)
+
+    expect(events.map((event) => event.id)).toEqual(['101', '102', '103', '105', '104'])
+    expect(fetchHtml).toHaveBeenCalledTimes(5)
+    expect(new Set(fetchHtml.mock.calls.map(([path]) => (
+      Number(new URL(path, 'https://www.eventernote.com').searchParams.get('page') ?? '1')
+    )))).toEqual(new Set([1, 2, 3, 4, 5]))
+  })
+
+  it('rejects an index whose discovered page number exceeds the configured limit', async () => {
+    const fetchHtml = vi.fn().mockResolvedValue(userEventPage('101', [2, 41]))
+
+    await expect(fetchUserEventIndex('test-user', fetchHtml, 40))
+      .rejects.toThrow('User index has at least 41 pages; maximum is 40')
+    expect(fetchHtml).toHaveBeenCalledOnce()
+  })
+})
 
 describe('EventSyncService.refreshEvent', () => {
   it('always refreshes both the event detail and its place, then geocodes the address', async () => {

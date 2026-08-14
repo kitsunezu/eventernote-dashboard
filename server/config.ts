@@ -38,7 +38,7 @@ export function loadConfig(): ServerConfig {
     placeFetchLimit: positiveInteger('PLACE_FETCH_LIMIT', 20),
     upstreamMinIntervalMs: positiveInteger('UPSTREAM_MIN_INTERVAL_MS', 350),
     upstreamTimeoutMs: positiveInteger('UPSTREAM_TIMEOUT_MS', 20_000),
-    maxListPages: positiveInteger('MAX_LIST_PAGES', 30),
+    maxListPages: positiveInteger('MAX_LIST_PAGES', 100),
     syncRetryCooldownMs: positiveInteger('SYNC_RETRY_COOLDOWN_MS', 5 * 60 * 1000),
     gsiGeocoderUrl: process.env.GSI_GEOCODER_URL
       ?? 'https://msearch.gsi.go.jp/address-search/AddressSearch',
