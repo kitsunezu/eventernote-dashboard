@@ -2403,7 +2403,6 @@ button {
   display: none;
 }
 
-.report-sheet.is-capturing .report-map-section,
 .report-sheet.is-capturing .report-tickets {
   display: none;
 }

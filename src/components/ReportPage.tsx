@@ -133,6 +133,7 @@ const CAPTURE_SECTION_CLASSES = new Set([
   'report-empty',
   'report-metrics',
   'report-grid--rankings',
+  'report-map-section',
   'report-signature',
 ])
 
@@ -454,7 +455,7 @@ export function ReportPage({
                 </div>
               </div>
               <div className="report-map-layout">
-                <div className="report-map__embed" data-capture="exclude">
+                <div className="report-map__embed">
                   <VenueMap
                     points={mapPoints}
                     selectedVenue={selectedVenue}
