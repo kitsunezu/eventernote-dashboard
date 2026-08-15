@@ -67,6 +67,39 @@ function eventOccurrenceList(
   )
 }
 
+interface RankedRowProps {
+  item: RankedStat
+  index: number
+  max: number
+  eventsById: Map<string, ScheduleEvent>
+  locale: SupportedLocale
+  expandLabel: (name: string, count: number) => string
+  onRefreshEvent: (eventId: string) => void
+}
+
+function RankedRow({ item, index, max, eventsById, locale, expandLabel, onRefreshEvent }: RankedRowProps) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <li>
+      <details onToggle={(event) => setExpanded(event.currentTarget.open)}>
+        <summary aria-label={expandLabel(item.name, item.count)}>
+          <span className="report-ranking__position">{String(index + 1).padStart(2, '0')}</span>
+          <span className="report-ranking__body">
+            <span className="report-ranking__label">{item.name}</span>
+            <span className="report-ranking__bar" aria-hidden="true">
+              <span style={{ width: `${Math.max(8, (item.count / max) * 100)}%` }} />
+            </span>
+          </span>
+          <strong>{item.count}</strong>
+          <ChevronDown className="report-ranking__chevron" size={15} />
+        </summary>
+        {expanded && eventOccurrenceList(item.eventIds, eventsById, locale, onRefreshEvent)}
+      </details>
+    </li>
+  )
+}
+
 function rankedRows(
   items: RankedStat[],
   emptyText: string,
@@ -80,25 +113,42 @@ function rankedRows(
   return (
     <ol className="report-ranking">
       {items.map((item, index) => (
-        <li key={item.name}>
-          <details>
-            <summary aria-label={expandLabel(item.name, item.count)}>
-              <span className="report-ranking__position">{String(index + 1).padStart(2, '0')}</span>
-              <span className="report-ranking__body">
-                <span className="report-ranking__label">{item.name}</span>
-                <span className="report-ranking__bar" aria-hidden="true">
-                  <span style={{ width: `${Math.max(8, (item.count / max) * 100)}%` }} />
-                </span>
-              </span>
-              <strong>{item.count}</strong>
-              <ChevronDown className="report-ranking__chevron" size={15} />
-            </summary>
-            {eventOccurrenceList(item.eventIds, eventsById, locale, onRefreshEvent)}
-          </details>
-        </li>
+        <RankedRow
+          key={item.name}
+          item={item}
+          index={index}
+          max={max}
+          eventsById={eventsById}
+          locale={locale}
+          expandLabel={expandLabel}
+          onRefreshEvent={onRefreshEvent}
+        />
       ))}
     </ol>
   )
+}
+
+const CAPTURE_SECTION_CLASSES = new Set([
+  'report-hero',
+  'report-empty',
+  'report-metrics',
+  'report-grid--rankings',
+  'report-signature',
+])
+
+function createCaptureElement(report: HTMLDivElement): HTMLElement {
+  const capture = report.cloneNode(false) as HTMLElement
+  capture.classList.add('is-capturing')
+  for (const child of report.children) {
+    if (Array.from(child.classList).some((className) => CAPTURE_SECTION_CLASSES.has(className))) {
+      capture.appendChild(child.cloneNode(true))
+    }
+  }
+  capture.querySelectorAll('.report-ranking').forEach((ranking) => {
+    Array.from(ranking.children).slice(8).forEach((row) => row.remove())
+  })
+  capture.querySelectorAll('.report-occurrences').forEach((occurrences) => occurrences.remove())
+  return capture
 }
 
 export function ReportPage({
@@ -207,12 +257,7 @@ export function ReportPage({
 
   async function createReportBlob(): Promise<Blob | null> {
     if (!reportRef.current) return null
-    const capture = reportRef.current.cloneNode(true) as HTMLElement
-    capture.classList.add('is-capturing')
-    capture.querySelectorAll('.report-ranking').forEach((ranking) => {
-      Array.from(ranking.children).slice(8).forEach((row) => row.remove())
-    })
-    capture.querySelectorAll('.report-occurrences').forEach((occurrences) => occurrences.remove())
+    const capture = createCaptureElement(reportRef.current)
     reportRef.current.parentElement?.appendChild(capture)
     try {
       return await toBlob(capture, {

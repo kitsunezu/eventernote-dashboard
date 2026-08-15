@@ -134,7 +134,9 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       ...(switchingUser ? { events: [], cachedAt: undefined } : {}),
     })
     try {
+      let receivedProgress = false
       const data = await loadEventernoteUserFromApi(userId, ({ events, importedAt }) => {
+        receivedProgress = true
         if (isActiveLoad()) {
           set({
             events: sortEvents(events),
@@ -148,7 +150,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       if (!isActiveLoad()) return
       const copy = getUiCopy(get().locale)
       set({
-        events: data.events,
+        ...(receivedProgress ? {} : { events: sortEvents(data.events) }),
         activeSource: 'backend',
         loading: false,
         cachedAt: data.importedAt,

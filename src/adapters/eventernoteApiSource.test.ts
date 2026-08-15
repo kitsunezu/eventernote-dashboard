@@ -20,7 +20,7 @@ const event: ScheduleEvent = {
   sourceType: 'backend',
 }
 
-function response(placeId: string, refreshing = false): Response {
+function response(placeId: string, refreshing = false, dataVersion = placeId): Response {
   return new Response(JSON.stringify({
     events: [event],
     warnings: [],
@@ -35,7 +35,7 @@ function response(placeId: string, refreshing = false): Response {
         longitude: 139.76,
       },
     },
-    cache: { status: 'fresh', refreshing, pendingDetailCount: 0, pendingPlaceCount: 0 },
+    cache: { status: 'fresh', refreshing, dataVersion, pendingDetailCount: 0, pendingPlaceCount: 0 },
   }), { status: 200, headers: { 'Content-Type': 'application/json' } })
 }
 
@@ -62,6 +62,23 @@ describe('loadEventernoteUserFromApi', () => {
     expect(fetcher).toHaveBeenCalledTimes(2)
     expect(placeCache.setPlace).toHaveBeenCalledTimes(2)
     expect(onProgress).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not publish unchanged snapshots on every poll', async () => {
+    vi.useFakeTimers()
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(response('1', true, 'same-version'))
+      .mockResolvedValueOnce(response('1', true, 'same-version'))
+      .mockResolvedValueOnce(response('1', false, 'same-version'))
+    vi.stubGlobal('fetch', fetcher)
+    const onProgress = vi.fn()
+
+    const loading = loadEventernoteUserFromApi('test-user', onProgress)
+    await vi.advanceTimersByTimeAsync(4_000)
+    await loading
+
+    expect(fetcher).toHaveBeenCalledTimes(3)
+    expect(onProgress).toHaveBeenCalledOnce()
   })
 })
 

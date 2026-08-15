@@ -17,6 +17,7 @@ interface ApiResponse extends ImportedScheduleData {
     status: 'fresh' | 'stale'
     refreshing: boolean
     userIndexCheckedAt?: string
+    dataVersion: string
     pendingDetailCount: number
     pendingPlaceCount: number
   }
@@ -104,14 +105,22 @@ export async function loadEventernoteUserFromApi(
   forceRefresh = false,
 ): Promise<ImportedScheduleData> {
   let response = await fetchUserEvents(userId, forceRefresh)
-  persistPlaces(response)
-  onProgress?.({ events: response.events, warnings: response.warnings, importedAt: response.importedAt })
+  let publishedVersion = ''
+
+  function publishIfChanged(next: ApiResponse): void {
+    persistPlaces(next)
+    const version = `${next.cache.dataVersion}:${next.cache.pendingDetailCount}:${next.cache.pendingPlaceCount}`
+    if (version === publishedVersion) return
+    publishedVersion = version
+    onProgress?.({ events: next.events, warnings: next.warnings, importedAt: next.importedAt })
+  }
+
+  publishIfChanged(response)
 
   for (let attempt = 0; response.cache.refreshing && attempt < MAX_REFRESH_POLLS; attempt += 1) {
     await delay(POLL_INTERVAL_MS)
     const updated = await fetchUserEvents(userId)
-    persistPlaces(updated)
-    onProgress?.({ events: updated.events, warnings: updated.warnings, importedAt: updated.importedAt })
+    publishIfChanged(updated)
     response = updated
   }
 

@@ -149,8 +149,14 @@ export class EventRepository {
 
     const places: StoredUserSnapshot['places'] = {}
     let pendingDetailCount = 0
+    let latestDataTimestamp = 0
     const pendingPlaceIds = new Set<string>()
     const events = eventsResult.rows.map((row): ScheduleEvent => {
+      latestDataTimestamp = Math.max(
+        latestDataTimestamp,
+        row.detail_fetched_at?.getTime() ?? 0,
+        row.place_detail_fetched_at?.getTime() ?? 0,
+      )
       const actors = actorsFromRow(row.actors)
       const region = row.region || detectRegion(row.venue_name, row.title, row.address ?? '')
       if (!row.detail_fetched_at) pendingDetailCount += 1
@@ -187,10 +193,12 @@ export class EventRepository {
       }
     })
     const user = userResult.rows[0]
+    latestDataTimestamp = Math.max(latestDataTimestamp, user?.last_index_success_at?.getTime() ?? 0)
 
     return {
       events,
       places,
+      dataVersion: String(latestDataTimestamp),
       lastIndexSuccessAt: user?.last_index_success_at?.toISOString(),
       lastIndexAttemptAt: user?.last_index_attempt_at?.toISOString(),
       lastError: user?.last_index_error ?? undefined,

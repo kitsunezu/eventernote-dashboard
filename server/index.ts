@@ -127,6 +127,7 @@ async function main(): Promise<void> {
           cache: {
             status: userIndexFresh ? 'fresh' : 'stale',
             refreshing: syncService.isRunning(userId),
+            dataVersion: snapshot.dataVersion,
             userIndexCheckedAt: snapshot.lastIndexSuccessAt,
             pendingDetailCount: snapshot.pendingDetailCount,
             pendingPlaceCount: snapshot.pendingPlaceCount,
@@ -156,6 +157,7 @@ async function main(): Promise<void> {
           cache: {
             status: userIndexFresh ? 'fresh' : 'stale',
             refreshing: syncService.isRunning(userId),
+            dataVersion: snapshot.dataVersion,
             userIndexCheckedAt: snapshot.lastIndexSuccessAt,
             pendingDetailCount: snapshot.pendingDetailCount,
             pendingPlaceCount: snapshot.pendingPlaceCount,
@@ -217,6 +219,7 @@ async function main(): Promise<void> {
         cache: {
           status: stillStale ? 'stale' : 'fresh',
           refreshing: syncService.isRunning(userId),
+          dataVersion: snapshot.dataVersion,
           userIndexCheckedAt: snapshot.lastIndexSuccessAt,
           pendingDetailCount: snapshot.pendingDetailCount,
           pendingPlaceCount: snapshot.pendingPlaceCount,

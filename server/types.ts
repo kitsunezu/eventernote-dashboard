@@ -43,6 +43,7 @@ export interface StoredEvent extends ScheduleEvent {
 export interface StoredUserSnapshot {
   events: ScheduleEvent[]
   places: Record<string, Omit<PlaceDetail, 'id'>>
+  dataVersion: string
   lastIndexSuccessAt?: string
   lastIndexAttemptAt?: string
   lastError?: string
@@ -56,6 +57,7 @@ export interface EventApiResponse extends ImportedScheduleData {
     status: 'fresh' | 'stale'
     refreshing: boolean
     userIndexCheckedAt?: string
+    dataVersion: string
     pendingDetailCount: number
     pendingPlaceCount: number
   }

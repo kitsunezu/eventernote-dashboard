@@ -234,8 +234,10 @@ describe('useScheduleStore Eventernote loading', () => {
       cachedAt: '2026-08-05T10:00:03.000Z',
       loading: false,
     })
+    const appliedEvents = useScheduleStore.getState().events
     request.resolve(createApiResult('A', initialEvents))
     await loading
+    expect(useScheduleStore.getState().events).toBe(appliedEvents)
   })
 
   it('keeps current event data while triggering a map recomputation', async () => {
