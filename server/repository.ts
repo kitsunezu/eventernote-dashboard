@@ -158,7 +158,8 @@ export class EventRepository {
         row.place_detail_fetched_at?.getTime() ?? 0,
       )
       const actors = actorsFromRow(row.actors)
-      const region = row.region || detectRegion(row.venue_name, row.title, row.address ?? '')
+      const detectedRegion = detectRegion(row.venue_name, row.title, row.address ?? '')
+      const region = !row.region || row.region === '其他地區' ? detectedRegion : row.region
       if (!row.detail_fetched_at) pendingDetailCount += 1
       if (row.place_id && !row.place_detail_fetched_at) pendingPlaceIds.add(row.place_id)
       if (row.place_id) {

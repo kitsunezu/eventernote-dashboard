@@ -71,8 +71,8 @@ export function VenueMap({ points, selectedVenue, locale, eventCountLabel, appro
             center={[point.latitude, point.longitude]}
             radius={isSelected ? 10 : Math.min(9, 5 + point.count)}
             pathOptions={{
-              color: isSelected || point.approximate ? '#e8805b' : '#256d58',
-              fillColor: isSelected || point.approximate ? '#e8a35b' : '#4fa184',
+              color: point.approximate ? '#e8805b' : '#256d58',
+              fillColor: point.approximate ? '#e8a35b' : '#4fa184',
               fillOpacity: 0.82,
               weight: isSelected ? 3 : 2,
               dashArray: point.approximate ? '4 3' : undefined,

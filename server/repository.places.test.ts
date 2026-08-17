@@ -36,6 +36,38 @@ describe('EventRepository.getSnapshot', () => {
     expect(snapshot.pendingPlaceCount).toBe(1)
     expect(snapshot.events.map((event) => event.category.label)).toEqual(['Saitama', 'Saitama'])
   })
+
+  it('reclassifies places previously stored as other when the address is now recognized', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM eventernote_users')) return { rows: [] }
+      return {
+        rows: [{
+          event_id: '1',
+          title: 'Live in Seoul',
+          start_at: '2026-08-14T10:00:00.000Z',
+          end_at: '2026-08-14T12:00:00.000Z',
+          place_id: '303',
+          venue_name: 'Olympic Hall',
+          actors: [],
+          image_url: null,
+          image_alt: null,
+          detail_fetched_at: new Date('2026-08-14T09:00:00.000Z'),
+          place_name: 'Olympic Hall',
+          address: '424 Olympic-ro, Songpa-gu, Seoul, South Korea',
+          region: '其他地區',
+          latitude: 37.521,
+          longitude: 127.115,
+          place_detail_fetched_at: new Date('2026-08-14T09:00:00.000Z'),
+        }],
+      }
+    })
+    const pool = { query } as unknown as Pool
+
+    const snapshot = await new EventRepository(pool).getSnapshot('test-user')
+
+    expect(snapshot.events[0].category.label).toBe('韓國')
+    expect(snapshot.places['303'].region).toBe('韓國')
+  })
 })
 
 describe('EventRepository.getRequestedPlacesForUser', () => {

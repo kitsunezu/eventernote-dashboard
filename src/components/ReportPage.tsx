@@ -315,7 +315,7 @@ export function ReportPage({
 
   if (loading && events.length === 0) {
     return (
-      <div className="report-loading" aria-live="polite">
+      <div className="report-loading report-loading--pending" aria-live="polite">
         <span className="loading-spinner" aria-hidden="true" />
         <p>{getReportCopy(locale).subtitle}</p>
       </div>

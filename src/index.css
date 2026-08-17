@@ -2317,6 +2317,7 @@ button {
 .report-empty p,
 .report-loading h1,
 .report-loading p { margin: 0; }
+.report-loading--pending { align-content: center; }
 .report-empty h2 { color: var(--text); font-size: 1rem; }
 .report-empty p { font-size: 0.78rem; }
 .is-spinning { animation: spin 0.8s linear infinite; }

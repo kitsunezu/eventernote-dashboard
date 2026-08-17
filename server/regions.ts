@@ -19,37 +19,79 @@ const REGION_COLORS: Record<string, string> = {
   '其他地區': '#8a7c6e',
 }
 
-const COUNTRY_PATTERNS: Array<{ label: string; pattern: RegExp }> = [
-  { label: '美國', pattern: /united states(?: of america)?|\bu\.?s\.?a\.?\b|アメリカ合衆国|美國|美国/i },
-  { label: '加拿大', pattern: /canada|カナダ|加拿大/i },
-  { label: '英國', pattern: /united kingdom|great britain|england|scotland|wales|northern ireland|イギリス|英国|英國/i },
-  { label: '法國', pattern: /france|フランス|法国|法國/i },
-  { label: '德國', pattern: /germany|deutschland|ドイツ|德国|德國/i },
-  { label: '義大利', pattern: /italy|italia|イタリア|意大利|義大利/i },
-  { label: '西班牙', pattern: /spain|españa|スペイン|西班牙/i },
-  { label: '荷蘭', pattern: /netherlands|holland|オランダ|荷兰|荷蘭/i },
-  { label: '比利時', pattern: /belgium|ベルギー|比利时|比利時/i },
-  { label: '瑞士', pattern: /switzerland|スイス|瑞士/i },
-  { label: '奧地利', pattern: /austria|オーストリア|奥地利|奧地利/i },
-  { label: '愛爾蘭', pattern: /\bireland\b|アイルランド|爱尔兰|愛爾蘭/i },
-  { label: '葡萄牙', pattern: /portugal|ポルトガル|葡萄牙/i },
-  { label: '波蘭', pattern: /poland|ポーランド|波兰|波蘭/i },
-  { label: '捷克', pattern: /czech(?:ia| republic)?|チェコ|捷克/i },
-  { label: '瑞典', pattern: /sweden|スウェーデン|瑞典/i },
-  { label: '挪威', pattern: /norway|ノルウェー|挪威/i },
-  { label: '丹麥', pattern: /denmark|デンマーク|丹麦|丹麥/i },
-  { label: '芬蘭', pattern: /finland|フィンランド|芬兰|芬蘭/i },
+const COUNTRY_NAME_LOCALES = [
+  'en', 'ja', 'zh-TW', 'zh-CN', 'ko', 'th', 'fr', 'de', 'es', 'pt', 'it', 'ru', 'ar',
+] as const
+
+const COUNTRY_LABEL_OVERRIDES: Record<string, string> = {
+  KR: '韓國',
+}
+
+const COUNTRY_ALIAS_OVERRIDES: Record<string, string[]> = {
+  GB: ['Great Britain', 'England', 'Scotland', 'Wales', 'Northern Ireland'],
+  KR: ['Korea', 'Republic of Korea'],
+  NL: ['Holland'],
+  US: ['United States of America', 'U.S.A.', 'USA'],
+}
+
+const COUNTRY_HINTS: Array<{ code: string; pattern: RegExp }> = [
+  {
+    code: 'KR',
+    pattern: /대한민국|한국|서울(?:특별시)?|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|경기도|강원(?:특별자치도|도)|충청[남북]도|전[남북](?:특별자치)?도|경상[남북]도|제주특별자치도|\b(?:seoul|busan|incheon|daegu|daejeon|gwangju|ulsan|jeju)\b/i,
+  },
+  { code: 'TH', pattern: /[\u0E00-\u0E7F]|\b(?:bangkok|chiang mai|pattaya|phuket)\b/iu },
 ]
+
+const traditionalCountryNames = new Intl.DisplayNames(['zh-TW'], { type: 'region' })
+const englishCountryNames = new Intl.DisplayNames(['en'], { type: 'region' })
+const localizedCountryNames = COUNTRY_NAME_LOCALES.map((locale) => {
+  return new Intl.DisplayNames([locale], { type: 'region' })
+})
+
+function countryLabel(code: string): string {
+  return COUNTRY_LABEL_OVERRIDES[code] ?? traditionalCountryNames.of(code) ?? code
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function aliasPattern(alias: string): RegExp {
+  const escaped = escapeRegExp(alias.normalize('NFKC'))
+  return new RegExp(`(?:^|[^\\p{L}])${escaped}(?:$|[^\\p{L}])`, 'iu')
+}
+
+const COUNTRY_PATTERNS: Array<{ label: string; patterns: RegExp[] }> = []
+for (let first = 65; first <= 90; first += 1) {
+  for (let second = 65; second <= 90; second += 1) {
+    const code = String.fromCharCode(first, second)
+    const englishName = englishCountryNames.of(code)
+    if (!englishName || englishName === code || englishName === 'Unknown Region') continue
+    const aliases = new Set([
+      ...localizedCountryNames.map((names) => names.of(code)),
+      ...(COUNTRY_ALIAS_OVERRIDES[code] ?? []),
+    ].filter((name): name is string => Boolean(name && name !== code && name !== '未知區域')))
+    COUNTRY_PATTERNS.push({
+      label: countryLabel(code),
+      patterns: Array.from(aliases, aliasPattern),
+    })
+  }
+}
 
 const US_STATE_AND_ZIP = /\b(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\s+\d{5}(?:-\d{4})?\b/i
 const CANADIAN_POSTAL_CODE = /\b[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTVWXYZ]\s?\d[ABCEGHJ-NPRSTVWXYZ]\d\b/i
 const US_CITY = /\b(?:new york|brooklyn|los angeles|chicago|atlanta|dallas|houston|phoenix|seattle|baltimore|honolulu|san jose|san francisco|fort worth)\b/i
 
 export function detectCountry(text: string): string | undefined {
-  const explicit = COUNTRY_PATTERNS.find(({ pattern }) => pattern.test(text))
+  const normalizedText = text.normalize('NFKC')
+  const hint = COUNTRY_HINTS.find(({ pattern }) => pattern.test(normalizedText))
+  if (hint) return countryLabel(hint.code)
+  const explicit = COUNTRY_PATTERNS.find(({ patterns }) => {
+    return patterns.some((pattern) => pattern.test(normalizedText))
+  })
   if (explicit) return explicit.label
-  if (CANADIAN_POSTAL_CODE.test(text)) return '加拿大'
-  if (US_STATE_AND_ZIP.test(text) || US_CITY.test(text)) return '美國'
+  if (CANADIAN_POSTAL_CODE.test(normalizedText)) return '加拿大'
+  if (US_STATE_AND_ZIP.test(normalizedText) || US_CITY.test(normalizedText)) return '美國'
   return undefined
 }
 
