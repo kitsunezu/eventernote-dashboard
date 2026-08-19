@@ -108,6 +108,40 @@ export function parseUserEventsPage(html: string): ParsedUserEventsPage {
   return { events, paginationPaths }
 }
 
+export interface ParticipationCalendarMonth {
+  path: string
+  count: number
+}
+
+export function parseParticipationCalendar(html: string, userId: string): ParticipationCalendarMonth[] {
+  const $ = load(html)
+  const expectedPrefix = `/users/${encodeURIComponent(userId)}/events/`
+  const months: ParticipationCalendarMonth[] = []
+
+  $('a[href]').each((_, link) => {
+    const href = $(link).attr('href')
+    if (!href?.startsWith(`${expectedPrefix}?`)) return
+
+    let url: URL
+    try {
+      url = new URL(href, 'https://www.eventernote.com')
+    } catch {
+      return
+    }
+
+    const year = url.searchParams.get('year')
+    const month = url.searchParams.get('month')
+    const count = Number($(link).text().trim())
+    if (!/^\d{4}$/.test(year ?? '') || !/^\d{1,2}$/.test(month ?? '') || !Number.isInteger(count) || count <= 0) {
+      return
+    }
+
+    months.push({ path: `${expectedPrefix}?year=${year}&month=${month}`, count })
+  })
+
+  return Array.from(new Map(months.map((month) => [month.path, month])).values())
+}
+
 export function parseEventDetail(html: string, eventId: string): EventDetail {
   const $ = load(html)
   const table = $('.gb_events_info_table table').first()

@@ -21,7 +21,7 @@ Eventernote Dashboard 是以 React 與 TypeScript 開發的公開 Eventernote �
 1. 首頁取得使用者 ID，並導向 `/{userId}`。
 2. 瀏覽器請求 `GET /api/users/{userId}/events`，不會直接抓取 Eventernote。
 3. API 會立即回傳最新的 PostgreSQL 資料；若資料已過期，則先回傳舊資料並在背景開始更新。
-4. 伺服器會跟隨使用者活動列表的分頁，以找出活動 ID。
+4. 伺服器會讀取使用者的 Eventernote 參加活動日曆，逐月抓取非空月份、驗證列數並依活動 ID 去重；日曆無法取得時才 fallback 到活動列表分頁。
 5. 伺服器以有限並行數抓取尚未取得或已過期的活動詳情頁，解析後將結果儲存為活動的權威資料。
 6. 尚未取得或已過期的場地頁會另外抓取，以取得標準地址與座標。若 Eventernote 座標無效或不存在，系統會依序嘗試地圖連結、逐步簡化的日本 GSI 與 Nominatim 地址搜尋，最後再使用經過驗證的場地名稱 POI 搜尋。
 7. 活動會依 Eventernote 活動 ID 去除重複、依時間排序，並按日期分組顯示。
@@ -160,4 +160,3 @@ server/
 admin/
 └── index.html          # 保留的 secondary entry，目前載入主應用程式 entry
 ```
-

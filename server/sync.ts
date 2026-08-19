@@ -4,9 +4,9 @@ import type { ServerConfig } from './config.js'
 import { hasUsableCoordinates } from './coordinates.js'
 import type { Coordinates } from './coordinates.js'
 import { GEOCODER_STRATEGY_VERSION, VenueGeocoder } from './geocoder.js'
-import { parseEventDetail, parsePlaceDetail, parseUserEventsPage } from './parser.js'
+import { parseEventDetail, parseParticipationCalendar, parsePlaceDetail, parseUserEventsPage } from './parser.js'
 import { EventRepository } from './repository.js'
-import type { EventSeed, StoredEvent, SyncStats } from './types.js'
+import type { EventSeed, ParsedUserEventsPage, StoredEvent, SyncStats } from './types.js'
 import { EventernoteClient } from './upstream.js'
 
 const PLACE_TTL_MS = 90 * 24 * 60 * 60 * 1000
@@ -66,7 +66,9 @@ async function mapWithConcurrency<T>(
 function paginationPageNumber(path: string, expectedPathname: string): number | undefined {
   try {
     const url = new URL(path, 'https://www.eventernote.com')
-    if (url.origin !== 'https://www.eventernote.com' || url.pathname !== expectedPathname) return undefined
+    const normalizedPathname = (value: string) => value.replace(/\/$/, '')
+    if (url.origin !== 'https://www.eventernote.com'
+      || normalizedPathname(url.pathname) !== normalizedPathname(expectedPathname)) return undefined
     const rawPage = url.searchParams.get('page')
     if (!rawPage || !/^\d+$/.test(rawPage)) return undefined
     const page = Number(rawPage)
@@ -81,8 +83,46 @@ export async function fetchUserEventIndex(
   fetchHtml: (path: string) => Promise<string>,
   maxPages: number,
 ): Promise<EventSeed[]> {
-  const expectedPathname = `/users/${encodeURIComponent(userId)}/events`
-  const firstPage = parseUserEventsPage(await fetchHtml(expectedPathname))
+  const profilePath = `/users/${encodeURIComponent(userId)}`
+  const calendar = parseParticipationCalendar(await fetchHtml(profilePath), userId)
+  if (calendar.length > 0) {
+    const byId = new Map<string, EventSeed>()
+    for (const month of calendar) {
+      const pages = await fetchPaginatedEventPages(month.path, fetchHtml, maxPages)
+      const events = pages.flatMap((page) => page.events)
+      if (events.length !== month.count) {
+        throw new Error(
+          `Eventernote participation calendar mismatch for ${month.path}: expected ${month.count} rows, found ${events.length}`,
+        )
+      }
+      for (const event of events) byId.set(event.id, event)
+    }
+    return Array.from(byId.values())
+  }
+
+  return fetchPaginatedEventIndex(`/users/${encodeURIComponent(userId)}/events`, fetchHtml, maxPages)
+}
+
+async function fetchPaginatedEventIndex(
+  startPath: string,
+  fetchHtml: (path: string) => Promise<string>,
+  maxPages: number,
+): Promise<EventSeed[]> {
+  const pages = await fetchPaginatedEventPages(startPath, fetchHtml, maxPages)
+  const byId = new Map<string, EventSeed>()
+  for (const page of pages) {
+    for (const event of page.events) byId.set(event.id, event)
+  }
+  return Array.from(byId.values())
+}
+
+async function fetchPaginatedEventPages(
+  startPath: string,
+  fetchHtml: (path: string) => Promise<string>,
+  maxPages: number,
+): Promise<ParsedUserEventsPage[]> {
+  const expectedPathname = new URL(startPath, 'https://www.eventernote.com').pathname
+  const firstPage = parseUserEventsPage(await fetchHtml(startPath))
   const pages = [firstPage]
   const discoveredPages = new Set([1])
   const queuedPaths: string[] = []
@@ -111,11 +151,7 @@ export async function fetchUserEventIndex(
     }
   }
 
-  const byId = new Map<string, EventSeed>()
-  for (const page of pages) {
-    for (const event of page.events) byId.set(event.id, event)
-  }
-  return Array.from(byId.values())
+  return pages
 }
 
 export class EventSyncService {

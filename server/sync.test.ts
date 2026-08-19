@@ -41,7 +41,43 @@ function userEventPage(eventId: string, paginationPages: number[]): string {
   `
 }
 
+function calendarPage(months: Array<{ month: number; count: number }>): string {
+  return months.map(({ month, count }) => (
+    `<a href="/users/test-user/events/?year=2025&month=${month}">${count}</a>`
+  )).join('')
+}
+
 describe('fetchUserEventIndex', () => {
+  it('uses participation-calendar month pages and deduplicates repeated rows', async () => {
+    const htmlByPath = new Map<string, string>([
+      ['/users/test-user', calendarPage([{ month: 6, count: 3 }])],
+      ['/users/test-user/events/?year=2025&month=6', [
+        userEventPage('201', []),
+        userEventPage('202', []),
+        userEventPage('201', []),
+      ].join('')],
+    ])
+    const fetchHtml = vi.fn(async (path: string) => htmlByPath.get(path) ?? '')
+
+    const events = await fetchUserEventIndex('test-user', fetchHtml, 5)
+
+    expect(events.map((event) => event.id)).toEqual(['201', '202'])
+    expect(fetchHtml.mock.calls.map(([path]) => path)).toEqual([
+      '/users/test-user',
+      '/users/test-user/events/?year=2025&month=6',
+    ])
+  })
+
+  it('rejects a month page when its row count disagrees with the calendar', async () => {
+    const fetchHtml = vi.fn(async (path: string) => {
+      if (path === '/users/test-user') return calendarPage([{ month: 6, count: 2 }])
+      return userEventPage('201', [])
+    })
+
+    await expect(fetchUserEventIndex('test-user', fetchHtml, 5))
+      .rejects.toThrow('Eventernote participation calendar mismatch')
+  })
+
   it('follows pagination links discovered on later pages', async () => {
     const htmlByPage = new Map<number, string>([
       [1, userEventPage('101', [2, 3, 5])],
@@ -51,6 +87,7 @@ describe('fetchUserEventIndex', () => {
       [5, userEventPage('105', [1, 3, 4])],
     ])
     const fetchHtml = vi.fn(async (path: string) => {
+      if (path === '/users/test-user') return ''
       const page = Number(new URL(path, 'https://www.eventernote.com').searchParams.get('page') ?? '1')
       return htmlByPage.get(page) ?? ''
     })
@@ -58,18 +95,21 @@ describe('fetchUserEventIndex', () => {
     const events = await fetchUserEventIndex('test-user', fetchHtml, 5)
 
     expect(events.map((event) => event.id)).toEqual(['101', '102', '103', '105', '104'])
-    expect(fetchHtml).toHaveBeenCalledTimes(5)
+    expect(fetchHtml).toHaveBeenCalledTimes(6)
     expect(new Set(fetchHtml.mock.calls.map(([path]) => (
       Number(new URL(path, 'https://www.eventernote.com').searchParams.get('page') ?? '1')
     )))).toEqual(new Set([1, 2, 3, 4, 5]))
   })
 
   it('rejects an index whose discovered page number exceeds the configured limit', async () => {
-    const fetchHtml = vi.fn().mockResolvedValue(userEventPage('101', [2, 41]))
+    const fetchHtml = vi.fn(async (path: string) => {
+      if (path === '/users/test-user') return ''
+      return userEventPage('101', [2, 41])
+    })
 
     await expect(fetchUserEventIndex('test-user', fetchHtml, 40))
       .rejects.toThrow('User index has at least 41 pages; maximum is 40')
-    expect(fetchHtml).toHaveBeenCalledOnce()
+    expect(fetchHtml).toHaveBeenCalledTimes(2)
   })
 })
 

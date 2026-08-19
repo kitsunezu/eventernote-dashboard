@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseEventDetail, parseEventTimes, parsePlaceDetail, parseUserEventsPage } from './parser.js'
+import { parseEventDetail, parseEventTimes, parseParticipationCalendar, parsePlaceDetail, parseUserEventsPage } from './parser.js'
 
 describe('parseUserEventsPage', () => {
   it('discovers event IDs and pagination paths from a user list page', () => {
@@ -35,6 +35,21 @@ describe('parseUserEventsPage', () => {
       }],
       paginationPaths: ['/users/test/events?page=2'],
     })
+  })
+})
+
+describe('parseParticipationCalendar', () => {
+  it('extracts non-empty month paths and their row counts', () => {
+    const html = `
+      <a href="/users/test-user/events/?year=2025&month=6">5</a>
+      <a href="/users/test-user/events/?year=2025&month=6">5</a>
+      <a href="/users/test-user/events/?year=2025&month=7">0</a>
+      <a href="/users/other-user/events/?year=2025&month=8">9</a>
+    `
+
+    expect(parseParticipationCalendar(html, 'test-user')).toEqual([
+      { path: '/users/test-user/events/?year=2025&month=6', count: 5 },
+    ])
   })
 })
 
