@@ -58,6 +58,7 @@ export const CACHE_TTL_MS = 30 * 60 * 1000 // 30 minutes
 
 const initialSnapshot: ScheduleSnapshot = persisted ?? {
   events: [],
+  places: {},
   viewMode: 'timeline',
   daysToShow: DEFAULT_DAY_RANGE,
   selectedCategoryIds: [],
@@ -90,6 +91,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   importEvents: (payload) =>
     set({
       events: sortEvents(payload.events),
+      places: payload.places,
       participationCalendar: payload.participationCalendar ?? [],
       activeSource: payload.sourceType,
       selectedEventId: null,
@@ -132,15 +134,16 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       error: null,
       selectedEventId: null,
       // Clear stale events immediately when switching to a different user
-      ...(switchingUser ? { events: [], participationCalendar: [], cachedAt: undefined } : {}),
+      ...(switchingUser ? { events: [], places: {}, participationCalendar: [], cachedAt: undefined } : {}),
     })
     try {
       let receivedProgress = false
-      const data = await loadEventernoteUserFromApi(userId, ({ events, importedAt, participationCalendar }) => {
+      const data = await loadEventernoteUserFromApi(userId, ({ events, places, importedAt, participationCalendar }) => {
         receivedProgress = true
         if (isActiveLoad()) {
           set({
             events: sortEvents(events),
+            places,
             participationCalendar,
             activeSource: 'backend',
             loading: false,
@@ -154,6 +157,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       set({
         ...(receivedProgress ? {} : {
           events: sortEvents(data.events),
+          places: data.places,
           participationCalendar: data.participationCalendar ?? [],
         }),
         activeSource: 'backend',
@@ -177,6 +181,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       if (get().cachedUserId !== userId) return
       set({
         events: sortEvents(data.events),
+        places: data.places,
         participationCalendar: data.participationCalendar ?? [],
         activeSource: 'backend',
         cachedAt: data.importedAt,
@@ -188,9 +193,12 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   refreshUnmappedPlaces: async (userId, placeIds) => {
     const data = await refreshEventernotePlaces(userId, placeIds)
     if (get().cachedUserId !== userId) return data.warnings
-    // The adapter has already updated the place cache. Keep the freshest event
-    // snapshot and replace only its array reference so report data recomputes.
-    set((state) => ({ events: [...state.events] }))
+    set({
+      events: sortEvents(data.events),
+      places: data.places,
+      participationCalendar: data.participationCalendar ?? [],
+      cachedAt: data.importedAt,
+    })
     return data.warnings
   },
 }))
@@ -198,6 +206,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
 useScheduleStore.subscribe((state) => {
   writeScheduleSnapshot({
     events: state.events,
+    places: state.places,
     viewMode: state.viewMode,
     daysToShow: state.daysToShow,
     selectedCategoryIds: state.selectedCategoryIds,

@@ -1,5 +1,9 @@
-import { getPlace, setPlace } from '../lib/placeCache'
-import type { ImportedScheduleData, ParticipationCalendarMonth, ScheduleEvent } from '../types/events'
+import type {
+  ImportedScheduleData,
+  ParticipationCalendarMonth,
+  ScheduleEvent,
+  SchedulePlace,
+} from '../types/events'
 
 const POLL_INTERVAL_MS = 2_000
 const MAX_REFRESH_POLLS = 900
@@ -7,13 +11,7 @@ const PLACE_REFRESH_BATCH_SIZE = 20
 
 interface ApiResponse extends ImportedScheduleData {
   participationCalendar: ParticipationCalendarMonth[]
-  places: Record<string, {
-    name: string
-    address: string
-    region: string
-    latitude?: number
-    longitude?: number
-  }>
+  places: Record<string, SchedulePlace>
   cache: {
     status: 'fresh' | 'stale'
     refreshing: boolean
@@ -36,7 +34,7 @@ function isApiResponse(value: unknown): value is ApiResponse {
     && Array.isArray(candidate.participationCalendar)
     && typeof candidate.importedAt === 'string'
     && Boolean(candidate.cache)
-    && Boolean(candidate.places)
+    && Boolean(candidate.places && typeof candidate.places === 'object')
 }
 
 async function fetchUserEvents(userId: string, forceRefresh = false): Promise<ApiResponse> {
@@ -94,17 +92,11 @@ async function refreshUserPlaces(userId: string, placeIds: string[]): Promise<Ap
   return payload
 }
 
-function persistPlaces(response: ApiResponse): void {
-  for (const [placeId, place] of Object.entries(response.places)) {
-    const current = getPlace(placeId)
-    if (JSON.stringify(current) !== JSON.stringify(place)) setPlace(placeId, place)
-  }
-}
-
 export async function loadEventernoteUserFromApi(
   userId: string,
   onProgress?: (partial: {
     events: ScheduleEvent[]
+    places: Record<string, SchedulePlace>
     warnings: string[]
     importedAt: string
     participationCalendar: ParticipationCalendarMonth[]
@@ -115,12 +107,12 @@ export async function loadEventernoteUserFromApi(
   let publishedVersion = ''
 
   function publishIfChanged(next: ApiResponse): void {
-    persistPlaces(next)
     const version = `${next.cache.dataVersion}:${next.cache.pendingDetailCount}:${next.cache.pendingPlaceCount}`
     if (version === publishedVersion) return
     publishedVersion = version
     onProgress?.({
       events: next.events,
+      places: next.places,
       warnings: next.warnings,
       importedAt: next.importedAt,
       participationCalendar: next.participationCalendar,
@@ -138,6 +130,7 @@ export async function loadEventernoteUserFromApi(
 
   return {
     events: response.events,
+    places: response.places,
     warnings: response.warnings,
     sourceType: 'backend',
     importedAt: response.importedAt,
@@ -150,9 +143,9 @@ export async function refreshEventernoteEvent(
   eventId: string,
 ): Promise<ImportedScheduleData> {
   const response = await refreshUserEvent(userId, eventId)
-  persistPlaces(response)
   return {
     events: response.events,
+    places: response.places,
     warnings: response.warnings,
     sourceType: 'backend',
     importedAt: response.importedAt,
@@ -170,7 +163,6 @@ export async function refreshEventernotePlaces(
   for (let index = 0; index < uniquePlaceIds.length; index += PLACE_REFRESH_BATCH_SIZE) {
     try {
       latest = await refreshUserPlaces(userId, uniquePlaceIds.slice(index, index + PLACE_REFRESH_BATCH_SIZE))
-      persistPlaces(latest)
       warnings.push(...latest.warnings)
     } catch (error) {
       warnings.push(error instanceof Error ? error.message : 'Place refresh failed')
@@ -179,6 +171,7 @@ export async function refreshEventernotePlaces(
   if (!latest) throw new Error(warnings[0] ?? 'No places were selected for refresh')
   return {
     events: latest.events,
+    places: latest.places,
     warnings,
     sourceType: 'backend',
     importedAt: latest.importedAt,

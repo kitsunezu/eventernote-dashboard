@@ -58,7 +58,7 @@ Event and place enrichment continues in the background after the index is availa
 }
 ```
 
-`events` uses the existing `ScheduleEvent` contract. `participationCalendar` contains the authoritative Eventernote count for each non-empty year/month and drives the report's attended-event total and monthly distribution. `places` is keyed by Eventernote place ID and is merged into the existing browser place cache for report/map compatibility.
+`events` uses the existing `ScheduleEvent` contract. `participationCalendar` contains the authoritative Eventernote count for each non-empty year/month and drives the report's attended-event total and monthly distribution. `places` is keyed by Eventernote place ID. The browser stores all three collections in one user-scoped schedule snapshot so the report and map cannot read venue data from a different or older cache.
 
 ## Database ownership
 

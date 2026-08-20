@@ -37,8 +37,6 @@ The schema, API contract, refresh policy, and failure behavior are documented in
 | / | Landing page for entering a user ID |
 | /{userId} | Event viewer for that Eventernote user |
 
-There is no dedicated, wired admin UI in the current app surface. The repository still contains admin-related files, and the production Nginx config reserves /admin/, but admin/index.html currently loads the same src/main.tsx entry as the main app.
-
 ## Tech Stack
 
 - React 19
@@ -119,9 +117,7 @@ Keep EVENTERNOTE_HOST set to www.eventernote.com so the upstream Host header and
 The current test suite covers utility and parsing logic, including:
 
 - date formatting and filtering helpers
-- Eventernote parsing behavior
-- ICS import parsing
-- JSON import parsing
+- Eventernote API and server-side parsing behavior
 - Zustand store selectors and filtering behavior
 
 Run the suite with:
@@ -130,27 +126,14 @@ Run the suite with:
 npm run test
 ```
 
-## Inactive Modules Still Present In The Repo
-
-This repository still includes code for features that are not wired into the current viewer flow:
-
-- admin editor UI in src/components/AdminPage.tsx
-- category filter UI in src/components/Filters.tsx
-- list view UI in src/components/ListView.tsx
-- ICS and JSON file adapters
-- ICS export and PNG export utilities
-- sample data and backend stub adapters
-
-Those files remain in the codebase, but they are not connected to src/App.tsx or src/main.tsx in the current build, so they are intentionally not described above as active user-facing functionality.
-
 ## Project Structure
 
 ```text
 src/
 ├── App.tsx             # Landing page / viewer flow
-├── adapters/           # Eventernote scraper and dormant file adapters
-├── components/         # Active viewer components plus some inactive UI modules
-├── lib/                # Date, localization, storage, and parsing utilities
+├── adapters/           # Database-backed Eventernote API adapter
+├── components/         # Viewer and report components
+├── lib/                # Date, localization, storage, report, and OTel utilities
 ├── store/              # Zustand schedule store
 └── types/              # Shared TypeScript types
 server/
@@ -159,6 +142,4 @@ server/
 ├── parser.ts           # Eventernote list/detail/place parsing
 ├── repository.ts       # Database reads and transactional writes
 └── sync.ts             # Freshness, locking, and upstream synchronization
-admin/
-└── index.html          # Reserved secondary entry, currently loading the main app entry
 ```

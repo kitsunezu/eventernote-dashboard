@@ -2,13 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ScheduleEvent } from '../types/events'
 import { loadEventernoteUserFromApi, refreshEventernotePlaces } from './eventernoteApiSource'
 
-const placeCache = vi.hoisted(() => ({
-  getPlace: vi.fn(),
-  setPlace: vi.fn(),
-}))
-
-vi.mock('../lib/placeCache', () => placeCache)
-
 const event: ScheduleEvent = {
   id: '1',
   title: 'Event',
@@ -43,8 +36,6 @@ function response(placeId: string, refreshing = false, dataVersion = placeId): R
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllGlobals()
-  placeCache.getPlace.mockReset()
-  placeCache.setPlace.mockReset()
 })
 
 describe('loadEventernoteUserFromApi', () => {
@@ -58,10 +49,12 @@ describe('loadEventernoteUserFromApi', () => {
 
     const loading = loadEventernoteUserFromApi('test-user', onProgress)
     await vi.advanceTimersByTimeAsync(2_000)
-    await expect(loading).resolves.toMatchObject({ events: [event] })
+    await expect(loading).resolves.toMatchObject({
+      events: [event],
+      places: { '2': { name: 'Venue 2' } },
+    })
 
     expect(fetcher).toHaveBeenCalledTimes(2)
-    expect(placeCache.setPlace).toHaveBeenCalledTimes(2)
     expect(onProgress).toHaveBeenCalledTimes(2)
   })
 
@@ -99,7 +92,6 @@ describe('refreshEventernotePlaces', () => {
     expect(fetcher).toHaveBeenCalledTimes(2)
     expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({ placeIds: placeIds.slice(0, 20) })
     expect(JSON.parse(String(fetcher.mock.calls[1][1]?.body))).toEqual({ placeIds: ['21'] })
-    expect(placeCache.setPlace).toHaveBeenCalledTimes(2)
   })
 
   it('returns earlier successful data when a later batch fails', async () => {
@@ -115,6 +107,5 @@ describe('refreshEventernotePlaces', () => {
       events: [event],
       warnings: ['Temporary failure'],
     })
-    expect(placeCache.setPlace).toHaveBeenCalledOnce()
   })
 })

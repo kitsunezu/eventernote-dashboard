@@ -37,8 +37,6 @@ Eventernote Dashboard は、公開されている Eventernote のスケジュー
 | / | ユーザー ID を入力するランディングページ |
 | /{userId} | 対象 Eventernote ユーザーのイベントビューアー |
 
-現在のアプリ画面には、独立して接続された管理 UI はありません。リポジトリには管理関連ファイルが残っており、production の Nginx 設定でも `/admin/` が予約されていますが、`admin/index.html` は現在メインアプリと同じ `src/main.tsx` entry を読み込んでいます。
-
 ## 技術スタック
 
 - React 19
@@ -117,9 +115,7 @@ EVENTERNOTE_HOST=www.eventernote.com
 現在のテストスイートでは、以下を含む utility と parsing ロジックを検証しています。
 
 - 日付のフォーマットとフィルタリング helper
-- Eventernote の parsing 動作
-- ICS import の parsing
-- JSON import の parsing
+- Eventernote API と server-side parsing の動作
 - Zustand store selector とフィルタリング動作
 
 テストの実行方法：
@@ -128,27 +124,14 @@ EVENTERNOTE_HOST=www.eventernote.com
 npm run test
 ```
 
-## リポジトリに残っている未使用モジュール
-
-現在のビューアーフローには接続されていない次の機能コードが、リポジトリ内に残っています。
-
-- `src/components/AdminPage.tsx` の管理編集 UI
-- `src/components/Filters.tsx` のカテゴリーフィルター UI
-- `src/components/ListView.tsx` のリスト表示 UI
-- ICS・JSON ファイル adapter
-- ICS export・PNG export utility
-- サンプルデータと backend stub adapter
-
-これらのファイルは codebase に残されていますが、現在の build では `src/App.tsx` または `src/main.tsx` に接続されていないため、上記の有効なユーザー向け機能には含めていません。
-
 ## プロジェクト構成
 
 ```text
 src/
 ├── App.tsx             # ランディングページ／ビューアーフロー
-├── adapters/           # Eventernote scraper と未使用のファイル adapter
-├── components/         # 有効なビューアー component と一部の未使用 UI module
-├── lib/                # 日付、localization、storage、parsing utility
+├── adapters/           # データベース backed Eventernote API adapter
+├── components/         # ビューアーとレポート component
+├── lib/                # 日付、localization、storage、report、OTel utility
 ├── store/              # Zustand スケジュール store
 └── types/              # 共通 TypeScript type
 server/
@@ -157,6 +140,4 @@ server/
 ├── parser.ts           # Eventernote 一覧／詳細／会場 parsing
 ├── repository.ts       # データベース読み取りと transaction write
 └── sync.ts             # freshness、locking、upstream synchronization
-admin/
-└── index.html          # 予約済み secondary entry（現在はメインアプリの entry を読み込み）
 ```

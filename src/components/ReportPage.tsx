@@ -13,7 +13,6 @@ import {
   Users,
 } from 'lucide-react'
 import { getReportCopy } from '../lib/localize'
-import { getAllPlaces } from '../lib/placeCache'
 import { buildReportStats, getUnmappedVenuePlaceIds, sortVenuesByMapAvailability } from '../lib/reportStats'
 import type { RankedStat, ReportScope } from '../lib/reportStats'
 import {
@@ -23,7 +22,13 @@ import {
 } from '../lib/ticketCosts'
 import type { ReportCurrency } from '../lib/ticketCosts'
 import { resolveVenueCoordinates } from '../lib/venueCoordinates'
-import type { ParticipationCalendarMonth, ScheduleEvent, SupportedLocale, ThemeMode } from '../types/events'
+import type {
+  ParticipationCalendarMonth,
+  ScheduleEvent,
+  SchedulePlace,
+  SupportedLocale,
+  ThemeMode,
+} from '../types/events'
 import { MoonIcon, SunIcon } from './Icons'
 import { VenueMap } from './VenueMap'
 import type { VenueMapPoint } from './VenueMap'
@@ -31,6 +36,7 @@ import type { VenueMapPoint } from './VenueMap'
 interface ReportPageProps {
   userId: string
   events: ScheduleEvent[]
+  places: Record<string, SchedulePlace>
   participationCalendar: ParticipationCalendarMonth[]
   locale: SupportedLocale
   theme: ThemeMode
@@ -156,6 +162,7 @@ function createCaptureElement(report: HTMLDivElement): HTMLElement {
 export function ReportPage({
   userId,
   events,
+  places,
   participationCalendar,
   locale,
   theme,
@@ -177,8 +184,8 @@ export function ReportPage({
   const statusTimerRef = useRef<number | null>(null)
 
   const stats = useMemo(
-    () => buildReportStats(events, scope, getAllPlaces(), ticketData.amounts, new Date(), participationCalendar),
-    [events, participationCalendar, scope, ticketData.amounts],
+    () => buildReportStats(events, scope, places, ticketData.amounts, new Date(), participationCalendar),
+    [events, participationCalendar, places, scope, ticketData.amounts],
   )
 
   const eventsById = useMemo(() => new Map(stats.events.map((event) => [event.id, event])), [stats.events])

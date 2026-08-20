@@ -37,8 +37,6 @@ Eventernote Dashboard 是以 React 與 TypeScript 開發的公開 Eventernote �
 | / | 輸入使用者 ID 的首頁 |
 | /{userId} | 該 Eventernote 使用者的活動檢視頁 |
 
-目前應用程式介面沒有獨立且已接線的管理介面。Repository 中仍保留管理相關檔案，production Nginx 設定也保留 `/admin/`，但 `admin/index.html` 目前載入的仍是與主應用程式相同的 `src/main.tsx` entry。
-
 ## 技術堆疊
 
 - React 19
@@ -117,9 +115,7 @@ EVENTERNOTE_HOST=www.eventernote.com
 目前的測試套件涵蓋 utility 與 parsing 邏輯，包括：
 
 - 日期格式化與篩選 helper
-- Eventernote parsing 行為
-- ICS 匯入解析
-- JSON 匯入解析
+- Eventernote API 與 server-side parsing 行為
 - Zustand store selector 與篩選行為
 
 執行測試：
@@ -128,27 +124,14 @@ EVENTERNOTE_HOST=www.eventernote.com
 npm run test
 ```
 
-## Repository 中仍保留的非啟用模組
-
-Repository 中仍包含未接入目前檢視流程的功能程式碼：
-
-- `src/components/AdminPage.tsx` 的管理編輯介面
-- `src/components/Filters.tsx` 的分類篩選介面
-- `src/components/ListView.tsx` 的列表檢視介面
-- ICS 與 JSON 檔案 adapter
-- ICS 匯出與 PNG 匯出 utility
-- 範例資料與 backend stub adapter
-
-這些檔案仍保留於 codebase，但未連接至目前 build 的 `src/App.tsx` 或 `src/main.tsx`，因此上方沒有將它們列為已啟用的使用者功能。
-
 ## 專案結構
 
 ```text
 src/
 ├── App.tsx             # 首頁／檢視流程
-├── adapters/           # Eventernote scraper 與未啟用的檔案 adapter
-├── components/         # 已啟用的檢視元件及部分未啟用 UI 模組
-├── lib/                # 日期、localization、storage 與 parsing utility
+├── adapters/           # 以資料庫為後端的 Eventernote API adapter
+├── components/         # 檢視與報表元件
+├── lib/                # 日期、localization、storage、報表與 OTel utility
 ├── store/              # Zustand 行程 store
 └── types/              # 共用 TypeScript 型別
 server/
@@ -157,6 +140,4 @@ server/
 ├── parser.ts           # Eventernote 列表／詳情／場地 parsing
 ├── repository.ts       # 資料庫讀取與 transaction write
 └── sync.ts             # freshness、locking 與 upstream synchronization
-admin/
-└── index.html          # 保留的 secondary entry，目前載入主應用程式 entry
 ```

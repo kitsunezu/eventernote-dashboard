@@ -56,8 +56,17 @@ export interface ParticipationCalendarMonth {
   count: number
 }
 
+export interface SchedulePlace {
+  name: string
+  address: string
+  region: string
+  latitude?: number
+  longitude?: number
+}
+
 export interface ImportedScheduleData {
   events: ScheduleEvent[]
+  places: Record<string, SchedulePlace>
   warnings: string[]
   sourceType: EventSourceKind
   importedAt: string
@@ -66,6 +75,7 @@ export interface ImportedScheduleData {
 
 export interface ScheduleSnapshot {
   events: ScheduleEvent[]
+  places: Record<string, SchedulePlace>
   viewMode: ViewMode
   daysToShow: DayRangeOption
   selectedCategoryIds: string[]

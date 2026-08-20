@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { PlaceEntry } from './placeCache'
-import type { ScheduleEvent } from '../types/events'
+import type { ScheduleEvent, SchedulePlace } from '../types/events'
 import {
   buildReportStats,
   getReportYears,
@@ -40,7 +39,7 @@ const events: ScheduleEvent[] = [
   },
 ]
 
-const places: Record<string, PlaceEntry> = {
+const places: Record<string, SchedulePlace> = {
   a: { name: 'Venue A', address: 'Tokyo address', region: '東京' },
   b: { name: 'Venue B', address: 'Osaka address', region: '大阪' },
 }

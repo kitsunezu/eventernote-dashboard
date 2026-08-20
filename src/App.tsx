@@ -69,6 +69,7 @@ function App() {
       <ReportPage
         userId={userId}
         events={hasCachedDataForCurrentUser ? state.events : []}
+        places={hasCachedDataForCurrentUser ? state.places : {}}
         participationCalendar={hasCachedDataForCurrentUser ? state.participationCalendar ?? [] : []}
         locale={state.locale}
         theme={state.theme}

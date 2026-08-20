@@ -1,6 +1,5 @@
-import { hasUsablePlaceCoordinates } from './placeCache'
-import type { PlaceEntry } from './placeCache'
-import type { ParticipationCalendarMonth, ScheduleEvent } from '../types/events'
+import { hasUsablePlaceCoordinates } from './venueCoordinates'
+import type { ParticipationCalendarMonth, ScheduleEvent, SchedulePlace } from '../types/events'
 
 export type ReportScope = 'all' | number
 
@@ -99,7 +98,7 @@ function getCalendarYears(calendar: ParticipationCalendarMonth[], now: Date): nu
 export function buildReportStats(
   events: ScheduleEvent[],
   scope: ReportScope,
-  places: Record<string, PlaceEntry>,
+  places: Record<string, SchedulePlace>,
   ticketCosts: Record<string, number>,
   now = new Date(),
   participationCalendar: ParticipationCalendarMonth[] = [],
@@ -112,12 +111,12 @@ export function buildReportStats(
     })
     .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime())
 
-  const placesByName = new Map<string, PlaceEntry>()
+  const placesByName = new Map<string, SchedulePlace>()
   for (const place of Object.values(places)) {
     if (place.name) placesByName.set(place.name, place)
   }
 
-  const placesByVenue = new Map<string, PlaceEntry>()
+  const placesByVenue = new Map<string, SchedulePlace>()
   for (const event of attendedEvents) {
     const venue = event.location?.trim()
     const placeId = event.sourceMeta?.placeId

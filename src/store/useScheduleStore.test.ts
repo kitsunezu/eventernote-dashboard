@@ -1,12 +1,18 @@
 import dayjs from 'dayjs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { colorForCategory } from '../lib/date'
-import type { ImportedScheduleData, ParticipationCalendarMonth, ScheduleEvent } from '../types/events'
+import type {
+  ImportedScheduleData,
+  ParticipationCalendarMonth,
+  ScheduleEvent,
+  SchedulePlace,
+} from '../types/events'
 import type { ScheduleStore } from './useScheduleStore'
 import { selectCategories, selectVisibleEvents, useScheduleStore } from './useScheduleStore'
 
 type ProgressCallback = (partial: {
   events: ScheduleEvent[]
+  places: Record<string, SchedulePlace>
   warnings: string[]
   importedAt: string
   participationCalendar: ParticipationCalendarMonth[]
@@ -65,6 +71,9 @@ function createDeferred<T>() {
 function createApiResult(userId: string, events: ScheduleEvent[]): ImportedScheduleData {
   return {
     events,
+    places: {
+      [`place-${userId}`]: { name: `Venue ${userId}`, address: '', region: '' },
+    },
     warnings: [],
     sourceType: 'backend',
     importedAt: `2026-08-05T10:00:0${userId === 'A' ? '1' : '2'}.000Z`,
@@ -75,6 +84,7 @@ function createApiResult(userId: string, events: ScheduleEvent[]): ImportedSched
 function createState(overrides: Partial<ScheduleStore> = {}): ScheduleStore {
   return {
     events: testEvents,
+    places: {},
     viewMode: 'timeline',
     daysToShow: 'future',
     selectedCategoryIds: [],
@@ -124,6 +134,7 @@ describe('useScheduleStore Eventernote loading', () => {
     refreshPlacesFromApi.mockReset()
     useScheduleStore.setState({
       events: [],
+      places: {},
       participationCalendar: [],
       activeSource: 'backend',
       cachedAt: undefined,
@@ -153,6 +164,7 @@ describe('useScheduleStore Eventernote loading', () => {
 
     requests.get('B')?.onProgress?.({
       events: userBEvents,
+      places: { 'place-B': { name: 'Venue B', address: '', region: '' } },
       warnings: [],
       importedAt: '2026-08-05T10:00:02.000Z',
       participationCalendar: [{ year: 2026, month: 8, count: 2 }],
@@ -162,6 +174,7 @@ describe('useScheduleStore Eventernote loading', () => {
 
     requests.get('A')?.onProgress?.({
       events: userAEvents,
+      places: { 'place-A': { name: 'Venue A', address: '', region: '' } },
       warnings: [],
       importedAt: '2026-08-05T10:00:01.000Z',
       participationCalendar: [{ year: 2026, month: 8, count: 1 }],
@@ -226,6 +239,7 @@ describe('useScheduleStore Eventernote loading', () => {
     loadFromApi.mockImplementation((_userId, onProgress) => {
       onProgress?.({
         events: initialEvents,
+        places: { initial: { name: 'Initial Venue', address: '', region: '' } },
         warnings: [],
         importedAt: '2026-08-05T10:00:03.000Z',
         participationCalendar: [{ year: 2026, month: 8, count: 1 }],
@@ -237,6 +251,7 @@ describe('useScheduleStore Eventernote loading', () => {
 
     expect(useScheduleStore.getState()).toMatchObject({
       events: initialEvents,
+      places: { initial: { name: 'Initial Venue', address: '', region: '' } },
       cachedUserId: 'A',
       cachedAt: '2026-08-05T10:00:03.000Z',
       loading: false,
@@ -247,7 +262,7 @@ describe('useScheduleStore Eventernote loading', () => {
     expect(useScheduleStore.getState().events).toBe(appliedEvents)
   })
 
-  it('keeps current event data while triggering a map recomputation', async () => {
+  it('stores refreshed events and places together after map refresh', async () => {
     const refreshedEvents = [{ ...testEvents[0], location: 'Mapped venue' }]
     refreshPlacesFromApi.mockResolvedValue(createApiResult('A', refreshedEvents))
     useScheduleStore.setState({
@@ -255,18 +270,16 @@ describe('useScheduleStore Eventernote loading', () => {
       cachedUserId: 'A',
       cachedAt: '2026-08-05T09:00:00.000Z',
     })
-    const previousEvents = useScheduleStore.getState().events
-
     await expect(useScheduleStore.getState().refreshUnmappedPlaces('A', ['101', '202']))
       .resolves.toEqual([])
 
     expect(refreshPlacesFromApi).toHaveBeenCalledWith('A', ['101', '202'])
     expect(useScheduleStore.getState()).toMatchObject({
-      events: testEvents,
+      events: refreshedEvents,
+      places: { 'place-A': { name: 'Venue A', address: '', region: '' } },
       cachedUserId: 'A',
-      cachedAt: '2026-08-05T09:00:00.000Z',
+      cachedAt: '2026-08-05T10:00:01.000Z',
     })
-    expect(useScheduleStore.getState().events).not.toBe(previousEvents)
   })
 
   it('does not apply an unmapped-place refresh after switching users', async () => {
