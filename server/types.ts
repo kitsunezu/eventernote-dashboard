@@ -1,4 +1,8 @@
-import type { ImportedScheduleData, ScheduleEvent } from '../src/types/events.js'
+import type {
+  ImportedScheduleData,
+  ParticipationCalendarMonth,
+  ScheduleEvent,
+} from '../src/types/events.js'
 
 export interface EventSeed {
   id: string
@@ -35,6 +39,12 @@ export interface ParsedUserEventsPage {
   paginationPaths: string[]
 }
 
+export interface UserEventIndex {
+  events: EventSeed[]
+  participationCalendar: ParticipationCalendarMonth[]
+  warnings: string[]
+}
+
 export interface StoredEvent extends ScheduleEvent {
   detailFetchedAt?: string
   placeId?: string
@@ -42,6 +52,7 @@ export interface StoredEvent extends ScheduleEvent {
 
 export interface StoredUserSnapshot {
   events: ScheduleEvent[]
+  participationCalendar: ParticipationCalendarMonth[]
   places: Record<string, Omit<PlaceDetail, 'id'>>
   dataVersion: string
   lastIndexSuccessAt?: string

@@ -48,7 +48,7 @@ describe('parseParticipationCalendar', () => {
     `
 
     expect(parseParticipationCalendar(html, 'test-user')).toEqual([
-      { path: '/users/test-user/events/?year=2025&month=6', count: 5 },
+      { path: '/users/test-user/events/?year=2025&month=6', year: 2025, month: 6, count: 5 },
     ])
   })
 })

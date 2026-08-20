@@ -29,6 +29,13 @@ describe('VenueGeocoder', () => {
       'The Burrow',
       '1/F, The Burrow, 212 Choi Hung Road, San Po Kong, Kowloon, Hong Kong',
     )).toContain('The Burrow, Kowloon, Hong Kong')
+    expect(buildVenueSearchQueries(
+      '深圳国际会展中心（深圳国際エキシビション・コンベンションセンター）',
+      '广东省深圳市宝安区福海街道展城路1号',
+    )).toEqual(expect.arrayContaining([
+      '深圳国际会展中心（深圳国際エキシビション・コンベンションセンター）, 广东省深圳市宝安区',
+      '深圳国际会展中心',
+    ]))
   })
 
   it('falls back from the full venue address to a matching GSI street address', async () => {
@@ -56,7 +63,10 @@ describe('VenueGeocoder', () => {
     await expect(geocoder.geocode(
       'Shibuya LOVEZ(シブヤ ラブズ)',
       '〒150-0042 東京都渋谷区宇田川町9番5号 Shibuya LOVEZ',
-    )).resolves.toEqual({ latitude: 35.663025, longitude: 139.696213 })
+    )).resolves.toEqual({
+      latitude: 35.663025,
+      longitude: 139.696213,
+    })
     expect(requestedQueries.at(-1)).toBe('東京都渋谷区宇田川町9番5号')
   })
 
@@ -105,7 +115,12 @@ describe('VenueGeocoder', () => {
     await expect(geocoder.geocode(
       'Shibuya LOVEZ(シブヤ ラブズ)',
       '〒150-0042 東京都渋谷区宇田川町9番5号 Shibuya LOVEZ(シブヤ ラブズ)',
-    )).resolves.toEqual({ latitude: 35.663025, longitude: 139.696213 })
+    )).resolves.toEqual({
+      latitude: 35.663025,
+      longitude: 139.696213,
+      locality: '渋谷区',
+      resolvedAddress: 'Shibuya LOVEZ, 宇田川町, 渋谷区, 東京都, 日本',
+    })
     expect(requestedQueries).toContain('Shibuya LOVEZ, 東京都渋谷区')
   })
 
@@ -192,7 +207,99 @@ describe('VenueGeocoder', () => {
     await expect(geocoder.geocode(
       'Calgary TELUS Convention Centre',
       'T2G 0K6 136 8th Avenue SE Calgary, Alberta, Canada',
-    )).resolves.toEqual({ latitude: 51.0458853, longitude: -114.0612817 })
+    )).resolves.toEqual({
+      latitude: 51.0458853,
+      longitude: -114.0612817,
+      countryCode: 'CA',
+      locality: 'カルガリー',
+      resolvedAddress: 'Calgary TELUS Convention Centre North Building, カルガリー, アルバータ州, カナダ',
+    })
+  })
+
+  it('falls back to a segmented CJK venue alias and returns geocoder country metadata', async () => {
+    const requestedQueries: string[] = []
+    const fetcher = async (input: string | URL) => {
+      const query = new URL(input).searchParams.get('q') ?? ''
+      requestedQueries.push(query)
+      const body = query === '深圳国际会展中心'
+        ? [{
+            lat: '22.7004',
+            lon: '113.7836',
+            place_rank: 30,
+            name: '深圳国际会展中心',
+            display_name: '深圳国际会展中心, 宝安区, 深圳市, 广东省, 中国',
+            address: { city: '深圳市', state: '广东省', country: '中国', country_code: 'cn' },
+          }]
+        : []
+      return new Response(JSON.stringify(body), { status: 200 })
+    }
+    const geocoder = new VenueGeocoder(
+      'https://msearch.gsi.go.jp/address-search/AddressSearch',
+      'https://nominatim.openstreetmap.org/search',
+      1_000,
+      1,
+      fetcher,
+    )
+
+    await expect(geocoder.geocode(
+      '深圳国际会展中心（深圳国際エキシビション・コンベンションセンター）',
+      '广东省深圳市宝安区福海街道展城路1号',
+    )).resolves.toEqual({
+      latitude: 22.7004,
+      longitude: 113.7836,
+      countryCode: 'CN',
+      locality: '深圳市',
+      resolvedAddress: '深圳国际会展中心, 宝安区, 深圳市, 广东省, 中国',
+    })
+    expect(requestedQueries).toContain('深圳国际会展中心')
+  })
+
+  it('searches by venue name when Eventernote has no address and keeps a unique matched address', async () => {
+    const fetcher = async (input: string | URL) => {
+      const query = new URL(input).searchParams.get('q') ?? ''
+      const body = query === 'Hidden Agenda Live House'
+        ? [{
+            lat: '22.3124',
+            lon: '114.2171',
+            place_rank: 30,
+            name: 'Hidden Agenda Live House',
+            display_name: 'Hidden Agenda Live House, 15-17 Tai Yip Street, Kwun Tong, Hong Kong',
+            address: { city: 'Hong Kong', country: 'Hong Kong', country_code: 'hk' },
+          }]
+        : []
+      return new Response(JSON.stringify(body), { status: 200 })
+    }
+    const geocoder = new VenueGeocoder(
+      'https://msearch.gsi.go.jp/address-search/AddressSearch',
+      'https://nominatim.openstreetmap.org/search',
+      1_000,
+      1,
+      fetcher,
+    )
+
+    await expect(geocoder.geocode('Hidden Agenda Live House', '')).resolves.toEqual({
+      latitude: 22.3124,
+      longitude: 114.2171,
+      countryCode: 'HK',
+      locality: 'Hong Kong',
+      resolvedAddress: 'Hidden Agenda Live House, 15-17 Tai Yip Street, Kwun Tong, Hong Kong',
+    })
+  })
+
+  it('rejects ambiguous name-only venue results', async () => {
+    const fetcher = async () => new Response(JSON.stringify([
+      { lat: '22.3', lon: '114.2', place_rank: 30, name: 'Example Hall' },
+      { lat: '35.6', lon: '139.7', place_rank: 30, name: 'Example Hall' },
+    ]), { status: 200 })
+    const geocoder = new VenueGeocoder(
+      'https://msearch.gsi.go.jp/address-search/AddressSearch',
+      'https://nominatim.openstreetmap.org/search',
+      1_000,
+      1,
+      fetcher,
+    )
+
+    await expect(geocoder.geocode('Example Hall', '')).resolves.toBeUndefined()
   })
 
 })

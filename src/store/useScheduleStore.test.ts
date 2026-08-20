@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { colorForCategory } from '../lib/date'
-import type { ImportedScheduleData, ScheduleEvent } from '../types/events'
+import type { ImportedScheduleData, ParticipationCalendarMonth, ScheduleEvent } from '../types/events'
 import type { ScheduleStore } from './useScheduleStore'
 import { selectCategories, selectVisibleEvents, useScheduleStore } from './useScheduleStore'
 
@@ -9,6 +9,7 @@ type ProgressCallback = (partial: {
   events: ScheduleEvent[]
   warnings: string[]
   importedAt: string
+  participationCalendar: ParticipationCalendarMonth[]
 }) => void
 type LoadFromApi = (
   userId: string,
@@ -67,6 +68,7 @@ function createApiResult(userId: string, events: ScheduleEvent[]): ImportedSched
     warnings: [],
     sourceType: 'backend',
     importedAt: `2026-08-05T10:00:0${userId === 'A' ? '1' : '2'}.000Z`,
+    participationCalendar: [{ year: 2026, month: 8, count: userId === 'A' ? 1 : 2 }],
   }
 }
 
@@ -122,6 +124,7 @@ describe('useScheduleStore Eventernote loading', () => {
     refreshPlacesFromApi.mockReset()
     useScheduleStore.setState({
       events: [],
+      participationCalendar: [],
       activeSource: 'backend',
       cachedAt: undefined,
       cachedUserId: undefined,
@@ -152,6 +155,7 @@ describe('useScheduleStore Eventernote loading', () => {
       events: userBEvents,
       warnings: [],
       importedAt: '2026-08-05T10:00:02.000Z',
+      participationCalendar: [{ year: 2026, month: 8, count: 2 }],
     })
     requests.get('B')?.deferred.resolve(createApiResult('B', userBEvents))
     await userBLoad
@@ -160,6 +164,7 @@ describe('useScheduleStore Eventernote loading', () => {
       events: userAEvents,
       warnings: [],
       importedAt: '2026-08-05T10:00:01.000Z',
+      participationCalendar: [{ year: 2026, month: 8, count: 1 }],
     })
     requests.get('A')?.deferred.resolve(createApiResult('A', userAEvents))
     await userALoad
@@ -168,6 +173,7 @@ describe('useScheduleStore Eventernote loading', () => {
       events: userBEvents,
       cachedUserId: 'B',
       cachedAt: '2026-08-05T10:00:02.000Z',
+      participationCalendar: [{ year: 2026, month: 8, count: 2 }],
       loading: false,
       error: null,
     })
@@ -222,6 +228,7 @@ describe('useScheduleStore Eventernote loading', () => {
         events: initialEvents,
         warnings: [],
         importedAt: '2026-08-05T10:00:03.000Z',
+        participationCalendar: [{ year: 2026, month: 8, count: 1 }],
       })
       return request.promise
     })

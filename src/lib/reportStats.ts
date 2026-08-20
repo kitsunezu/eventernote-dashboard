@@ -1,6 +1,6 @@
 import { hasUsablePlaceCoordinates } from './placeCache'
 import type { PlaceEntry } from './placeCache'
-import type { ScheduleEvent } from '../types/events'
+import type { ParticipationCalendarMonth, ScheduleEvent } from '../types/events'
 
 export type ReportScope = 'all' | number
 
@@ -19,6 +19,7 @@ export interface VenueStat extends RankedStat {
 
 export interface ReportStats {
   events: ScheduleEvent[]
+  attendedEventCount: number
   years: number[]
   venues: VenueStat[]
   regions: RankedStat[]
@@ -35,7 +36,7 @@ export function getUnmappedVenuePlaceIds(
 ): string[] {
   const placeIds = new Set<string>()
   for (const venue of venues) {
-    if (mappedVenueNames.has(venue.name)) continue
+    if (mappedVenueNames.has(venue.name) && venue.region !== '其他地區') continue
     for (const eventId of venue.eventIds) {
       const placeId = eventsById.get(eventId)?.sourceMeta?.placeId
       if (placeId && /^\d+$/.test(placeId)) placeIds.add(placeId)
@@ -85,12 +86,23 @@ export function getReportYears(events: ScheduleEvent[], now = new Date()): numbe
   ).sort((a, b) => b - a)
 }
 
+function isAttendedMonth(item: ParticipationCalendarMonth, now: Date): boolean {
+  return item.year < now.getFullYear()
+    || (item.year === now.getFullYear() && item.month <= now.getMonth() + 1)
+}
+
+function getCalendarYears(calendar: ParticipationCalendarMonth[], now: Date): number[] {
+  return Array.from(new Set(calendar.filter((item) => isAttendedMonth(item, now)).map((item) => item.year)))
+    .sort((a, b) => b - a)
+}
+
 export function buildReportStats(
   events: ScheduleEvent[],
   scope: ReportScope,
   places: Record<string, PlaceEntry>,
   ticketCosts: Record<string, number>,
   now = new Date(),
+  participationCalendar: ParticipationCalendarMonth[] = [],
 ): ReportStats {
   const nowTime = now.getTime()
   const attendedEvents = events
@@ -135,12 +147,33 @@ export function buildReportStats(
     ),
   )
 
-  const months = rank(
+  const eventMonths = rank(
     attendedEvents.map((event) => ({
       name: String(new Date(event.startAt).getMonth() + 1).padStart(2, '0'),
       eventId: event.id,
     })),
   ).sort((a, b) => Number(a.name) - Number(b.name))
+
+  const calendarForScope = participationCalendar.filter((item) => (
+    isAttendedMonth(item, now) && (scope === 'all' || item.year === scope)
+  ))
+  const useCalendarCounts = participationCalendar.length > 0
+  const eventMonthsByName = new Map(eventMonths.map((item) => [item.name, item]))
+  const calendarMonthCounts = new Map<string, number>()
+  for (const item of calendarForScope) {
+    const name = String(item.month).padStart(2, '0')
+    calendarMonthCounts.set(name, (calendarMonthCounts.get(name) ?? 0) + item.count)
+  }
+  const months = useCalendarCounts
+    ? Array.from(calendarMonthCounts, ([name, count]) => ({
+      name,
+      count,
+      eventIds: eventMonthsByName.get(name)?.eventIds ?? [],
+    })).sort((a, b) => Number(a.name) - Number(b.name))
+    : eventMonths
+  const attendedEventCount = useCalendarCounts
+    ? calendarForScope.reduce((sum, item) => sum + item.count, 0)
+    : attendedEvents.length
 
   const regions = rank(attendedEvents.map((event) => {
     const venue = event.location?.trim()
@@ -156,7 +189,11 @@ export function buildReportStats(
 
   return {
     events: attendedEvents,
-    years: getReportYears(events, now),
+    attendedEventCount,
+    years: Array.from(new Set([
+      ...getReportYears(events, now),
+      ...getCalendarYears(participationCalendar, now),
+    ])).sort((a, b) => b - a),
     venues,
     regions,
     artists,

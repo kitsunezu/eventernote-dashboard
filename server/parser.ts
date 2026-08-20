@@ -1,5 +1,6 @@
 import { load } from 'cheerio'
 import { hasUsableCoordinates } from './coordinates.js'
+import type { ParticipationCalendarMonth } from '../src/types/events.js'
 import type { EventDetail, EventSeed, ParsedUserEventsPage, PlaceDetail } from './types.js'
 import { detectRegion } from './regions.js'
 
@@ -108,19 +109,18 @@ export function parseUserEventsPage(html: string): ParsedUserEventsPage {
   return { events, paginationPaths }
 }
 
-export interface ParticipationCalendarMonth {
+export interface ParsedParticipationCalendarMonth extends ParticipationCalendarMonth {
   path: string
-  count: number
 }
 
-export function parseParticipationCalendar(html: string, userId: string): ParticipationCalendarMonth[] {
+export function parseParticipationCalendar(html: string, userId: string): ParsedParticipationCalendarMonth[] {
   const $ = load(html)
-  const expectedPrefix = `/users/${encodeURIComponent(userId)}/events/`
-  const months: ParticipationCalendarMonth[] = []
+  const expectedPath = `/users/${encodeURIComponent(userId)}/events`
+  const months: ParsedParticipationCalendarMonth[] = []
 
   $('a[href]').each((_, link) => {
     const href = $(link).attr('href')
-    if (!href?.startsWith(`${expectedPrefix}?`)) return
+    if (!href) return
 
     let url: URL
     try {
@@ -129,14 +129,20 @@ export function parseParticipationCalendar(html: string, userId: string): Partic
       return
     }
 
-    const year = url.searchParams.get('year')
-    const month = url.searchParams.get('month')
+    if (url.pathname.replace(/\/$/, '') !== expectedPath) return
+
+    const rawYear = url.searchParams.get('year')
+    const rawMonth = url.searchParams.get('month')
     const count = Number($(link).text().trim())
-    if (!/^\d{4}$/.test(year ?? '') || !/^\d{1,2}$/.test(month ?? '') || !Number.isInteger(count) || count <= 0) {
+    if (!/^\d{4}$/.test(rawYear ?? '') || !/^\d{1,2}$/.test(rawMonth ?? '') || !Number.isInteger(count) || count <= 0) {
       return
     }
 
-    months.push({ path: `${expectedPrefix}?year=${year}&month=${month}`, count })
+    const year = Number(rawYear)
+    const month = Number(rawMonth)
+    if (month < 1 || month > 12) return
+
+    months.push({ path: `${expectedPath}/?year=${year}&month=${month}`, year, month, count })
   })
 
   return Array.from(new Map(months.map((month) => [month.path, month])).values())

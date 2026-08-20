@@ -50,7 +50,7 @@ function calendarPage(months: Array<{ month: number; count: number }>): string {
 describe('fetchUserEventIndex', () => {
   it('uses participation-calendar month pages and deduplicates repeated rows', async () => {
     const htmlByPath = new Map<string, string>([
-      ['/users/test-user', calendarPage([{ month: 6, count: 3 }])],
+      ['/users/test-user/events', calendarPage([{ month: 6, count: 3 }])],
       ['/users/test-user/events/?year=2025&month=6', [
         userEventPage('201', []),
         userEventPage('202', []),
@@ -59,23 +59,27 @@ describe('fetchUserEventIndex', () => {
     ])
     const fetchHtml = vi.fn(async (path: string) => htmlByPath.get(path) ?? '')
 
-    const events = await fetchUserEventIndex('test-user', fetchHtml, 5)
+    const index = await fetchUserEventIndex('test-user', fetchHtml, 5)
 
-    expect(events.map((event) => event.id)).toEqual(['201', '202'])
+    expect(index.events.map((event) => event.id)).toEqual(['201', '202'])
+    expect(index.participationCalendar).toEqual([{ year: 2025, month: 6, count: 3 }])
     expect(fetchHtml.mock.calls.map(([path]) => path)).toEqual([
-      '/users/test-user',
+      '/users/test-user/events',
       '/users/test-user/events/?year=2025&month=6',
     ])
   })
 
-  it('rejects a month page when its row count disagrees with the calendar', async () => {
+  it('trusts the calendar count and keeps the available event IDs when rows disagree', async () => {
     const fetchHtml = vi.fn(async (path: string) => {
-      if (path === '/users/test-user') return calendarPage([{ month: 6, count: 2 }])
+      if (path === '/users/test-user/events') return calendarPage([{ month: 6, count: 2 }])
       return userEventPage('201', [])
     })
 
-    await expect(fetchUserEventIndex('test-user', fetchHtml, 5))
-      .rejects.toThrow('Eventernote participation calendar mismatch')
+    await expect(fetchUserEventIndex('test-user', fetchHtml, 5)).resolves.toMatchObject({
+      events: [expect.objectContaining({ id: '201' })],
+      participationCalendar: [{ year: 2025, month: 6, count: 2 }],
+      warnings: [expect.stringContaining('expected 2 rows, found 1')],
+    })
   })
 
   it('follows pagination links discovered on later pages', async () => {
@@ -87,14 +91,13 @@ describe('fetchUserEventIndex', () => {
       [5, userEventPage('105', [1, 3, 4])],
     ])
     const fetchHtml = vi.fn(async (path: string) => {
-      if (path === '/users/test-user') return ''
       const page = Number(new URL(path, 'https://www.eventernote.com').searchParams.get('page') ?? '1')
       return htmlByPage.get(page) ?? ''
     })
 
-    const events = await fetchUserEventIndex('test-user', fetchHtml, 5)
+    const index = await fetchUserEventIndex('test-user', fetchHtml, 5)
 
-    expect(events.map((event) => event.id)).toEqual(['101', '102', '103', '105', '104'])
+    expect(index.events.map((event) => event.id)).toEqual(['101', '102', '103', '105', '104'])
     expect(fetchHtml).toHaveBeenCalledTimes(6)
     expect(new Set(fetchHtml.mock.calls.map(([path]) => (
       Number(new URL(path, 'https://www.eventernote.com').searchParams.get('page') ?? '1')
@@ -102,8 +105,7 @@ describe('fetchUserEventIndex', () => {
   })
 
   it('rejects an index whose discovered page number exceeds the configured limit', async () => {
-    const fetchHtml = vi.fn(async (path: string) => {
-      if (path === '/users/test-user') return ''
+    const fetchHtml = vi.fn(async () => {
       return userEventPage('101', [2, 41])
     })
 
@@ -391,6 +393,138 @@ describe('EventSyncService.refreshUnmappedPlaces', () => {
       expect.any(Object),
       expect.any(String),
       GEOCODER_STRATEGY_VERSION,
+    )
+  })
+
+  it('uses geocoder country metadata when the address text has no recognizable country', async () => {
+    const place = { id: '304', name: 'Example venue', address: 'Unrecognized local address', region: '其他地區' }
+    const repository = {
+      getRequestedPlacesForUser: vi.fn().mockResolvedValue([place]),
+      getPlace: vi.fn().mockResolvedValue(place),
+      savePlaceDetail: vi.fn().mockResolvedValue(undefined),
+    }
+    const upstream = { fetchHtml: vi.fn().mockResolvedValue(`
+      <div class="gb_place_detail_title"><h2>Example venue</h2></div>
+      <div class="gb_place_detail_table"><table>
+        <tr><td>所在地</td><td>Unrecognized local address</td></tr>
+      </table></div>
+    `) }
+    const geocoder = {
+      geocode: vi.fn().mockResolvedValue({
+        latitude: -23.5505,
+        longitude: -46.6333,
+        countryCode: 'BR',
+        resolvedAddress: 'Example venue, São Paulo, Brasil',
+      }),
+    }
+    const service = new EventSyncService(
+      {} as Pool,
+      repository as unknown as EventRepository,
+      upstream as unknown as EventernoteClient,
+      geocoder as unknown as VenueGeocoder,
+      config,
+    )
+
+    await expect(service.refreshUnmappedPlaces('test-user', ['304'])).resolves.toEqual([])
+    expect(repository.savePlaceDetail).toHaveBeenCalledWith(
+      expect.objectContaining({ address: 'Example venue, São Paulo, Brasil', region: '巴西' }),
+      expect.any(String),
+      GEOCODER_STRATEGY_VERSION,
+    )
+  })
+
+  it('resolves an unknown region even when Eventernote already provides coordinates', async () => {
+    const place = {
+      id: '306',
+      name: 'Example venue',
+      address: 'Unrecognized local address',
+      region: '其他地區',
+      latitude: 22.1469,
+      longitude: 113.5518,
+    }
+    const repository = {
+      getRequestedPlacesForUser: vi.fn().mockResolvedValue([place]),
+      getPlace: vi.fn().mockResolvedValue(place),
+      savePlaceDetail: vi.fn().mockResolvedValue(undefined),
+    }
+    const upstream = { fetchHtml: vi.fn().mockResolvedValue(`
+      <div class="gb_place_detail_title"><h2>Example venue</h2></div>
+      <div class="gb_place_detail_table"><table>
+        <tr><td>所在地</td><td>Unrecognized local address</td></tr>
+      </table></div>
+      <script>var lat = '22.1469'; var lon = '113.5518';</script>
+    `) }
+    const geocoder = {
+      geocode: vi.fn().mockResolvedValue({
+        latitude: 22.1475,
+        longitude: 113.5525,
+        countryCode: 'MO',
+        resolvedAddress: 'Example venue, Cotai',
+      }),
+    }
+    const service = new EventSyncService(
+      {} as Pool,
+      repository as unknown as EventRepository,
+      upstream as unknown as EventernoteClient,
+      geocoder as unknown as VenueGeocoder,
+      config,
+    )
+
+    await expect(service.refreshUnmappedPlaces('test-user', ['306'])).resolves.toEqual([])
+    expect(geocoder.geocode).toHaveBeenCalledWith('Example venue', 'Unrecognized local address')
+    expect(repository.savePlaceDetail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: 'Example venue, Cotai',
+        region: '澳門',
+        latitude: 22.1469,
+        longitude: 113.5518,
+      }),
+      expect.any(String),
+      GEOCODER_STRATEGY_VERSION,
+    )
+  })
+
+  it('reuses a DB-cached venue-search address when Eventernote still has no address', async () => {
+    const place = {
+      id: '305',
+      name: 'Hidden Agenda Live House',
+      address: 'Hidden Agenda Live House, 15-17 Tai Yip Street, Kwun Tong, Hong Kong',
+      region: '香港',
+      latitude: 22.3124,
+      longitude: 114.2171,
+      geocodeVersion: GEOCODER_STRATEGY_VERSION,
+    }
+    const repository = {
+      getRequestedPlacesForUser: vi.fn().mockResolvedValue([{ ...place, latitude: undefined, longitude: undefined }]),
+      getPlace: vi.fn().mockResolvedValue(place),
+      savePlaceDetail: vi.fn().mockResolvedValue(undefined),
+    }
+    const upstream = { fetchHtml: vi.fn().mockResolvedValue(`
+      <div class="gb_place_detail_title"><h2>Hidden Agenda Live House</h2></div>
+      <div class="gb_place_detail_table"><table>
+        <tr><td>所在地</td><td></td></tr>
+      </table></div>
+    `) }
+    const geocoder = { geocode: vi.fn() }
+    const service = new EventSyncService(
+      {} as Pool,
+      repository as unknown as EventRepository,
+      upstream as unknown as EventernoteClient,
+      geocoder as unknown as VenueGeocoder,
+      config,
+    )
+
+    await expect(service.refreshUnmappedPlaces('test-user', ['305'])).resolves.toEqual([])
+    expect(geocoder.geocode).not.toHaveBeenCalled()
+    expect(repository.savePlaceDetail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: place.address,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        region: '香港',
+      }),
+      expect.any(String),
+      undefined,
     )
   })
 

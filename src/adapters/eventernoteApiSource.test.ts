@@ -26,6 +26,7 @@ function response(placeId: string, refreshing = false, dataVersion = placeId): R
     warnings: [],
     sourceType: 'backend',
     importedAt: '2026-08-13T10:00:00.000Z',
+    participationCalendar: [{ year: 2026, month: 8, count: 1 }],
     places: {
       [placeId]: {
         name: `Venue ${placeId}`,

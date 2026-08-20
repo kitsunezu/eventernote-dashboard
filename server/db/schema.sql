@@ -55,6 +55,15 @@ CREATE TABLE IF NOT EXISTS user_events (
   PRIMARY KEY (user_id, event_id)
 );
 
+CREATE TABLE IF NOT EXISTS user_event_months (
+  user_id TEXT NOT NULL REFERENCES eventernote_users(user_id) ON UPDATE CASCADE ON DELETE CASCADE,
+  year INTEGER NOT NULL CHECK (year BETWEEN 1900 AND 2200),
+  month SMALLINT NOT NULL CHECK (month BETWEEN 1 AND 12),
+  event_count INTEGER NOT NULL CHECK (event_count > 0),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, year, month)
+);
+
 CREATE TABLE IF NOT EXISTS sync_jobs (
   id BIGSERIAL PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES eventernote_users(user_id) ON UPDATE CASCADE ON DELETE CASCADE,
@@ -65,6 +74,12 @@ CREATE TABLE IF NOT EXISTS sync_jobs (
   error TEXT,
   stats JSONB NOT NULL DEFAULT '{}'::jsonb
 );
+
+ALTER TABLE user_event_months
+  DROP CONSTRAINT IF EXISTS user_event_months_year_check;
+
+ALTER TABLE user_event_months
+  ADD CONSTRAINT user_event_months_year_check CHECK (year BETWEEN 1900 AND 2200);
 
 CREATE INDEX IF NOT EXISTS user_events_active_idx
   ON user_events (user_id, active, event_id);

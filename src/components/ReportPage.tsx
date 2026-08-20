@@ -23,7 +23,7 @@ import {
 } from '../lib/ticketCosts'
 import type { ReportCurrency } from '../lib/ticketCosts'
 import { resolveVenueCoordinates } from '../lib/venueCoordinates'
-import type { ScheduleEvent, SupportedLocale, ThemeMode } from '../types/events'
+import type { ParticipationCalendarMonth, ScheduleEvent, SupportedLocale, ThemeMode } from '../types/events'
 import { MoonIcon, SunIcon } from './Icons'
 import { VenueMap } from './VenueMap'
 import type { VenueMapPoint } from './VenueMap'
@@ -31,6 +31,7 @@ import type { VenueMapPoint } from './VenueMap'
 interface ReportPageProps {
   userId: string
   events: ScheduleEvent[]
+  participationCalendar: ParticipationCalendarMonth[]
   locale: SupportedLocale
   theme: ThemeMode
   loading: boolean
@@ -155,6 +156,7 @@ function createCaptureElement(report: HTMLDivElement): HTMLElement {
 export function ReportPage({
   userId,
   events,
+  participationCalendar,
   locale,
   theme,
   loading,
@@ -175,8 +177,8 @@ export function ReportPage({
   const statusTimerRef = useRef<number | null>(null)
 
   const stats = useMemo(
-    () => buildReportStats(events, scope, getAllPlaces(), ticketData.amounts),
-    [events, scope, ticketData.amounts],
+    () => buildReportStats(events, scope, getAllPlaces(), ticketData.amounts, new Date(), participationCalendar),
+    [events, participationCalendar, scope, ticketData.amounts],
   )
 
   const eventsById = useMemo(() => new Map(stats.events.map((event) => [event.id, event])), [stats.events])
@@ -292,7 +294,7 @@ export function ReportPage({
   }
 
   async function shareReport() {
-    const text = copy.shareText(userId, stats.events.length)
+    const text = copy.shareText(userId, stats.attendedEventCount)
     try {
       const blob = await createReportBlob()
       const file = blob ? new File([blob], `eventernote-${userId}-${scope}.png`, { type: 'image/png' }) : null
@@ -310,10 +312,10 @@ export function ReportPage({
     }
   }
 
-  const shareText = encodeURIComponent(copy.shareText(userId, stats.events.length))
+  const shareText = encodeURIComponent(copy.shareText(userId, stats.attendedEventCount))
   const shareUrl = encodeURIComponent(window.location.href)
 
-  if (loading && events.length === 0) {
+  if (loading && events.length === 0 && participationCalendar.length === 0) {
     return (
       <div className="report-loading report-loading--pending" aria-live="polite">
         <span className="loading-spinner" aria-hidden="true" />
@@ -322,7 +324,7 @@ export function ReportPage({
     )
   }
 
-  if (error && events.length === 0) {
+  if (error && events.length === 0 && participationCalendar.length === 0) {
     return (
       <div className="report-loading" role="alert">
         <h1>{copy.noReportTitle}</h1>
@@ -368,7 +370,7 @@ export function ReportPage({
           </div>
         </header>
 
-        {stats.events.length === 0 ? (
+        {stats.attendedEventCount === 0 && stats.events.length === 0 ? (
           <section className="report-empty">
             <CalendarDays size={30} />
             <h2>{copy.noReportTitle}</h2>
@@ -377,7 +379,7 @@ export function ReportPage({
         ) : (
           <>
             <section className="report-metrics" aria-label={copy.attendedEvents}>
-              <div><CalendarDays /><span>{copy.attendedEvents}</span><strong>{stats.events.length}</strong></div>
+              <div><CalendarDays /><span>{copy.attendedEvents}</span><strong>{stats.attendedEventCount}</strong></div>
               <div><Building2 /><span>{copy.venues}</span><strong>{stats.venues.length}</strong></div>
               <div><MapPin /><span>{copy.regions}</span><strong>{stats.regions.length}</strong></div>
               <div><Users /><span>{copy.artists}</span><strong>{stats.artists.length}</strong></div>
@@ -385,7 +387,7 @@ export function ReportPage({
                 <Ticket />
                 <span>{copy.ticketSpend}</span>
                 <strong>{formatter.format(stats.ticketTotal)}</strong>
-                <small>{copy.ticketCoverage(stats.pricedEventCount, stats.events.length)}</small>
+                <small>{copy.ticketCoverage(stats.pricedEventCount, stats.attendedEventCount)}</small>
               </div>
             </section>
 

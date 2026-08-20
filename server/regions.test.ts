@@ -43,4 +43,23 @@ describe('detectRegion', () => {
     expect(detectRegion('Vibra São Paulo', '', 'São Paulo, Brasil')).toBe('巴西')
     expect(detectRegion('Coca-Cola Arena', '', 'Dubai, United Arab Emirates')).toBe('阿拉伯聯合大公國')
   })
+
+  it('segments country names joined directly to the rest of a CJK address', () => {
+    expect(detectRegion('MODERN SKY LAB', '', '中国上海市虹口区瑞虹路188号')).toBe('中國・上海')
+    expect(detectRegion('MAO Livehouse', '', '中華人民共和国広東省広州市海珠区')).toBe('中國・廣州')
+  })
+
+  it('recognizes mainland Chinese administrative address units without a country prefix', () => {
+    expect(detectRegion('深圳国际会展中心', '', '广东省深圳市宝安区福海街道展城路1号')).toBe('中國・深圳')
+    expect(detectRegion('声音共和LIVEHOUSE', '', '广州市海珠区上冲南约大街')).toBe('中國・廣州')
+    expect(detectRegion('Example Hall', '', '四川省成都市武侯区')).toBe('中國・成都')
+  })
+
+  it('recognizes common Macau names in Chinese and English', () => {
+    expect(detectRegion('澳門百老匯-百老匯舞台 BROADWAY MACAU', '', '澳門路氹城蓮花海濱大馬路'))
+      .toBe('澳門')
+    expect(detectRegion('Broadway Theatre Macau')).toBe('澳門')
+    expect(detectRegion('Broadway Theatre Macao')).toBe('澳門')
+    expect(detectRegion('澳门百老汇')).toBe('澳門')
+  })
 })

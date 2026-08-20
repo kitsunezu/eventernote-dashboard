@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from 'pg'
-import type { ScheduleEvent } from '../src/types/events.js'
+import type { ParticipationCalendarMonth, ScheduleEvent } from '../src/types/events.js'
 import { colorForRegion, detectRegion } from './regions.js'
 import type {
   EventDetail,
@@ -122,7 +122,7 @@ export class EventRepository {
   }
 
   async getSnapshot(userId: string): Promise<StoredUserSnapshot> {
-    const [userResult, eventsResult] = await Promise.all([
+    const [userResult, eventsResult, calendarResult] = await Promise.all([
       this.pool.query<{
         last_index_attempt_at: Date | null
         last_index_success_at: Date | null
@@ -141,8 +141,20 @@ export class EventRepository {
          FROM user_events ue
          JOIN events e ON e.event_id = ue.event_id
          LEFT JOIN places p ON p.place_id = e.place_id
-         WHERE ue.user_id = $1 AND ue.active = TRUE
+         WHERE ue.user_id = $1
          ORDER BY e.start_at ASC, e.event_id ASC`,
+        [userId],
+      ),
+      this.pool.query<{
+        year: number
+        month: number
+        event_count: number
+        updated_at: Date
+      }>(
+        `SELECT year, month, event_count, updated_at
+         FROM user_event_months
+         WHERE user_id = $1
+         ORDER BY year ASC, month ASC`,
         [userId],
       ),
     ])
@@ -159,7 +171,10 @@ export class EventRepository {
       )
       const actors = actorsFromRow(row.actors)
       const detectedRegion = detectRegion(row.venue_name, row.title, row.address ?? '')
-      const region = !row.region || row.region === '其他地區' ? detectedRegion : row.region
+      const shouldRefineChineseCity = row.region === '中國' && detectedRegion.startsWith('中國・')
+      const region = !row.region || row.region === '其他地區' || shouldRefineChineseCity
+        ? detectedRegion
+        : row.region
       if (!row.detail_fetched_at) pendingDetailCount += 1
       if (row.place_id && !row.place_detail_fetched_at) pendingPlaceIds.add(row.place_id)
       if (row.place_id) {
@@ -194,10 +209,19 @@ export class EventRepository {
       }
     })
     const user = userResult.rows[0]
+    const participationCalendar = calendarResult.rows.map((row) => ({
+      year: row.year,
+      month: row.month,
+      count: row.event_count,
+    }))
+    for (const row of calendarResult.rows) {
+      latestDataTimestamp = Math.max(latestDataTimestamp, row.updated_at.getTime())
+    }
     latestDataTimestamp = Math.max(latestDataTimestamp, user?.last_index_success_at?.getTime() ?? 0)
 
     return {
       events,
+      participationCalendar,
       places,
       dataVersion: String(latestDataTimestamp),
       lastIndexSuccessAt: user?.last_index_success_at?.toISOString(),
@@ -268,7 +292,11 @@ export class EventRepository {
     )
   }
 
-  async saveUserIndex(userId: string, events: EventSeed[]): Promise<void> {
+  async saveUserIndex(
+    userId: string,
+    events: EventSeed[],
+    participationCalendar: ParticipationCalendarMonth[],
+  ): Promise<void> {
     const client = await this.pool.connect()
     try {
       await client.query('BEGIN')
@@ -278,8 +306,6 @@ export class EventRepository {
          ON CONFLICT (user_id) DO NOTHING`,
         [userId],
       )
-      await client.query('UPDATE user_events SET active = FALSE WHERE user_id = $1', [userId])
-
       for (const event of events) {
         await this.upsertEventSeed(client, event)
         await client.query(
@@ -288,6 +314,20 @@ export class EventRepository {
            ON CONFLICT (user_id, event_id) DO UPDATE
            SET active = TRUE, last_seen_at = NOW()`,
           [userId, event.id],
+        )
+      }
+
+      for (const item of participationCalendar) {
+        await client.query(
+          `INSERT INTO user_event_months (user_id, year, month, event_count)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (user_id, year, month) DO UPDATE SET
+             event_count = GREATEST(user_event_months.event_count, EXCLUDED.event_count),
+             updated_at = CASE
+               WHEN EXCLUDED.event_count > user_event_months.event_count THEN NOW()
+               ELSE user_event_months.updated_at
+             END`,
+          [userId, item.year, item.month, item.count],
         )
       }
 
@@ -355,7 +395,7 @@ export class EventRepository {
        FROM user_events ue
        JOIN events e ON e.event_id = ue.event_id
        LEFT JOIN places p ON p.place_id = e.place_id
-       WHERE ue.user_id = $1 AND ue.active = TRUE`,
+       WHERE ue.user_id = $1`,
       [userId],
     )
     return result.rows.map((row) => ({
@@ -425,7 +465,7 @@ export class EventRepository {
          SELECT 1
          FROM user_events ue
          JOIN events e ON e.event_id = ue.event_id
-         WHERE ue.user_id = $1 AND ue.active = TRUE AND e.place_id = p.place_id
+         WHERE ue.user_id = $1 AND e.place_id = p.place_id
        )
          AND (p.detail_fetched_at IS NULL OR p.detail_fetched_at < $2)
        ORDER BY p.detail_fetched_at ASC NULLS FIRST, p.place_id ASC
@@ -446,7 +486,7 @@ export class EventRepository {
            SELECT 1
            FROM user_events ue
            JOIN events e ON e.event_id = ue.event_id
-           WHERE ue.user_id = $1 AND ue.active = TRUE AND e.place_id = p.place_id
+           WHERE ue.user_id = $1 AND e.place_id = p.place_id
          )
        ORDER BY array_position($2::text[], p.place_id)`,
       [userId, placeIds],
@@ -492,7 +532,7 @@ export class EventRepository {
     const result = await this.pool.query(
       `SELECT 1
        FROM user_events
-       WHERE user_id = $1 AND event_id = $2 AND active = TRUE
+       WHERE user_id = $1 AND event_id = $2
        LIMIT 1`,
       [userId, eventId],
     )

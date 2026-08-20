@@ -120,6 +120,7 @@ async function main(): Promise<void> {
           && Date.now() - new Date(snapshot.lastIndexSuccessAt).getTime() < config.userIndexTtlMs
         const payload: EventApiResponse = {
           events: snapshot.events,
+          participationCalendar: snapshot.participationCalendar,
           warnings,
           sourceType: 'backend',
           importedAt: snapshot.lastIndexSuccessAt ?? new Date().toISOString(),
@@ -150,6 +151,7 @@ async function main(): Promise<void> {
           && Date.now() - new Date(snapshot.lastIndexSuccessAt).getTime() < config.userIndexTtlMs
         const payload: EventApiResponse = {
           events: snapshot.events,
+          participationCalendar: snapshot.participationCalendar,
           warnings,
           sourceType: 'backend',
           importedAt: snapshot.lastIndexSuccessAt ?? new Date().toISOString(),
@@ -212,6 +214,7 @@ async function main(): Promise<void> {
         || Date.now() - new Date(snapshot.lastIndexSuccessAt).getTime() >= config.userIndexTtlMs
       const payload: EventApiResponse = {
         events: snapshot.events,
+        participationCalendar: snapshot.participationCalendar,
         warnings: snapshot.lastError ? [snapshot.lastError] : [],
         sourceType: 'backend',
         importedAt: snapshot.lastIndexSuccessAt ?? new Date().toISOString(),

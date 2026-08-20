@@ -1,11 +1,12 @@
 import { getPlace, setPlace } from '../lib/placeCache'
-import type { ImportedScheduleData, ScheduleEvent } from '../types/events'
+import type { ImportedScheduleData, ParticipationCalendarMonth, ScheduleEvent } from '../types/events'
 
 const POLL_INTERVAL_MS = 2_000
 const MAX_REFRESH_POLLS = 900
 const PLACE_REFRESH_BATCH_SIZE = 20
 
 interface ApiResponse extends ImportedScheduleData {
+  participationCalendar: ParticipationCalendarMonth[]
   places: Record<string, {
     name: string
     address: string
@@ -32,6 +33,7 @@ function isApiResponse(value: unknown): value is ApiResponse {
   const candidate = value as Partial<ApiResponse>
   return Array.isArray(candidate.events)
     && Array.isArray(candidate.warnings)
+    && Array.isArray(candidate.participationCalendar)
     && typeof candidate.importedAt === 'string'
     && Boolean(candidate.cache)
     && Boolean(candidate.places)
@@ -101,7 +103,12 @@ function persistPlaces(response: ApiResponse): void {
 
 export async function loadEventernoteUserFromApi(
   userId: string,
-  onProgress?: (partial: { events: ScheduleEvent[]; warnings: string[]; importedAt: string }) => void,
+  onProgress?: (partial: {
+    events: ScheduleEvent[]
+    warnings: string[]
+    importedAt: string
+    participationCalendar: ParticipationCalendarMonth[]
+  }) => void,
   forceRefresh = false,
 ): Promise<ImportedScheduleData> {
   let response = await fetchUserEvents(userId, forceRefresh)
@@ -112,7 +119,12 @@ export async function loadEventernoteUserFromApi(
     const version = `${next.cache.dataVersion}:${next.cache.pendingDetailCount}:${next.cache.pendingPlaceCount}`
     if (version === publishedVersion) return
     publishedVersion = version
-    onProgress?.({ events: next.events, warnings: next.warnings, importedAt: next.importedAt })
+    onProgress?.({
+      events: next.events,
+      warnings: next.warnings,
+      importedAt: next.importedAt,
+      participationCalendar: next.participationCalendar,
+    })
   }
 
   publishIfChanged(response)
@@ -129,6 +141,7 @@ export async function loadEventernoteUserFromApi(
     warnings: response.warnings,
     sourceType: 'backend',
     importedAt: response.importedAt,
+    participationCalendar: response.participationCalendar,
   }
 }
 
@@ -143,6 +156,7 @@ export async function refreshEventernoteEvent(
     warnings: response.warnings,
     sourceType: 'backend',
     importedAt: response.importedAt,
+    participationCalendar: response.participationCalendar,
   }
 }
 
@@ -168,5 +182,6 @@ export async function refreshEventernotePlaces(
     warnings,
     sourceType: 'backend',
     importedAt: latest.importedAt,
+    participationCalendar: latest.participationCalendar,
   }
 }

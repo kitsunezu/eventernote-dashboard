@@ -87,6 +87,29 @@ describe('report statistics', () => {
     ])
   })
 
+  it('uses participation-calendar counts for the total and month distribution', () => {
+    const stats = buildReportStats(
+      events,
+      'all',
+      places,
+      {},
+      new Date('2026-08-20T00:00:00.000Z'),
+      [
+        { year: 2024, month: 8, count: 3 },
+        { year: 2025, month: 2, count: 4 },
+        { year: 2025, month: 8, count: 2 },
+        { year: 2027, month: 1, count: 9 },
+      ],
+    )
+
+    expect(stats.attendedEventCount).toBe(9)
+    expect(stats.months).toEqual([
+      { name: '02', count: 4, eventIds: ['1'] },
+      { name: '08', count: 5, eventIds: ['2'] },
+    ])
+    expect(stats.years).toEqual([2025, 2024])
+  })
+
   it('joins venue metadata by Eventernote place ID when names differ', () => {
     const event = {
       ...baseEvent,
@@ -157,6 +180,28 @@ describe('report statistics', () => {
     const eventsById = new Map(stats.events.map((event) => [event.id, event]))
 
     expect(getUnmappedVenuePlaceIds(stats.venues, new Set(['Venue B']), eventsById)).toEqual(['101'])
+  })
+
+  it('also retries a mapped venue whose region remains unresolved', () => {
+    const event = { ...baseEvent, sourceMeta: { placeId: '303' } }
+    const stats = buildReportStats(
+      [event],
+      'all',
+      {
+        '303': {
+          name: 'Venue A',
+          address: 'Unrecognized local address',
+          region: '其他地區',
+          latitude: 22.1469,
+          longitude: 113.5518,
+        },
+      },
+      {},
+      new Date('2026-01-01T00:00:00.000Z'),
+    )
+    const eventsById = new Map(stats.events.map((item) => [item.id, item]))
+
+    expect(getUnmappedVenuePlaceIds(stats.venues, new Set(['Venue A']), eventsById)).toEqual(['303'])
   })
 
   it('moves unmapped venues to the bottom while preserving ranking order', () => {

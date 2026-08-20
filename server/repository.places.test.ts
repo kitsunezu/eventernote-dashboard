@@ -7,6 +7,7 @@ describe('EventRepository.getSnapshot', () => {
   it('counts unique places without details and uses the stored place region', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('FROM eventernote_users')) return { rows: [] }
+      if (sql.includes('FROM user_event_months')) return { rows: [] }
       return {
         rows: ['1', '2'].map((eventId) => ({
           event_id: eventId,
@@ -40,6 +41,7 @@ describe('EventRepository.getSnapshot', () => {
   it('reclassifies places previously stored as other when the address is now recognized', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('FROM eventernote_users')) return { rows: [] }
+      if (sql.includes('FROM user_event_months')) return { rows: [] }
       return {
         rows: [{
           event_id: '1',
@@ -68,10 +70,43 @@ describe('EventRepository.getSnapshot', () => {
     expect(snapshot.events[0].category.label).toBe('韓國')
     expect(snapshot.places['303'].region).toBe('韓國')
   })
+
+  it('refines a stored generic China region with the detected city', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM eventernote_users')) return { rows: [] }
+      if (sql.includes('FROM user_event_months')) return { rows: [] }
+      return {
+        rows: [{
+          event_id: '1',
+          title: 'Example event',
+          start_at: '2026-08-14T10:00:00.000Z',
+          end_at: '2026-08-14T12:00:00.000Z',
+          place_id: '304',
+          venue_name: '深圳国际会展中心',
+          actors: [],
+          image_url: null,
+          image_alt: null,
+          detail_fetched_at: new Date('2026-08-14T09:00:00.000Z'),
+          place_name: '深圳国际会展中心',
+          address: '广东省深圳市宝安区福海街道展城路1号',
+          region: '中國',
+          latitude: 22.7004,
+          longitude: 113.7836,
+          place_detail_fetched_at: new Date('2026-08-14T09:00:00.000Z'),
+        }],
+      }
+    })
+    const pool = { query } as unknown as Pool
+
+    const snapshot = await new EventRepository(pool).getSnapshot('test-user')
+
+    expect(snapshot.events[0].category.label).toBe('中國・深圳')
+    expect(snapshot.places['304'].region).toBe('中國・深圳')
+  })
 })
 
 describe('EventRepository.getRequestedPlacesForUser', () => {
-  it('queries requested places through the active user-event relationship', async () => {
+  it('queries requested places through the remembered user-event relationship', async () => {
     const attemptedAt = new Date('2026-08-13T10:00:00.000Z')
     const query = vi.fn().mockResolvedValue({
       rows: [{
@@ -98,7 +133,7 @@ describe('EventRepository.getRequestedPlacesForUser', () => {
 
     const [sql, parameters] = query.mock.calls[0]
     expect(String(sql)).toContain('p.place_id = ANY($2::text[])')
-    expect(String(sql)).toContain('ue.user_id = $1 AND ue.active = TRUE')
+    expect(String(sql)).toContain('ue.user_id = $1 AND e.place_id = p.place_id')
     expect(parameters).toEqual(['test-user', ['202', '101']])
   })
 

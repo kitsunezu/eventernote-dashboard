@@ -25,7 +25,9 @@ function App() {
   const selectedEvent = selectSelectedEvent(state)
   const copy = getUiCopy(state.locale)
   const hasCachedDataForCurrentUser =
-    userId !== null && state.cachedUserId === userId && state.events.length > 0
+    userId !== null
+    && state.cachedUserId === userId
+    && (state.events.length > 0 || (state.participationCalendar?.length ?? 0) > 0)
   const shouldShowLoadingState = state.loading
     ? !hasCachedDataForCurrentUser
     : userId !== null && state.cachedUserId !== userId
@@ -42,7 +44,7 @@ function App() {
     if (
       state.cachedAt &&
       state.cachedUserId === userId &&
-      state.events.length > 0
+      (state.events.length > 0 || (state.participationCalendar?.length ?? 0) > 0)
     ) {
       const age = Date.now() - new Date(state.cachedAt).getTime()
       if (age < CACHE_TTL_MS) return
@@ -67,6 +69,7 @@ function App() {
       <ReportPage
         userId={userId}
         events={hasCachedDataForCurrentUser ? state.events : []}
+        participationCalendar={hasCachedDataForCurrentUser ? state.participationCalendar ?? [] : []}
         locale={state.locale}
         theme={state.theme}
         loading={shouldShowLoadingState || state.loading}

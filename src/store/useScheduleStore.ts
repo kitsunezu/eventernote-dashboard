@@ -90,6 +90,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   importEvents: (payload) =>
     set({
       events: sortEvents(payload.events),
+      participationCalendar: payload.participationCalendar ?? [],
       activeSource: payload.sourceType,
       selectedEventId: null,
       statusMessage:
@@ -131,15 +132,16 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       error: null,
       selectedEventId: null,
       // Clear stale events immediately when switching to a different user
-      ...(switchingUser ? { events: [], cachedAt: undefined } : {}),
+      ...(switchingUser ? { events: [], participationCalendar: [], cachedAt: undefined } : {}),
     })
     try {
       let receivedProgress = false
-      const data = await loadEventernoteUserFromApi(userId, ({ events, importedAt }) => {
+      const data = await loadEventernoteUserFromApi(userId, ({ events, importedAt, participationCalendar }) => {
         receivedProgress = true
         if (isActiveLoad()) {
           set({
             events: sortEvents(events),
+            participationCalendar,
             activeSource: 'backend',
             loading: false,
             cachedAt: importedAt,
@@ -150,7 +152,10 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       if (!isActiveLoad()) return
       const copy = getUiCopy(get().locale)
       set({
-        ...(receivedProgress ? {} : { events: sortEvents(data.events) }),
+        ...(receivedProgress ? {} : {
+          events: sortEvents(data.events),
+          participationCalendar: data.participationCalendar ?? [],
+        }),
         activeSource: 'backend',
         loading: false,
         cachedAt: data.importedAt,
@@ -172,6 +177,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       if (get().cachedUserId !== userId) return
       set({
         events: sortEvents(data.events),
+        participationCalendar: data.participationCalendar ?? [],
         activeSource: 'backend',
         cachedAt: data.importedAt,
       })
@@ -200,6 +206,7 @@ useScheduleStore.subscribe((state) => {
     locale: state.locale,
     cachedAt: state.cachedAt,
     cachedUserId: state.cachedUserId,
+    participationCalendar: state.participationCalendar,
   })
 })
 

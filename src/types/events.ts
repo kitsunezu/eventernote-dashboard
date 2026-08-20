@@ -50,11 +50,18 @@ export interface ScheduleEvent {
   previewImageAlt?: string
 }
 
+export interface ParticipationCalendarMonth {
+  year: number
+  month: number
+  count: number
+}
+
 export interface ImportedScheduleData {
   events: ScheduleEvent[]
   warnings: string[]
   sourceType: EventSourceKind
   importedAt: string
+  participationCalendar?: ParticipationCalendarMonth[]
 }
 
 export interface ScheduleSnapshot {
@@ -69,4 +76,6 @@ export interface ScheduleSnapshot {
   cachedAt?: string
   /** Eventernote userId whose data is currently cached */
   cachedUserId?: string
+  /** Eventernote's authoritative per-month participation counts. */
+  participationCalendar?: ParticipationCalendarMonth[]
 }
