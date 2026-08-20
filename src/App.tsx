@@ -74,6 +74,7 @@ function App() {
         locale={state.locale}
         theme={state.theme}
         loading={shouldShowLoadingState || state.loading}
+        indexProgress={state.indexProgress}
         error={state.error}
         onThemeToggle={state.toggleTheme}
         onRefresh={() => state.loadFromEventernote(userId, true)}

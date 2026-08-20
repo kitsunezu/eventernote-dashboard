@@ -45,7 +45,7 @@ describe('EventRepository.importExternalEvent', () => {
 })
 
 describe('EventRepository.saveUserIndex', () => {
-  it('keeps previously seen event IDs and stores monotonic calendar counts', async () => {
+  it('keeps previously seen event IDs and stores authoritative calendar counts', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 1 })
     const release = vi.fn()
     const pool = { connect: vi.fn().mockResolvedValue({ query, release }) } as unknown as Pool
@@ -64,9 +64,10 @@ describe('EventRepository.saveUserIndex', () => {
     expect(sql).not.toContain('UPDATE user_events SET active = FALSE')
     expect(sql).toContain('INSERT INTO user_events')
     expect(sql).toContain('INSERT INTO user_event_months')
-    expect(sql).toContain('GREATEST(user_event_months.event_count, EXCLUDED.event_count)')
+    expect(sql).toContain('event_count = EXCLUDED.event_count')
+    expect(sql).toContain('last_indexed_at')
     expect(query.mock.calls.some(([, parameters]) => (
-      Array.isArray(parameters) && parameters.join(',') === 'reviewer,2026,8,4'
+      Array.isArray(parameters) && parameters.slice(0, 4).join(',') === 'reviewer,2026,8,4'
     ))).toBe(true)
     expect(release).toHaveBeenCalledOnce()
   })

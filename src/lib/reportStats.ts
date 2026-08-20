@@ -24,8 +24,6 @@ export interface ReportStats {
   regions: RankedStat[]
   artists: RankedStat[]
   months: RankedStat[]
-  ticketTotal: number
-  pricedEventCount: number
 }
 
 export function getUnmappedVenuePlaceIds(
@@ -99,7 +97,6 @@ export function buildReportStats(
   events: ScheduleEvent[],
   scope: ReportScope,
   places: Record<string, SchedulePlace>,
-  ticketCosts: Record<string, number>,
   now = new Date(),
   participationCalendar: ParticipationCalendarMonth[] = [],
 ): ReportStats {
@@ -181,11 +178,6 @@ export function buildReportStats(
     return { name: place?.region || event.category.label, eventId: event.id }
   }))
 
-  const pricedEvents = attendedEvents.filter((event) => {
-    const amount = ticketCosts[event.id]
-    return Number.isFinite(amount) && amount >= 0
-  })
-
   return {
     events: attendedEvents,
     attendedEventCount,
@@ -197,7 +189,5 @@ export function buildReportStats(
     regions,
     artists,
     months,
-    ticketTotal: pricedEvents.reduce((sum, event) => sum + ticketCosts[event.id], 0),
-    pricedEventCount: pricedEvents.length,
   }
 }

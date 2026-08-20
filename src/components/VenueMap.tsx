@@ -21,6 +21,7 @@ interface VenueMapProps {
   eventCountLabel: (count: number) => string
   approximateLocationLabel: string
   onSelectVenue: (venue: string) => void
+  onCloseVenue: (venue: string) => void
   onRefreshEvent: (eventId: string) => void
 }
 
@@ -46,7 +47,7 @@ function FocusVenue({ point }: { point?: VenueMapPoint }) {
   return null
 }
 
-export function VenueMap({ points, selectedVenue, locale, eventCountLabel, approximateLocationLabel, onSelectVenue, onRefreshEvent }: VenueMapProps) {
+export function VenueMap({ points, selectedVenue, locale, eventCountLabel, approximateLocationLabel, onSelectVenue, onCloseVenue, onRefreshEvent }: VenueMapProps) {
   const selectedPoint = points.find((point) => point.name === selectedVenue)
   const initialCenter: [number, number] = points[0]
     ? [points[0].latitude, points[0].longitude]
@@ -77,7 +78,10 @@ export function VenueMap({ points, selectedVenue, locale, eventCountLabel, appro
               weight: isSelected ? 3 : 2,
               dashArray: point.approximate ? '4 3' : undefined,
             }}
-            eventHandlers={{ click: () => onSelectVenue(point.name) }}
+            eventHandlers={{
+              click: () => onSelectVenue(point.name),
+              popupclose: () => onCloseVenue(point.name),
+            }}
           >
             <Popup minWidth={240}>
               <div className="report-map-popup">

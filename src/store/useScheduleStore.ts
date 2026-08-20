@@ -10,6 +10,7 @@ import { readScheduleSnapshot, writeScheduleSnapshot } from '../lib/storage'
 import { DEFAULT_DAY_RANGE } from '../types/events'
 import type {
   DayRangeOption,
+  EventIndexProgress,
   EventCategory,
   ImportedScheduleData,
   ScheduleEvent,
@@ -35,6 +36,7 @@ export interface ScheduleStore extends ScheduleSnapshot {
   statusMessage: string
   loading: boolean
   error: string | null
+  indexProgress: EventIndexProgress | null
   setViewMode: (viewMode: ViewMode) => void
   setDaysToShow: (daysToShow: DayRangeOption) => void
   toggleCategory: (categoryId: string) => void
@@ -75,6 +77,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   statusMessage: '',
   loading: false,
   error: null,
+  indexProgress: null,
   setViewMode: (viewMode) => set({ viewMode }),
   setDaysToShow: (daysToShow) => set({ daysToShow }),
   toggleCategory: (categoryId) =>
@@ -132,13 +135,20 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     set({
       loading: true,
       error: null,
+      indexProgress: null,
       selectedEventId: null,
       // Clear stale events immediately when switching to a different user
       ...(switchingUser ? { events: [], places: {}, participationCalendar: [], cachedAt: undefined } : {}),
     })
     try {
       let receivedProgress = false
-      const data = await loadEventernoteUserFromApi(userId, ({ events, places, importedAt, participationCalendar }) => {
+      const data = await loadEventernoteUserFromApi(userId, ({
+        events,
+        places,
+        importedAt,
+        participationCalendar,
+        indexProgress,
+      }) => {
         receivedProgress = true
         if (isActiveLoad()) {
           set({
@@ -146,7 +156,8 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
             places,
             participationCalendar,
             activeSource: 'backend',
-            loading: false,
+            loading: indexProgress !== undefined,
+            indexProgress: indexProgress ?? null,
             cachedAt: importedAt,
             cachedUserId: userId,
           })
@@ -162,6 +173,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         }),
         activeSource: 'backend',
         loading: false,
+        indexProgress: null,
         cachedAt: data.importedAt,
         cachedUserId: userId,
         statusMessage: copy.loadedCount(data.events.length),
@@ -171,6 +183,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       const copy = getUiCopy(get().locale)
       set({
         loading: false,
+        indexProgress: null,
         error: err instanceof Error ? err.message : copy.loadFailed,
       })
     }

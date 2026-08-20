@@ -132,6 +132,7 @@ async function main(): Promise<void> {
             userIndexCheckedAt: snapshot.lastIndexSuccessAt,
             pendingDetailCount: snapshot.pendingDetailCount,
             pendingPlaceCount: snapshot.pendingPlaceCount,
+            indexProgress: syncService.getIndexProgress(userId),
           },
         }
         jsonResponse(response, 200, payload)
@@ -163,6 +164,7 @@ async function main(): Promise<void> {
             userIndexCheckedAt: snapshot.lastIndexSuccessAt,
             pendingDetailCount: snapshot.pendingDetailCount,
             pendingPlaceCount: snapshot.pendingPlaceCount,
+            indexProgress: syncService.getIndexProgress(userId),
           },
         }
         jsonResponse(response, 200, payload)
@@ -181,7 +183,7 @@ async function main(): Promise<void> {
         return
       }
 
-      let snapshot = await repository.getSnapshot(userId)
+      const snapshot = await repository.getSnapshot(userId)
       const age = snapshot.lastIndexSuccessAt
         ? Date.now() - new Date(snapshot.lastIndexSuccessAt).getTime()
         : Number.POSITIVE_INFINITY
@@ -196,9 +198,12 @@ async function main(): Promise<void> {
         void syncService.start(userId).catch((error) => {
           console.error(`Background sync failed for ${userId}`, error)
         })
+      } else if (!fresh && !snapshot.lastIndexSuccessAt && syncService.isIndexRunning(userId)) {
+        // The browser polls this endpoint and receives live index progress.
       } else if (!fresh && !snapshot.lastIndexSuccessAt && retryAllowed) {
-        await syncService.start(userId)
-        snapshot = await repository.getSnapshot(userId)
+        void syncService.start(userId).catch((error) => {
+          console.error(`Background sync failed for ${userId}`, error)
+        })
       } else if (!fresh && !snapshot.lastIndexSuccessAt) {
         throw new Error('The previous synchronization failed; retry is temporarily throttled')
       }
@@ -226,6 +231,7 @@ async function main(): Promise<void> {
           userIndexCheckedAt: snapshot.lastIndexSuccessAt,
           pendingDetailCount: snapshot.pendingDetailCount,
           pendingPlaceCount: snapshot.pendingPlaceCount,
+          indexProgress: syncService.getIndexProgress(userId),
         },
       }
       jsonResponse(response, 200, payload)

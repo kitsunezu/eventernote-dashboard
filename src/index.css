@@ -1735,7 +1735,7 @@ button {
 
 .report-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(190px, 1.35fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border-bottom: 1px solid var(--line-strong);
 }
 
@@ -1774,10 +1774,6 @@ button {
   font-size: 0.65rem;
 }
 
-.report-metric--spend strong {
-  font-size: 1.45rem;
-}
-
 .report-grid {
   display: grid;
 }
@@ -1814,6 +1810,26 @@ button {
 
 .report-ranking li {
   min-width: 0;
+}
+
+.report-ranking__load-more {
+  padding-top: 3px;
+}
+
+.report-ranking__load-more button {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--report-green) 6%, transparent);
+  color: var(--text-muted);
+  font: 600 0.68rem/1.3 var(--font-body);
+  cursor: pointer;
+}
+
+.report-ranking__load-more button:hover,
+.report-ranking__load-more button:focus-visible {
+  border-color: var(--report-green);
+  color: var(--text-soft);
 }
 
 .report-ranking details {
@@ -2183,72 +2199,6 @@ button {
 .report-venue-list small { color: var(--text-muted); font-size: 0.65rem; }
 .report-venue-list em { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem; font-style: normal; }
 
-.report-currency select {
-  min-height: 34px;
-  padding: 0 28px 0 9px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--bg-card);
-  color: var(--text);
-  font-size: 0.75rem;
-}
-
-.report-ticket-list {
-  display: grid;
-  max-height: 410px;
-  overflow: auto;
-  border-top: 1px solid var(--line-strong);
-}
-
-.report-ticket-list > label {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px;
-  gap: 16px;
-  align-items: center;
-  min-height: 58px;
-  padding: 8px 2px;
-  border-bottom: 1px solid var(--line);
-}
-
-.report-ticket-list > label > span:first-child {
-  display: grid;
-  min-width: 0;
-}
-
-.report-ticket-list strong {
-  overflow: hidden;
-  color: var(--text-soft);
-  font-size: 0.77rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.report-ticket-list small {
-  color: var(--text-muted);
-  font-size: 0.65rem;
-}
-
-.report-ticket-input {
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--bg-card);
-}
-
-.report-ticket-input small { padding: 0 8px; }
-.report-ticket-input input { width: 100%; min-width: 0; padding: 8px; border: 0; border-left: 1px solid var(--line); outline: 0; background: transparent; color: var(--text); text-align: right; }
-
-.report-local-note {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin: 10px 0 0;
-  color: var(--text-muted);
-  font-size: 0.68rem;
-}
-
 .report-signature {
   padding: 18px 0;
   color: var(--text-muted);
@@ -2318,6 +2268,57 @@ button {
 .report-loading h1,
 .report-loading p { margin: 0; }
 .report-loading--pending { align-content: center; }
+
+.report-index-progress {
+  display: grid;
+  gap: 0.65rem;
+  width: min(32rem, calc(100vw - 3rem));
+}
+
+.report-index-progress__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.report-index-progress__label strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.report-index-progress__track {
+  position: relative;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.report-index-progress__track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  transition: width 240ms ease;
+}
+
+.report-index-progress__track.is-indeterminate > span {
+  width: 38%;
+  animation: report-index-indeterminate 1.2s ease-in-out infinite;
+}
+
+.report-index-banner {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+}
+
+@keyframes report-index-indeterminate {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(300%); }
+}
 .report-empty h2 { color: var(--text); font-size: 1rem; }
 .report-empty p { font-size: 0.78rem; }
 .is-spinning { animation: spin 0.8s linear infinite; }
@@ -2328,7 +2329,6 @@ button {
   .report-scope { justify-content: flex-start; }
   .report-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .report-metrics > div { min-height: 112px; border-bottom: 1px solid var(--line); }
-  .report-metric--spend { grid-column: 1 / -1; }
   .report-grid--rankings { grid-template-columns: 1fr; }
   .report-grid--rankings .report-section:nth-child(odd) { border-right: 0; }
   .report-section { padding: 22px 4px; }
@@ -2349,8 +2349,6 @@ button {
   .report-metrics strong { font-size: 1.55rem; }
   .report-map-section .report-section__heading { align-items: flex-start; flex-direction: column; gap: 10px; }
   .report-map-actions { align-self: stretch; justify-content: space-between; }
-  .report-ticket-list > label { grid-template-columns: 1fr; gap: 6px; padding: 10px 0; }
-  .report-ticket-input { width: 100%; }
 }
 
 .report-sheet.is-capturing {
@@ -2374,16 +2372,12 @@ button {
 }
 
 .report-sheet.is-capturing .report-metrics {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(190px, 1.35fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .report-sheet.is-capturing .report-metrics > div {
   min-height: 132px;
   border-bottom: 0;
-}
-
-.report-sheet.is-capturing .report-metric--spend {
-  grid-column: auto;
 }
 
 .report-sheet.is-capturing .report-grid--rankings {
@@ -2401,9 +2395,5 @@ button {
 
 .report-sheet.is-capturing .report-ranking li:nth-child(n + 9),
 .report-sheet.is-capturing .report-occurrences {
-  display: none;
-}
-
-.report-sheet.is-capturing .report-tickets {
   display: none;
 }

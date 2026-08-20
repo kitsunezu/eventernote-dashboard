@@ -1,5 +1,6 @@
 import type {
   ImportedScheduleData,
+  EventIndexProgress,
   ParticipationCalendarMonth,
   ScheduleEvent,
 } from '../src/types/events.js'
@@ -42,7 +43,13 @@ export interface ParsedUserEventsPage {
 export interface UserEventIndex {
   events: EventSeed[]
   participationCalendar: ParticipationCalendarMonth[]
+  indexedMonths: ParticipationCalendarMonth[]
+  totalEventCount: number
   warnings: string[]
+}
+
+export interface StoredIndexMonth extends ParticipationCalendarMonth {
+  lastIndexedAt: string
 }
 
 export interface StoredEvent extends ScheduleEvent {
@@ -71,6 +78,7 @@ export interface EventApiResponse extends ImportedScheduleData {
     dataVersion: string
     pendingDetailCount: number
     pendingPlaceCount: number
+    indexProgress?: EventIndexProgress
   }
 }
 

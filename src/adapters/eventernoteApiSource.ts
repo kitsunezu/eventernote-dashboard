@@ -1,4 +1,5 @@
 import type {
+  EventIndexProgress,
   ImportedScheduleData,
   ParticipationCalendarMonth,
   ScheduleEvent,
@@ -19,7 +20,17 @@ interface ApiResponse extends ImportedScheduleData {
     dataVersion: string
     pendingDetailCount: number
     pendingPlaceCount: number
+    indexProgress?: EventIndexProgress
   }
+}
+
+export interface EventernoteLoadProgress {
+  events: ScheduleEvent[]
+  places: Record<string, SchedulePlace>
+  warnings: string[]
+  importedAt: string
+  participationCalendar: ParticipationCalendarMonth[]
+  indexProgress?: EventIndexProgress
 }
 
 function delay(milliseconds: number): Promise<void> {
@@ -94,20 +105,16 @@ async function refreshUserPlaces(userId: string, placeIds: string[]): Promise<Ap
 
 export async function loadEventernoteUserFromApi(
   userId: string,
-  onProgress?: (partial: {
-    events: ScheduleEvent[]
-    places: Record<string, SchedulePlace>
-    warnings: string[]
-    importedAt: string
-    participationCalendar: ParticipationCalendarMonth[]
-  }) => void,
+  onProgress?: (partial: EventernoteLoadProgress) => void,
   forceRefresh = false,
 ): Promise<ImportedScheduleData> {
   let response = await fetchUserEvents(userId, forceRefresh)
   let publishedVersion = ''
 
   function publishIfChanged(next: ApiResponse): void {
+    const indexProgress = next.cache.indexProgress
     const version = `${next.cache.dataVersion}:${next.cache.pendingDetailCount}:${next.cache.pendingPlaceCount}`
+      + `:${indexProgress?.processedMonths ?? '-'}:${indexProgress?.indexedEventCount ?? '-'}`
     if (version === publishedVersion) return
     publishedVersion = version
     onProgress?.({
@@ -116,6 +123,7 @@ export async function loadEventernoteUserFromApi(
       warnings: next.warnings,
       importedAt: next.importedAt,
       participationCalendar: next.participationCalendar,
+      indexProgress,
     })
   }
 

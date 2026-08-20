@@ -7,6 +7,7 @@ import type {
   ExternalEventImport,
   PlaceDetail,
   StoredPlaceDetail,
+  StoredIndexMonth,
   StoredEvent,
   StoredUserSnapshot,
   SyncStats,
@@ -296,6 +297,7 @@ export class EventRepository {
     userId: string,
     events: EventSeed[],
     participationCalendar: ParticipationCalendarMonth[],
+    indexedMonths: ParticipationCalendarMonth[] = participationCalendar,
   ): Promise<void> {
     const client = await this.pool.connect()
     try {
@@ -317,17 +319,30 @@ export class EventRepository {
         )
       }
 
+      const indexedMonthKeys = new Set(indexedMonths.map((item) => `${item.year}-${item.month}`))
       for (const item of participationCalendar) {
+        const wasIndexed = indexedMonthKeys.has(`${item.year}-${item.month}`)
         await client.query(
-          `INSERT INTO user_event_months (user_id, year, month, event_count)
-           VALUES ($1, $2, $3, $4)
+          `INSERT INTO user_event_months (user_id, year, month, event_count, last_indexed_at)
+           VALUES ($1, $2, $3, $4, NOW())
            ON CONFLICT (user_id, year, month) DO UPDATE SET
-             event_count = GREATEST(user_event_months.event_count, EXCLUDED.event_count),
-             updated_at = CASE
-               WHEN EXCLUDED.event_count > user_event_months.event_count THEN NOW()
-               ELSE user_event_months.updated_at
-             END`,
-          [userId, item.year, item.month, item.count],
+             event_count = EXCLUDED.event_count,
+             updated_at = CASE WHEN EXCLUDED.event_count <> user_event_months.event_count
+               THEN NOW() ELSE user_event_months.updated_at END,
+             last_indexed_at = CASE WHEN $5 THEN NOW() ELSE user_event_months.last_indexed_at END`,
+          [userId, item.year, item.month, item.count, wasIndexed],
+        )
+      }
+
+      if (participationCalendar.length === 0) {
+        await client.query('DELETE FROM user_event_months WHERE user_id = $1', [userId])
+      } else {
+        const values = participationCalendar.flatMap((item) => [item.year, item.month])
+        const tuples = participationCalendar.map((_, index) => `($${index * 2 + 2}, $${index * 2 + 3})`)
+        await client.query(
+          `DELETE FROM user_event_months
+           WHERE user_id = $1 AND (year, month) NOT IN (${tuples.join(', ')})`,
+          [userId, ...values],
         )
       }
 
@@ -344,6 +359,27 @@ export class EventRepository {
     } finally {
       client.release()
     }
+  }
+
+  async getStoredIndexMonths(userId: string): Promise<StoredIndexMonth[]> {
+    const result = await this.pool.query<{
+      year: number
+      month: number
+      event_count: number
+      last_indexed_at: Date
+    }>(
+      `SELECT year, month, event_count, last_indexed_at
+       FROM user_event_months
+       WHERE user_id = $1
+       ORDER BY year ASC, month ASC`,
+      [userId],
+    )
+    return result.rows.map((row) => ({
+      year: row.year,
+      month: row.month,
+      count: row.event_count,
+      lastIndexedAt: row.last_indexed_at.toISOString(),
+    }))
   }
 
   private async upsertEventSeed(client: PoolClient, event: EventSeed): Promise<void> {

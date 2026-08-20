@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { Pool } from 'pg'
+import type { EventIndexProgress } from '../src/types/events.js'
 import type { ServerConfig } from './config.js'
 import { hasUsableCoordinates } from './coordinates.js'
 import type { Coordinates } from './coordinates.js'
@@ -8,7 +9,14 @@ import type { GeocodedPlace } from './geocoder.js'
 import { parseEventDetail, parseParticipationCalendar, parsePlaceDetail, parseUserEventsPage } from './parser.js'
 import { detectRegion, regionForCountryCode } from './regions.js'
 import { EventRepository } from './repository.js'
-import type { EventSeed, ParsedUserEventsPage, StoredEvent, SyncStats, UserEventIndex } from './types.js'
+import type {
+  EventSeed,
+  ParsedUserEventsPage,
+  StoredEvent,
+  StoredIndexMonth,
+  SyncStats,
+  UserEventIndex,
+} from './types.js'
 import { EventernoteClient } from './upstream.js'
 
 const PLACE_TTL_MS = 90 * 24 * 60 * 60 * 1000
@@ -19,6 +27,9 @@ const FAILED_GEOCODE_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const MANUAL_PLACE_REFRESH_COOLDOWN_MS = 60 * 1000
 const MAX_MANUAL_USER_REFRESHES = 4
 const ENRICHMENT_RETRY_COOLDOWN_MS = 5 * 60 * 1000
+const INDEX_MONTH_CONCURRENCY = 3
+const RECENT_INDEX_MONTH_COUNT = 12
+const AUDIT_INDEX_MONTH_COUNT = 3
 
 interface PlaceRefreshInFlight {
   forceGeocode: boolean
@@ -84,13 +95,59 @@ export async function fetchUserEventIndex(
   userId: string,
   fetchHtml: (path: string) => Promise<string>,
   maxPages: number,
+  options: {
+    storedMonths?: StoredIndexMonth[]
+    monthConcurrency?: number
+    recentMonthCount?: number
+    auditMonthCount?: number
+    onProgress?: (progress: EventIndexProgress) => void
+  } = {},
 ): Promise<UserEventIndex> {
   const eventsPath = `/users/${encodeURIComponent(userId)}/events`
   const calendar = parseParticipationCalendar(await fetchHtml(eventsPath), userId)
   if (calendar.length > 0) {
+    const totalEventCount = calendar.reduce((total, month) => total + month.count, 0)
+    const storedByMonth = new Map(
+      (options.storedMonths ?? []).map((month) => [`${month.year}-${month.month}`, month]),
+    )
+    const changedMonths = calendar.filter((month) => {
+      const stored = storedByMonth.get(`${month.year}-${month.month}`)
+      return !stored || stored.count !== month.count
+    })
+    const recentMonths = [...calendar]
+      .sort((left, right) => right.year - left.year || right.month - left.month)
+      .slice(0, options.recentMonthCount ?? RECENT_INDEX_MONTH_COUNT)
+    const auditMonths = calendar
+      .filter((month) => storedByMonth.has(`${month.year}-${month.month}`))
+      .sort((left, right) => {
+        const leftIndexedAt = storedByMonth.get(`${left.year}-${left.month}`)?.lastIndexedAt ?? ''
+        const rightIndexedAt = storedByMonth.get(`${right.year}-${right.month}`)?.lastIndexedAt ?? ''
+        return leftIndexedAt.localeCompare(rightIndexedAt)
+      })
+      .slice(0, options.auditMonthCount ?? AUDIT_INDEX_MONTH_COUNT)
+    const selectedMonthKeys = new Set<string>()
+    const selectedMonths = (options.storedMonths?.length
+      ? [...changedMonths, ...recentMonths, ...auditMonths]
+      : calendar
+    ).filter((month) => {
+      const key = `${month.year}-${month.month}`
+      if (selectedMonthKeys.has(key)) return false
+      selectedMonthKeys.add(key)
+      return true
+    })
     const byId = new Map<string, EventSeed>()
     const warnings: string[] = []
-    for (const month of calendar) {
+    let processedMonths = 0
+    let indexedEventCount = options.storedMonths?.length
+      ? totalEventCount - selectedMonths.reduce((total, month) => total + month.count, 0)
+      : 0
+    options.onProgress?.({
+      processedMonths,
+      totalMonths: selectedMonths.length,
+      indexedEventCount,
+      totalEventCount,
+    })
+    await mapWithConcurrency(selectedMonths, options.monthConcurrency ?? INDEX_MONTH_CONCURRENCY, async (month) => {
       const pages = await fetchPaginatedEventPages(month.path, fetchHtml, maxPages)
       const events = pages.flatMap((page) => page.events)
       if (events.length !== month.count) {
@@ -99,17 +156,30 @@ export async function fetchUserEventIndex(
         )
       }
       for (const event of events) byId.set(event.id, event)
-    }
+      processedMonths += 1
+      indexedEventCount += month.count
+      options.onProgress?.({
+        processedMonths,
+        totalMonths: selectedMonths.length,
+        indexedEventCount,
+        totalEventCount,
+      })
+    })
     return {
       events: Array.from(byId.values()),
       participationCalendar: calendar.map(({ year, month, count }) => ({ year, month, count })),
+      indexedMonths: selectedMonths.map(({ year, month, count }) => ({ year, month, count })),
+      totalEventCount,
       warnings,
     }
   }
 
+  const events = await fetchPaginatedEventIndex(eventsPath, fetchHtml, maxPages)
   return {
-    events: await fetchPaginatedEventIndex(eventsPath, fetchHtml, maxPages),
+    events,
     participationCalendar: [],
+    indexedMonths: [],
+    totalEventCount: events.length,
     warnings: [],
   }
 }
@@ -167,6 +237,7 @@ async function fetchPaginatedEventPages(
 
 export class EventSyncService {
   private readonly inFlight = new Map<string, Promise<void>>()
+  private readonly indexProgress = new Map<string, EventIndexProgress>()
   private readonly enrichmentInFlight = new Map<string, Promise<void>>()
   private readonly enrichmentCompletedAt = new Map<string, number>()
   private readonly placeRefreshes = new Map<string, PlaceRefreshInFlight>()
@@ -199,16 +270,33 @@ export class EventSyncService {
     return this.inFlight.has(userId) || this.enrichmentInFlight.has(userId)
   }
 
+  isIndexRunning(userId: string): boolean {
+    return this.inFlight.has(userId)
+  }
+
+  getIndexProgress(userId: string): EventIndexProgress | undefined {
+    return this.indexProgress.get(userId)
+  }
+
   start(userId: string): Promise<void> {
     const existing = this.inFlight.get(userId)
     if (existing) return existing
+    this.indexProgress.set(userId, {
+      processedMonths: 0,
+      totalMonths: 0,
+      indexedEventCount: 0,
+      totalEventCount: 0,
+    })
     const synchronization = this.synchronizeIndexWithLock(userId)
       .then(() => {
         void this.startEnrichment(userId, true).catch((error) => {
           console.error(`Background enrichment failed for ${userId}`, error)
         })
       })
-      .finally(() => this.inFlight.delete(userId))
+      .finally(() => {
+        this.inFlight.delete(userId)
+        this.indexProgress.delete(userId)
+      })
     this.inFlight.set(userId, synchronization)
     return synchronization
   }
@@ -393,9 +481,14 @@ export class EventSyncService {
 
     try {
       const index = await this.fetchUserIndex(userId)
-      stats.discoveredEvents = index.events.length
+      stats.discoveredEvents = index.totalEventCount
       stats.warnings.push(...index.warnings)
-      await this.repository.saveUserIndex(userId, index.events, index.participationCalendar)
+      await this.repository.saveUserIndex(
+        userId,
+        index.events,
+        index.participationCalendar,
+        index.indexedMonths,
+      )
 
       await this.repository.completeSyncJob(jobId, stats)
     } catch (error) {
@@ -489,10 +582,15 @@ export class EventSyncService {
   }
 
   private async fetchUserIndex(userId: string): Promise<UserEventIndex> {
+    const storedMonths = await this.repository.getStoredIndexMonths(userId)
     return fetchUserEventIndex(
       userId,
       (path) => this.upstream.fetchHtml(path),
       this.config.maxListPages,
+      {
+        storedMonths,
+        onProgress: (progress) => this.indexProgress.set(userId, progress),
+      },
     )
   }
 

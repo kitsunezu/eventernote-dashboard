@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { colorForCategory } from '../lib/date'
 import type {
   ImportedScheduleData,
+  EventIndexProgress,
   ParticipationCalendarMonth,
   ScheduleEvent,
   SchedulePlace,
@@ -16,6 +17,7 @@ type ProgressCallback = (partial: {
   warnings: string[]
   importedAt: string
   participationCalendar: ParticipationCalendarMonth[]
+  indexProgress?: EventIndexProgress
 }) => void
 type LoadFromApi = (
   userId: string,
@@ -106,6 +108,7 @@ function createState(overrides: Partial<ScheduleStore> = {}): ScheduleStore {
     deleteEvent: () => undefined,
     loading: false,
     error: null,
+    indexProgress: null,
     loadFromEventernote: async () => undefined,
     refreshEvent: async () => undefined,
     refreshUnmappedPlaces: async () => [],
@@ -260,6 +263,37 @@ describe('useScheduleStore Eventernote loading', () => {
     request.resolve(createApiResult('A', initialEvents))
     await loading
     expect(useScheduleStore.getState().events).toBe(appliedEvents)
+  })
+
+  it('keeps the cold report loading while index progress is active', async () => {
+    const request = createDeferred<ImportedScheduleData>()
+    loadFromApi.mockImplementation((_userId, onProgress) => {
+      onProgress?.({
+        events: [],
+        places: {},
+        warnings: [],
+        importedAt: '2026-08-05T10:00:03.000Z',
+        participationCalendar: [],
+        indexProgress: {
+          processedMonths: 2,
+          totalMonths: 10,
+          indexedEventCount: 25,
+          totalEventCount: 100,
+        },
+      })
+      return request.promise
+    })
+
+    const loading = useScheduleStore.getState().loadFromEventernote('A')
+
+    expect(useScheduleStore.getState()).toMatchObject({
+      loading: true,
+      cachedUserId: 'A',
+      indexProgress: { indexedEventCount: 25, totalEventCount: 100 },
+    })
+    request.resolve(createApiResult('A', testEvents))
+    await loading
+    expect(useScheduleStore.getState()).toMatchObject({ loading: false, indexProgress: null })
   })
 
   it('stores refreshed events and places together after map refresh', async () => {

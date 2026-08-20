@@ -82,6 +82,57 @@ describe('fetchUserEventIndex', () => {
     })
   })
 
+  it('fetches only changed months when recent and audit windows are disabled', async () => {
+    const fetchHtml = vi.fn(async (path: string) => {
+      if (path === '/users/test-user/events') {
+        return calendarPage([{ month: 5, count: 1 }, { month: 6, count: 2 }])
+      }
+      return userEventPage(path.includes('month=6') ? '206' : '205', [])
+    })
+
+    const index = await fetchUserEventIndex('test-user', fetchHtml, 5, {
+      storedMonths: [
+        { year: 2025, month: 5, count: 1, lastIndexedAt: '2026-08-01T00:00:00.000Z' },
+        { year: 2025, month: 6, count: 1, lastIndexedAt: '2026-08-01T00:00:00.000Z' },
+      ],
+      recentMonthCount: 0,
+      auditMonthCount: 0,
+    })
+
+    expect(fetchHtml.mock.calls.map(([path]) => path)).toEqual([
+      '/users/test-user/events',
+      '/users/test-user/events/?year=2025&month=6',
+    ])
+    expect(index.indexedMonths).toEqual([{ year: 2025, month: 6, count: 2 }])
+    expect(index.totalEventCount).toBe(3)
+  })
+
+  it('fetches at most three month pages concurrently and reports activity progress', async () => {
+    let active = 0
+    let maxActive = 0
+    const progress = vi.fn()
+    const fetchHtml = vi.fn(async (path: string) => {
+      if (path === '/users/test-user/events') {
+        return calendarPage(Array.from({ length: 6 }, (_, index) => ({ month: index + 1, count: 1 })))
+      }
+      active += 1
+      maxActive = Math.max(maxActive, active)
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      active -= 1
+      return userEventPage(path.match(/month=(\d+)/)?.[1] ?? '1', [])
+    })
+
+    await fetchUserEventIndex('test-user', fetchHtml, 5, { onProgress: progress })
+
+    expect(maxActive).toBe(3)
+    expect(progress).toHaveBeenLastCalledWith({
+      processedMonths: 6,
+      totalMonths: 6,
+      indexedEventCount: 6,
+      totalEventCount: 6,
+    })
+  })
+
   it('follows pagination links discovered on later pages', async () => {
     const htmlByPage = new Map<number, string>([
       [1, userEventPage('101', [2, 3, 5])],

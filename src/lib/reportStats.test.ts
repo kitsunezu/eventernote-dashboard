@@ -49,12 +49,11 @@ describe('report statistics', () => {
     expect(getReportYears(events, new Date('2026-01-01T00:00:00.000Z'))).toEqual([2025, 2024])
   })
 
-  it('filters by year and aggregates venue, artist, and tickets', () => {
+  it('filters by year and aggregates venue and artist statistics', () => {
     const stats = buildReportStats(
       events,
       2025,
       places,
-      { '1': 8800, '2': 5000, '3': 10000 },
       new Date('2026-01-01T00:00:00.000Z'),
     )
 
@@ -64,8 +63,6 @@ describe('report statistics', () => {
       { name: 'Artist A', count: 1, eventIds: ['1'] },
       { name: 'Artist B', count: 1, eventIds: ['1'] },
     ])
-    expect(stats.ticketTotal).toBe(8800)
-    expect(stats.pricedEventCount).toBe(1)
   })
 
   it('ranks repeated values across all attended events', () => {
@@ -74,7 +71,6 @@ describe('report statistics', () => {
       [...events, repeated],
       'all',
       places,
-      {},
       new Date('2026-01-01T00:00:00.000Z'),
     )
 
@@ -91,7 +87,6 @@ describe('report statistics', () => {
       events,
       'all',
       places,
-      {},
       new Date('2026-08-20T00:00:00.000Z'),
       [
         { year: 2024, month: 8, count: 3 },
@@ -127,7 +122,6 @@ describe('report statistics', () => {
           longitude: 139.698,
         },
       },
-      {},
       new Date('2026-01-01T00:00:00.000Z'),
     )
 
@@ -155,7 +149,6 @@ describe('report statistics', () => {
           region: 'Saitama',
         },
       },
-      {},
       new Date('2026-01-01T00:00:00.000Z'),
     )
 
@@ -172,7 +165,6 @@ describe('report statistics', () => {
     const stats = buildReportStats(
       retryEvents,
       'all',
-      {},
       {},
       new Date('2026-01-01T00:00:00.000Z'),
     )
@@ -195,7 +187,6 @@ describe('report statistics', () => {
           longitude: 113.5518,
         },
       },
-      {},
       new Date('2026-01-01T00:00:00.000Z'),
     )
     const eventsById = new Map(stats.events.map((item) => [item.id, item]))

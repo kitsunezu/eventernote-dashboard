@@ -133,13 +133,13 @@ export interface ReportCopy {
   subtitle: string
   back: string
   refresh: string
+  indexPreparing: string
+  indexProgress: (indexed: number, total: number) => string
   allYears: string
   attendedEvents: string
   venues: string
   regions: string
   artists: string
-  ticketSpend: string
-  ticketCoverage: (priced: number, total: number) => string
   venueRanking: string
   regionBreakdown: string
   artistRanking: string
@@ -157,9 +157,7 @@ export interface ReportCopy {
   eventOccurrences: (count: number) => string
   approximateLocation: string
   expandEvents: (name: string, count: number) => string
-  ticketLedger: string
-  ticketLedgerHint: string
-  ticketPrice: string
+  loadMoreRankings: (visible: number, total: number) => string
   downloadImage: string
   share: string
   shareTo: string
@@ -171,26 +169,25 @@ export interface ReportCopy {
   noReportBody: string
   unknownVenue: string
   noArtistData: string
-  localOnly: string
 }
 
 const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
   'zh-Hant': {
     landingTitle: '活動統計報告',
-    landingDesc: '按年份整理會場、地區、藝人與門票花費。',
+    landingDesc: '按年份整理會場、地區與藝人。',
     landingSubmit: '產出報告',
     eyebrow: 'Attendance report',
     title: (userId) => `${userId} 的活動足跡`,
     subtitle: '把去過的現場，整理成一份值得回看的紀錄。',
     back: '返回活動列表',
     refresh: '重新整理資料',
+    indexPreparing: '正在讀取 Eventernote 活動總數…',
+    indexProgress: (indexed, total) => `正在建立活動索引：${indexed} / ${total}`,
     allYears: '所有年份',
     attendedEvents: '參加活動',
     venues: '去過會場',
     regions: '足跡地區',
     artists: '看過藝人',
-    ticketSpend: '門票花費',
-    ticketCoverage: (priced, total) => `已填 ${priced} / ${total} 場`,
     venueRanking: '最常去的會場',
     regionBreakdown: '活動地區',
     artistRanking: '最常看的藝人',
@@ -208,9 +205,7 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     eventOccurrences: (count) => `${count} 場活動`,
     approximateLocation: '城市級約略位置',
     expandEvents: (name, count) => `展開 ${name} 的 ${count} 場活動`,
-    ticketLedger: '門票紀錄',
-    ticketLedgerHint: 'Eventernote 不提供票價；你補登的金額只會存在這個瀏覽器。',
-    ticketPrice: '票價',
+    loadMoreRankings: (visible, total) => `載入更多（已顯示 ${visible} / ${total}）`,
     downloadImage: '下載報告圖片',
     share: '分享',
     shareTo: '分享到 SNS',
@@ -222,24 +217,23 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     noReportBody: '切換到其他年份，或重新整理 Eventernote 資料。',
     unknownVenue: '未記錄會場',
     noArtistData: 'Eventernote 沒有提供藝人資料',
-    localOnly: '僅儲存在此裝置',
   },
   en: {
     landingTitle: 'Attendance report',
-    landingDesc: 'Explore venues, regions, artists, and ticket spend by year.',
+    landingDesc: 'Explore venues, regions, and artists by year.',
     landingSubmit: 'Create report',
     eyebrow: 'Attendance report',
     title: (userId) => `${userId}'s live event footprint`,
     subtitle: 'A personal record of the live events you have attended.',
     back: 'Back to events',
     refresh: 'Refresh data',
+    indexPreparing: 'Reading the total activity count from Eventernote…',
+    indexProgress: (indexed, total) => `Building activity index: ${indexed} / ${total}`,
     allYears: 'All years',
     attendedEvents: 'Events attended',
     venues: 'Venues visited',
     regions: 'Regions visited',
     artists: 'Artists seen',
-    ticketSpend: 'Ticket spend',
-    ticketCoverage: (priced, total) => `${priced} of ${total} events entered`,
     venueRanking: 'Most visited venues',
     regionBreakdown: 'Event regions',
     artistRanking: 'Most seen artists',
@@ -257,9 +251,7 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     eventOccurrences: (count) => `${count} event${count === 1 ? '' : 's'}`,
     approximateLocation: 'Approximate city location',
     expandEvents: (name, count) => `Show ${count} events for ${name}`,
-    ticketLedger: 'Ticket ledger',
-    ticketLedgerHint: 'Eventernote does not provide prices. Entries are stored only in this browser.',
-    ticketPrice: 'Ticket price',
+    loadMoreRankings: (visible, total) => `Load more (${visible} of ${total} shown)`,
     downloadImage: 'Download report image',
     share: 'Share',
     shareTo: 'Share to social media',
@@ -271,24 +263,23 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     noReportBody: 'Choose another year or refresh your Eventernote data.',
     unknownVenue: 'Venue not recorded',
     noArtistData: 'No artist data from Eventernote',
-    localOnly: 'Stored on this device only',
   },
   ja: {
     landingTitle: 'イベント統計レポート',
-    landingDesc: '会場・地域・出演者・チケット代を年ごとに集計します。',
+    landingDesc: '会場・地域・出演者を年ごとに集計します。',
     landingSubmit: 'レポートを作る',
     eyebrow: 'Attendance report',
     title: (userId) => `${userId}さんのイベント記録`,
     subtitle: '参加した現場を、振り返りたくなるレポートに。',
     back: 'イベント一覧へ',
     refresh: 'データを更新',
+    indexPreparing: 'Eventernoteからイベント総数を取得しています…',
+    indexProgress: (indexed, total) => `イベント索引を作成中：${indexed} / ${total}`,
     allYears: 'すべての年',
     attendedEvents: '参加イベント',
     venues: '訪れた会場',
     regions: '訪れた地域',
     artists: '見た出演者',
-    ticketSpend: 'チケット代',
-    ticketCoverage: (priced, total) => `${priced} / ${total} 件入力済み`,
     venueRanking: 'よく行く会場',
     regionBreakdown: '開催地域',
     artistRanking: 'よく見る出演者',
@@ -306,9 +297,7 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     eventOccurrences: (count) => `${count} 件のイベント`,
     approximateLocation: '都市単位の概算位置',
     expandEvents: (name, count) => `${name}のイベント ${count} 件を表示`,
-    ticketLedger: 'チケット記録',
-    ticketLedgerHint: 'Eventernote に価格情報はありません。入力内容はこのブラウザだけに保存されます。',
-    ticketPrice: 'チケット代',
+    loadMoreRankings: (visible, total) => `さらに読み込む（${visible} / ${total} 件表示）`,
     downloadImage: 'レポート画像を保存',
     share: '共有',
     shareTo: 'SNS に共有',
@@ -320,7 +309,6 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     noReportBody: '別の年を選ぶか、Eventernote データを更新してください。',
     unknownVenue: '会場未登録',
     noArtistData: '出演者情報がありません',
-    localOnly: 'この端末にのみ保存',
   },
 }
 

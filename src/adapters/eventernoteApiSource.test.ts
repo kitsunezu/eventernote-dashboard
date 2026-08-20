@@ -13,7 +13,12 @@ const event: ScheduleEvent = {
   sourceType: 'backend',
 }
 
-function response(placeId: string, refreshing = false, dataVersion = placeId): Response {
+function response(
+  placeId: string,
+  refreshing = false,
+  dataVersion = placeId,
+  indexProgress?: { processedMonths: number; totalMonths: number; indexedEventCount: number; totalEventCount: number },
+): Response {
   return new Response(JSON.stringify({
     events: [event],
     warnings: [],
@@ -29,7 +34,9 @@ function response(placeId: string, refreshing = false, dataVersion = placeId): R
         longitude: 139.76,
       },
     },
-    cache: { status: 'fresh', refreshing, dataVersion, pendingDetailCount: 0, pendingPlaceCount: 0 },
+    cache: {
+      status: 'fresh', refreshing, dataVersion, pendingDetailCount: 0, pendingPlaceCount: 0, indexProgress,
+    },
   }), { status: 200, headers: { 'Content-Type': 'application/json' } })
 }
 
@@ -73,6 +80,26 @@ describe('loadEventernoteUserFromApi', () => {
 
     expect(fetcher).toHaveBeenCalledTimes(3)
     expect(onProgress).toHaveBeenCalledOnce()
+  })
+
+  it('publishes index progress even while the snapshot version is unchanged', async () => {
+    vi.useFakeTimers()
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(response('1', true, 'same-version', {
+        processedMonths: 1, totalMonths: 2, indexedEventCount: 2, totalEventCount: 4,
+      }))
+      .mockResolvedValueOnce(response('1', false, 'same-version'))
+    vi.stubGlobal('fetch', fetcher)
+    const onProgress = vi.fn()
+
+    const loading = loadEventernoteUserFromApi('test-user', onProgress)
+    await vi.advanceTimersByTimeAsync(2_000)
+    await loading
+
+    expect(onProgress).toHaveBeenCalledTimes(2)
+    expect(onProgress.mock.calls[0][0].indexProgress).toEqual({
+      processedMonths: 1, totalMonths: 2, indexedEventCount: 2, totalEventCount: 4,
+    })
   })
 })
 

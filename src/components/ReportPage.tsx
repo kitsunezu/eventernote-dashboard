@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toBlob } from 'html-to-image'
 import {
   ArrowLeft,
@@ -9,20 +9,14 @@ import {
   MapPin,
   RefreshCw,
   Share2,
-  Ticket,
   Users,
 } from 'lucide-react'
 import { getReportCopy } from '../lib/localize'
 import { buildReportStats, getUnmappedVenuePlaceIds, sortVenuesByMapAvailability } from '../lib/reportStats'
 import type { RankedStat, ReportScope } from '../lib/reportStats'
-import {
-  REPORT_CURRENCIES,
-  readTicketCosts,
-  writeTicketCosts,
-} from '../lib/ticketCosts'
-import type { ReportCurrency } from '../lib/ticketCosts'
 import { resolveVenueCoordinates } from '../lib/venueCoordinates'
 import type {
+  EventIndexProgress,
   ParticipationCalendarMonth,
   ScheduleEvent,
   SchedulePlace,
@@ -42,6 +36,7 @@ interface ReportPageProps {
   theme: ThemeMode
   loading: boolean
   error: string | null
+  indexProgress: EventIndexProgress | null
   onThemeToggle: () => void
   onRefresh: () => void
   onRefreshEvent: (eventId: string) => void
@@ -84,6 +79,48 @@ interface RankedRowProps {
   onRefreshEvent: (eventId: string) => void
 }
 
+function ReportIndexProgress({
+  progress,
+  preparing,
+  progressLabel,
+}: {
+  progress: EventIndexProgress | null
+  preparing: string
+  progressLabel: (indexed: number, total: number) => string
+}) {
+  const hasTotal = Boolean(progress?.totalEventCount)
+  const percentage = hasTotal
+    ? Math.min(100, Math.round((progress?.indexedEventCount ?? 0) / (progress?.totalEventCount ?? 1) * 100))
+    : 0
+  const label = hasTotal && progress
+    ? progressLabel(progress.indexedEventCount, progress.totalEventCount)
+    : preparing
+
+  return (
+    <div className="report-index-progress" aria-live="polite">
+      <div className="report-index-progress__label">
+        <span>{label}</span>
+        {hasTotal && <strong>{percentage}%</strong>}
+      </div>
+      <div
+        className={`report-index-progress__track${hasTotal ? '' : ' is-indeterminate'}`}
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        {...(hasTotal && progress ? {
+          'aria-valuemax': progress.totalEventCount,
+          'aria-valuenow': progress.indexedEventCount,
+        } : {})}
+      >
+        <span style={hasTotal ? { width: `${percentage}%` } : undefined} />
+      </div>
+    </div>
+  )
+}
+
+const INITIAL_RANKED_ITEMS = 20
+const RANKED_ITEMS_BATCH = 20
+
 function RankedRow({ item, index, max, eventsById, locale, expandLabel, onRefreshEvent }: RankedRowProps) {
   const [expanded, setExpanded] = useState(false)
 
@@ -107,19 +144,52 @@ function RankedRow({ item, index, max, eventsById, locale, expandLabel, onRefres
   )
 }
 
-function rankedRows(
-  items: RankedStat[],
-  emptyText: string,
-  eventsById: Map<string, ScheduleEvent>,
-  locale: SupportedLocale,
-  expandLabel: (name: string, count: number) => string,
-  onRefreshEvent: (eventId: string) => void,
-) {
+interface RankedListProps {
+  items: RankedStat[]
+  emptyText: string
+  eventsById: Map<string, ScheduleEvent>
+  locale: SupportedLocale
+  expandLabel: (name: string, count: number) => string
+  loadMoreLabel: (visible: number, total: number) => string
+  onRefreshEvent: (eventId: string) => void
+  lazyLoad?: boolean
+}
+
+function RankedList({
+  items,
+  emptyText,
+  eventsById,
+  locale,
+  expandLabel,
+  loadMoreLabel,
+  onRefreshEvent,
+  lazyLoad = false,
+}: RankedListProps) {
+  const listRef = useRef<HTMLOListElement>(null)
+  const loadMoreRef = useRef<HTMLLIElement>(null)
+  const [visibleCount, setVisibleCount] = useState(INITIAL_RANKED_ITEMS)
+  const visibleItems = lazyLoad ? items.slice(0, visibleCount) : items
+  const hasMore = lazyLoad && visibleItems.length < items.length
+
+  useEffect(() => {
+    const list = listRef.current
+    const loadMore = loadMoreRef.current
+    if (!list || !loadMore || !hasMore || typeof IntersectionObserver === 'undefined') return
+
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return
+      setVisibleCount((current) => Math.min(current + RANKED_ITEMS_BATCH, items.length))
+    }, { root: list, rootMargin: '0px 0px 160px 0px' })
+
+    observer.observe(loadMore)
+    return () => observer.disconnect()
+  }, [hasMore, items.length])
+
   if (items.length === 0) return <p className="report-empty-inline">{emptyText}</p>
   const max = items[0]?.count ?? 1
   return (
-    <ol className="report-ranking">
-      {items.map((item, index) => (
+    <ol ref={listRef} className="report-ranking">
+      {visibleItems.map((item, index) => (
         <RankedRow
           key={item.name}
           item={item}
@@ -131,6 +201,16 @@ function rankedRows(
           onRefreshEvent={onRefreshEvent}
         />
       ))}
+      {hasMore && (
+        <li ref={loadMoreRef} className="report-ranking__load-more">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((current) => Math.min(current + RANKED_ITEMS_BATCH, items.length))}
+          >
+            {loadMoreLabel(visibleItems.length, items.length)}
+          </button>
+        </li>
+      )}
     </ol>
   )
 }
@@ -168,6 +248,7 @@ export function ReportPage({
   theme,
   loading,
   error,
+  indexProgress,
   onThemeToggle,
   onRefresh,
   onRefreshEvent,
@@ -176,7 +257,6 @@ export function ReportPage({
   const copy = getReportCopy(locale)
   const reportRef = useRef<HTMLDivElement>(null)
   const [scope, setScope] = useState<ReportScope>('all')
-  const [ticketData, setTicketData] = useState(() => readTicketCosts(userId))
   const [selectedVenue, setSelectedVenue] = useState('')
   const [expandedMonth, setExpandedMonth] = useState('')
   const [status, setStatus] = useState('')
@@ -184,8 +264,8 @@ export function ReportPage({
   const statusTimerRef = useRef<number | null>(null)
 
   const stats = useMemo(
-    () => buildReportStats(events, scope, places, ticketData.amounts, new Date(), participationCalendar),
-    [events, participationCalendar, places, scope, ticketData.amounts],
+    () => buildReportStats(events, scope, places, new Date(), participationCalendar),
+    [events, participationCalendar, places, scope],
   )
 
   const eventsById = useMemo(() => new Map(stats.events.map((event) => [event.id, event])), [stats.events])
@@ -215,31 +295,6 @@ export function ReportPage({
     () => getUnmappedVenuePlaceIds(stats.venues, mappedVenueNames, eventsById),
     [eventsById, mappedVenueNames, stats.venues],
   )
-  const formatter = useMemo(
-    () => new Intl.NumberFormat(locale, { style: 'currency', currency: ticketData.currency, maximumFractionDigits: 0 }),
-    [locale, ticketData.currency],
-  )
-
-  function updateTicket(eventId: string, rawValue: string) {
-    const amounts = { ...ticketData.amounts }
-    if (rawValue === '') {
-      delete amounts[eventId]
-    } else {
-      const amount = Number(rawValue)
-      if (!Number.isFinite(amount) || amount < 0) return
-      amounts[eventId] = amount
-    }
-    const next = { ...ticketData, amounts }
-    setTicketData(next)
-    writeTicketCosts(userId, next)
-  }
-
-  function updateCurrency(currency: ReportCurrency) {
-    const next = { ...ticketData, currency }
-    setTicketData(next)
-    writeTicketCosts(userId, next)
-  }
-
   function showStatus(message: string) {
     if (statusTimerRef.current !== null) window.clearTimeout(statusTimerRef.current)
     setStatus(message)
@@ -326,7 +381,11 @@ export function ReportPage({
     return (
       <div className="report-loading report-loading--pending" aria-live="polite">
         <span className="loading-spinner" aria-hidden="true" />
-        <p>{getReportCopy(locale).subtitle}</p>
+        <ReportIndexProgress
+          progress={indexProgress}
+          preparing={copy.indexPreparing}
+          progressLabel={copy.indexProgress}
+        />
       </div>
     )
   }
@@ -357,6 +416,16 @@ export function ReportPage({
           {theme === 'dark' ? <SunIcon className="ui-icon" /> : <MoonIcon className="ui-icon" />}
         </button>
       </div>
+
+      {indexProgress && (
+        <div className="report-index-banner" data-capture="exclude">
+          <ReportIndexProgress
+            progress={indexProgress}
+            preparing={copy.indexPreparing}
+            progressLabel={copy.indexProgress}
+          />
+        </div>
+      )}
 
       <div ref={reportRef} className="report-sheet">
         <header className="report-hero">
@@ -390,26 +459,48 @@ export function ReportPage({
               <div><Building2 /><span>{copy.venues}</span><strong>{stats.venues.length}</strong></div>
               <div><MapPin /><span>{copy.regions}</span><strong>{stats.regions.length}</strong></div>
               <div><Users /><span>{copy.artists}</span><strong>{stats.artists.length}</strong></div>
-              <div className="report-metric--spend">
-                <Ticket />
-                <span>{copy.ticketSpend}</span>
-                <strong>{formatter.format(stats.ticketTotal)}</strong>
-                <small>{copy.ticketCoverage(stats.pricedEventCount, stats.attendedEventCount)}</small>
-              </div>
             </section>
 
             <section className="report-grid report-grid--rankings">
               <div className="report-section">
                 <h2>{copy.venueRanking}</h2>
-                {rankedRows(stats.venues, copy.unknownVenue, eventsById, locale, copy.expandEvents, onRefreshEvent)}
+                <RankedList
+                  key={`venues-${scope}`}
+                  items={stats.venues}
+                  emptyText={copy.unknownVenue}
+                  eventsById={eventsById}
+                  locale={locale}
+                  expandLabel={copy.expandEvents}
+                  loadMoreLabel={copy.loadMoreRankings}
+                  onRefreshEvent={onRefreshEvent}
+                  lazyLoad
+                />
               </div>
               <div className="report-section">
                 <h2>{copy.artistRanking}</h2>
-                {rankedRows(stats.artists, copy.noArtistData, eventsById, locale, copy.expandEvents, onRefreshEvent)}
+                <RankedList
+                  key={`artists-${scope}`}
+                  items={stats.artists}
+                  emptyText={copy.noArtistData}
+                  eventsById={eventsById}
+                  locale={locale}
+                  expandLabel={copy.expandEvents}
+                  loadMoreLabel={copy.loadMoreRankings}
+                  onRefreshEvent={onRefreshEvent}
+                  lazyLoad
+                />
               </div>
               <div className="report-section">
                 <h2>{copy.regionBreakdown}</h2>
-                {rankedRows(stats.regions, copy.unknownVenue, eventsById, locale, copy.expandEvents, onRefreshEvent)}
+                <RankedList
+                  items={stats.regions}
+                  emptyText={copy.unknownVenue}
+                  eventsById={eventsById}
+                  locale={locale}
+                  expandLabel={copy.expandEvents}
+                  loadMoreLabel={copy.loadMoreRankings}
+                  onRefreshEvent={onRefreshEvent}
+                />
               </div>
               <div className="report-section">
                 <h2>{copy.activityByMonth}</h2>
@@ -472,6 +563,7 @@ export function ReportPage({
                     eventCountLabel={copy.eventOccurrences}
                     approximateLocationLabel={copy.approximateLocation}
                     onSelectVenue={setSelectedVenue}
+                    onCloseVenue={(venue) => setSelectedVenue((selected) => selected === venue ? '' : selected)}
                     onRefreshEvent={onRefreshEvent}
                   />
                 </div>
@@ -487,26 +579,6 @@ export function ReportPage({
               </div>
             </section>
 
-            <section className="report-section report-tickets" data-capture="exclude">
-              <div className="report-section__heading">
-                <div><h2>{copy.ticketLedger}</h2><p>{copy.ticketLedgerHint}</p></div>
-                <label className="report-currency">
-                  <span className="visually-hidden">Currency</span>
-                  <select value={ticketData.currency} onChange={(event) => updateCurrency(event.target.value as ReportCurrency)}>
-                    {REPORT_CURRENCIES.map((currency) => <option key={currency}>{currency}</option>)}
-                  </select>
-                </label>
-              </div>
-              <div className="report-ticket-list">
-                {stats.events.map((event) => (
-                  <label key={event.id}>
-                    <span><strong>{event.title}</strong><small>{new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(event.startAt))}</small></span>
-                    <span className="report-ticket-input"><small>{ticketData.currency}</small><input type="number" min="0" step="1" inputMode="numeric" aria-label={`${event.title} ${copy.ticketPrice}`} value={ticketData.amounts[event.id] ?? ''} onChange={(e) => updateTicket(event.id, e.target.value)} placeholder="0" /></span>
-                  </label>
-                ))}
-              </div>
-              <p className="report-local-note"><Ticket size={14} /> {copy.localOnly}</p>
-            </section>
           </>
         )}
 

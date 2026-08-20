@@ -56,6 +56,13 @@ export interface ParticipationCalendarMonth {
   count: number
 }
 
+export interface EventIndexProgress {
+  processedMonths: number
+  totalMonths: number
+  indexedEventCount: number
+  totalEventCount: number
+}
+
 export interface SchedulePlace {
   name: string
   address: string

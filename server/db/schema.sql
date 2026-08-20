@@ -61,8 +61,12 @@ CREATE TABLE IF NOT EXISTS user_event_months (
   month SMALLINT NOT NULL CHECK (month BETWEEN 1 AND 12),
   event_count INTEGER NOT NULL CHECK (event_count > 0),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, year, month)
 );
+
+ALTER TABLE user_event_months
+  ADD COLUMN IF NOT EXISTS last_indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 CREATE TABLE IF NOT EXISTS sync_jobs (
   id BIGSERIAL PRIMARY KEY,
