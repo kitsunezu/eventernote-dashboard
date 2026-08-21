@@ -17,7 +17,18 @@ import {
 function App() {
   const pathSegments = window.location.pathname.split('/').filter(Boolean)
   const isReportRoute = pathSegments[0] === 'report'
-  const userId = isReportRoute ? pathSegments[1] ?? null : pathSegments[0] ?? null
+  const isActorReportRoute = isReportRoute && pathSegments[1] === 'actors'
+  const isActorRoute = pathSegments[0] === 'actors' || isActorReportRoute
+  const isUserRoute = pathSegments[0] === 'users'
+  const actorNameSegment = isActorReportRoute ? pathSegments[2] : isActorRoute ? pathSegments[1] : undefined
+  const actorId = isActorReportRoute ? pathSegments[3] ?? null : isActorRoute ? pathSegments[2] ?? null : null
+  const actorName = actorNameSegment ? decodeURIComponent(actorNameSegment) : null
+  const userIdSegment = isReportRoute ? pathSegments[1] : isUserRoute ? pathSegments[1] : pathSegments[0]
+  const userId = isActorRoute
+    ? null
+    : userIdSegment ? decodeURIComponent(userIdSegment) : null
+  const sourceId = actorId && actorName ? `actor:${actorId}:${actorName}` : userId
+  const subjectLabel = actorName ?? userId ?? sourceId
 
   const state = useScheduleStore()
   const visibleEvents = selectVisibleEvents(state)
@@ -25,12 +36,12 @@ function App() {
   const selectedEvent = selectSelectedEvent(state)
   const copy = getUiCopy(state.locale)
   const hasCachedDataForCurrentUser =
-    userId !== null
-    && state.cachedUserId === userId
+    sourceId !== null
+    && state.cachedUserId === sourceId
     && (state.events.length > 0 || (state.participationCalendar?.length ?? 0) > 0)
   const shouldShowLoadingState = state.loading
     ? !hasCachedDataForCurrentUser
-    : userId !== null && state.cachedUserId !== userId
+    : sourceId !== null && state.cachedUserId !== sourceId
   const shouldShowErrorState = Boolean(state.error) && !hasCachedDataForCurrentUser
 
   useEffect(() => {
@@ -39,25 +50,26 @@ function App() {
   }, [state.theme])
 
   useEffect(() => {
-    if (!userId) return
+    if (!sourceId) return
     // Skip auto-fetch only when cache is fresh AND belongs to the current user
     if (
       state.cachedAt &&
-      state.cachedUserId === userId &&
+      state.cachedUserId === sourceId &&
       (state.events.length > 0 || (state.participationCalendar?.length ?? 0) > 0)
     ) {
       const age = Date.now() - new Date(state.cachedAt).getTime()
       if (age < CACHE_TTL_MS) return
     }
-    state.loadFromEventernote(userId)
+    state.loadFromEventernote(sourceId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId])
+  }, [sourceId])
 
-  if (!userId) {
+  if (!sourceId) {
     return (
       <LandingPage
         theme={state.theme}
         locale={state.locale}
+        initialMode={isActorRoute ? 'actors' : 'users'}
         onThemeToggle={state.toggleTheme}
         onLocaleChange={state.setLocale}
       />
@@ -67,7 +79,8 @@ function App() {
   if (isReportRoute) {
     return (
       <ReportPage
-        userId={userId}
+        userId={subjectLabel ?? sourceId}
+        actorName={actorName ?? undefined}
         events={hasCachedDataForCurrentUser ? state.events : []}
         places={hasCachedDataForCurrentUser ? state.places : {}}
         participationCalendar={hasCachedDataForCurrentUser ? state.participationCalendar ?? [] : []}
@@ -77,9 +90,9 @@ function App() {
         indexProgress={state.indexProgress}
         error={state.error}
         onThemeToggle={state.toggleTheme}
-        onRefresh={() => state.loadFromEventernote(userId, true)}
-        onRefreshEvent={(eventId) => state.refreshEvent(userId, eventId)}
-        onRefreshUnmappedPlaces={(placeIds) => state.refreshUnmappedPlaces(userId, placeIds)}
+        onRefresh={() => state.loadFromEventernote(sourceId, true)}
+        onRefreshEvent={(eventId) => state.refreshEvent(sourceId, eventId)}
+        onRefreshUnmappedPlaces={(placeIds) => state.refreshUnmappedPlaces(sourceId, placeIds)}
       />
     )
   }
@@ -95,7 +108,7 @@ function App() {
           loading={state.loading}
           onThemeToggle={state.toggleTheme}
           onDaysToShowChange={state.setDaysToShow}
-          onRefresh={userId ? () => state.loadFromEventernote(userId, true) : undefined}
+          onRefresh={() => state.loadFromEventernote(sourceId, true)}
         />
 
         <main className="viewer-layout">
@@ -117,7 +130,7 @@ function App() {
               <button
                 type="button"
                 className="error-state__retry"
-                onClick={() => state.loadFromEventernote(userId)}
+                onClick={() => state.loadFromEventernote(sourceId)}
               >
                 {copy.loadRetry}
               </button>
@@ -141,9 +154,9 @@ function App() {
                     locale={state.locale}
                     onOpenEvent={(eventId) => {
                       state.selectEvent(eventId)
-                      void state.refreshEvent(userId, eventId)
+                      void state.refreshEvent(sourceId, eventId)
                     }}
-                    onRefreshEvent={(eventId) => state.refreshEvent(userId, eventId)}
+                    onRefreshEvent={(eventId) => state.refreshEvent(sourceId, eventId)}
                   />
                 )}
               </div>
@@ -155,7 +168,7 @@ function App() {
           event={selectedEvent}
           locale={state.locale}
           onClose={() => state.selectEvent(null)}
-          onRefreshEvent={(eventId) => state.refreshEvent(userId, eventId)}
+          onRefreshEvent={(eventId) => state.refreshEvent(sourceId, eventId)}
         />
       </div>
     </div>

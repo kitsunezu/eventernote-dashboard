@@ -83,6 +83,10 @@ export function getReportYears(events: ScheduleEvent[], now = new Date()): numbe
   ).sort((a, b) => b - a)
 }
 
+function normalizedArtistName(value: string): string {
+  return value.normalize('NFKC').replace(/\s+/g, '').toLocaleLowerCase()
+}
+
 function isAttendedMonth(item: ParticipationCalendarMonth, now: Date): boolean {
   return item.year < now.getFullYear()
     || (item.year === now.getFullYear() && item.month <= now.getMonth() + 1)
@@ -99,6 +103,7 @@ export function buildReportStats(
   places: Record<string, SchedulePlace>,
   now = new Date(),
   participationCalendar: ParticipationCalendarMonth[] = [],
+  excludedArtistName?: string,
 ): ReportStats {
   const nowTime = now.getTime()
   const attendedEvents = events
@@ -139,6 +144,8 @@ export function buildReportStats(
   const artists = rank(
     attendedEvents.flatMap((event) =>
       Array.from(new Set((event.description ?? '').split(/[、,\n]+/).map((artist) => artist.trim()).filter(Boolean)))
+        .filter((name) => !excludedArtistName
+          || normalizedArtistName(name) !== normalizedArtistName(excludedArtistName))
         .map((name) => ({ name, eventId: event.id })),
     ),
   )

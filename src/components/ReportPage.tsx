@@ -29,6 +29,7 @@ import type { VenueMapPoint } from './VenueMap'
 
 interface ReportPageProps {
   userId: string
+  actorName?: string
   events: ScheduleEvent[]
   places: Record<string, SchedulePlace>
   participationCalendar: ParticipationCalendarMonth[]
@@ -241,6 +242,7 @@ function createCaptureElement(report: HTMLDivElement): HTMLElement {
 
 export function ReportPage({
   userId,
+  actorName,
   events,
   places,
   participationCalendar,
@@ -254,7 +256,20 @@ export function ReportPage({
   onRefreshEvent,
   onRefreshUnmappedPlaces,
 }: ReportPageProps) {
-  const copy = getReportCopy(locale)
+  const baseCopy = getReportCopy(locale)
+  const copy = actorName ? {
+    ...baseCopy,
+    title: baseCopy.actorTitle,
+    subtitle: baseCopy.actorSubtitle,
+    attendedEvents: baseCopy.actorAttendedEvents,
+    artists: baseCopy.actorArtists,
+    artistRanking: baseCopy.actorArtistRanking,
+    shareText: baseCopy.actorShareText,
+    eventOccurrences: baseCopy.actorEventOccurrences,
+    expandEvents: baseCopy.actorExpandEvents,
+    noReportTitle: baseCopy.actorNoReportTitle,
+    noReportBody: baseCopy.actorNoReportBody,
+  } : baseCopy
   const reportRef = useRef<HTMLDivElement>(null)
   const [scope, setScope] = useState<ReportScope>('all')
   const [selectedVenue, setSelectedVenue] = useState('')
@@ -264,8 +279,8 @@ export function ReportPage({
   const statusTimerRef = useRef<number | null>(null)
 
   const stats = useMemo(
-    () => buildReportStats(events, scope, places, new Date(), participationCalendar),
-    [events, participationCalendar, places, scope],
+    () => buildReportStats(events, scope, places, new Date(), participationCalendar, actorName),
+    [actorName, events, participationCalendar, places, scope],
   )
 
   const eventsById = useMemo(() => new Map(stats.events.map((event) => [event.id, event])), [stats.events])
@@ -405,7 +420,7 @@ export function ReportPage({
   return (
     <div className="report-root">
       <div className="report-toolbar" data-capture="exclude">
-        <a className="report-icon-button" href={`/${userId}`} title={copy.back} aria-label={copy.back}>
+        <a className="report-icon-button" href="/" title={copy.back} aria-label={copy.back}>
           <ArrowLeft size={18} />
         </a>
         <div className="report-toolbar__spacer" />

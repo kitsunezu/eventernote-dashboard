@@ -82,6 +82,20 @@ describe('report statistics', () => {
     ])
   })
 
+  it('excludes the subject artist from an actor report', () => {
+    const stats = buildReportStats(
+      events,
+      'all',
+      places,
+      new Date('2026-01-01T00:00:00.000Z'),
+      [],
+      'Artist A',
+    )
+
+    expect(stats.artists.some((artist) => artist.name === 'Artist A')).toBe(false)
+    expect(stats.artists).toEqual([{ name: 'Artist B', count: 1, eventIds: ['1'] }])
+  })
+
   it('uses participation-calendar counts for the total and month distribution', () => {
     const stats = buildReportStats(
       events,

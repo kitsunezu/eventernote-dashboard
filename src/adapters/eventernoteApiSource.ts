@@ -33,6 +33,26 @@ export interface EventernoteLoadProgress {
   indexProgress?: EventIndexProgress
 }
 
+export interface ActorSuggestion {
+  id: string
+  name: string
+  kana: string
+}
+
+function sourceApiPath(sourceId: string): string {
+  if (sourceId.startsWith('actor:')) {
+    const [actorId] = sourceId.slice('actor:'.length).split(':')
+    return `/api/actors/${encodeURIComponent(actorId)}`
+  }
+  return `/api/users/${encodeURIComponent(sourceId)}`
+}
+
+function actorNameFromSourceId(sourceId: string): string | undefined {
+  if (!sourceId.startsWith('actor:')) return undefined
+  const [, ...nameParts] = sourceId.slice('actor:'.length).split(':')
+  return nameParts.length > 0 ? nameParts.join(':') : undefined
+}
+
 function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
@@ -49,8 +69,12 @@ function isApiResponse(value: unknown): value is ApiResponse {
 }
 
 async function fetchUserEvents(userId: string, forceRefresh = false): Promise<ApiResponse> {
-  const query = forceRefresh ? '?refresh=1' : ''
-  const response = await fetch(`/api/users/${encodeURIComponent(userId)}/events${query}`, {
+  const query = new URLSearchParams()
+  if (forceRefresh) query.set('refresh', '1')
+  const actorName = actorNameFromSourceId(userId)
+  if (actorName) query.set('name', actorName)
+  const queryString = query.size > 0 ? `?${query}` : ''
+  const response = await fetch(`${sourceApiPath(userId)}/events${queryString}`, {
     headers: { 'Accept': 'application/json' },
   })
   const payload = await response.json().catch(() => null) as unknown
@@ -66,7 +90,7 @@ async function fetchUserEvents(userId: string, forceRefresh = false): Promise<Ap
 
 async function refreshUserEvent(userId: string, eventId: string): Promise<ApiResponse> {
   const response = await fetch(
-    `/api/users/${encodeURIComponent(userId)}/events/${encodeURIComponent(eventId)}/refresh`,
+    `${sourceApiPath(userId)}/events/${encodeURIComponent(eventId)}/refresh`,
     {
       method: 'POST',
       headers: { 'Accept': 'application/json' },
@@ -84,7 +108,7 @@ async function refreshUserEvent(userId: string, eventId: string): Promise<ApiRes
 }
 
 async function refreshUserPlaces(userId: string, placeIds: string[]): Promise<ApiResponse> {
-  const response = await fetch(`/api/users/${encodeURIComponent(userId)}/places/refresh`, {
+  const response = await fetch(`${sourceApiPath(userId)}/places/refresh`, {
     method: 'POST',
     headers: {
       'Accept': 'application/json',
@@ -185,4 +209,27 @@ export async function refreshEventernotePlaces(
     importedAt: latest.importedAt,
     participationCalendar: latest.participationCalendar,
   }
+}
+
+export async function searchEventernoteActors(
+  keyword: string,
+  signal?: AbortSignal,
+): Promise<ActorSuggestion[]> {
+  const response = await fetch(`/api/actors/search?keyword=${encodeURIComponent(keyword)}`, {
+    headers: { 'Accept': 'application/json' },
+    signal,
+  })
+  const payload = await response.json().catch(() => null) as unknown
+  if (!response.ok) throw new Error(`Actor search failed with HTTP ${response.status}`)
+  if (!payload || typeof payload !== 'object' || !('suggestions' in payload)
+    || !Array.isArray(payload.suggestions)) {
+    throw new Error('Actor search returned an invalid response')
+  }
+  return payload.suggestions.filter((item): item is ActorSuggestion => {
+    if (!item || typeof item !== 'object') return false
+    const suggestion = item as Partial<ActorSuggestion>
+    return typeof suggestion.id === 'string'
+      && typeof suggestion.name === 'string'
+      && typeof suggestion.kana === 'string'
+  })
 }

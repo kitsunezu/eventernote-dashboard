@@ -4,7 +4,7 @@ import type { ServerConfig } from './config.js'
 import { GEOCODER_STRATEGY_VERSION } from './geocoder.js'
 import type { VenueGeocoder } from './geocoder.js'
 import type { EventRepository } from './repository.js'
-import { EventSyncService, fetchUserEventIndex } from './sync.js'
+import { EventSyncService, fetchActorEventIndex, fetchUserEventIndex } from './sync.js'
 import type { EventernoteClient } from './upstream.js'
 
 const config: ServerConfig = {
@@ -163,6 +163,19 @@ describe('fetchUserEventIndex', () => {
     await expect(fetchUserEventIndex('test-user', fetchHtml, 40))
       .rejects.toThrow('User index has at least 41 pages; maximum is 40')
     expect(fetchHtml).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('fetchActorEventIndex', () => {
+  it('loads the actor event list without a participation calendar', async () => {
+    const fetchHtml = vi.fn(async () => userEventPage('301', []))
+
+    await expect(fetchActorEventIndex('水樹奈々', '28', fetchHtml, 5)).resolves.toMatchObject({
+      events: [expect.objectContaining({ id: '301' })],
+      participationCalendar: [],
+      totalEventCount: 1,
+    })
+    expect(fetchHtml).toHaveBeenCalledWith('/actors/%E6%B0%B4%E6%A8%B9%E5%A5%88%E3%80%85/28/events')
   })
 })
 

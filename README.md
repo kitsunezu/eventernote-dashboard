@@ -2,12 +2,12 @@
 
 English | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md)
 
-Eventernote Dashboard is a React and TypeScript viewer for public Eventernote schedules. Enter an Eventernote user ID on the landing page, load the database-backed schedule API, and browse the results in a timeline-oriented dashboard.
+Eventernote Dashboard is a React and TypeScript viewer for public Eventernote schedules. Enter an Eventernote user ID or search for a performer on the landing page, then browse the database-backed results in a timeline-oriented dashboard.
 
 ## Current Features
 
-- Landing page for entering an Eventernote user ID
-- Viewer page that loads the selected user's public event list
+- Landing page that switches between Eventernote user IDs and performer search suggestions
+- Viewer page that loads the selected user's public events or a performer's appearances
 - Timeline view grouped by day
 - Countdown banner for the next upcoming event in the current range
 - Schedule range switcher for all events or future events only
@@ -18,8 +18,8 @@ Eventernote Dashboard is a React and TypeScript viewer for public Eventernote sc
 
 The current app is centered on the Eventernote viewer flow.
 
-1. The landing page collects a user ID and navigates to /{userId}.
-2. The browser requests `GET /api/users/{userId}/events`; it does not scrape Eventernote directly.
+1. The landing page collects a user ID or searches Eventernote for a performer suggestion.
+2. The browser requests `GET /api/users/{userId}/events` or `GET /api/actors/{actorId}/events`; it does not scrape Eventernote directly.
 3. The API returns fresh PostgreSQL data immediately, or stale data while starting a background refresh.
 4. The server treats Eventernote's participation calendar as the authoritative monthly count, fetches each non-empty month, and deduplicates the available rows by event ID. A calendar/list mismatch is recorded without failing the sync; the report uses the calendar totals while PostgreSQL retains every event ID ever discovered for the user.
 5. Missing or expired event detail pages are fetched with bounded concurrency, parsed, and saved as the authoritative event values.
@@ -34,8 +34,11 @@ The schema, API contract, refresh policy, and failure behavior are documented in
 
 | Path | Purpose |
 |---|---|
-| / | Landing page for entering a user ID |
-| /{userId} | Event viewer for that Eventernote user |
+| / | Landing page for choosing Users or Actors |
+| /users/{userId} | Event viewer for that Eventernote user |
+| /actors/{name}/{actorId} | Appearance viewer for that Eventernote performer |
+| /report/actors/{name}/{actorId} | Attendance report for that Eventernote performer |
+| /{userId} | Legacy user event viewer URL |
 
 ## Tech Stack
 

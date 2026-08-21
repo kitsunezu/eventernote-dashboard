@@ -11,6 +11,13 @@ import type { EventApiResponse } from './types.js'
 import { EventernoteClient } from './upstream.js'
 
 const USER_ID_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/
+const ACTOR_ID_PATTERN = /^\d{1,12}$/
+
+interface ActorSearchSuggestion {
+  id: string
+  name: string
+  kana: string
+}
 
 const importSchema = z.object({
   userId: z.string().regex(USER_ID_PATTERN),
@@ -106,16 +113,42 @@ async function main(): Promise<void> {
         return
       }
 
-      const placeRefreshRoute = url.pathname.match(/^\/api\/users\/([^/]+)\/places\/refresh$/)
+      if (request.method === 'GET' && url.pathname === '/api/actors/search') {
+        const keyword = url.searchParams.get('keyword')?.trim() ?? ''
+        if (keyword.length < 1 || keyword.length > 100) {
+          jsonResponse(response, 400, { error: 'Search keyword must be between 1 and 100 characters' })
+          return
+        }
+        const upstreamPayload = JSON.parse(await upstream.fetchHtml(
+          `/api/actors/search?keyword=${encodeURIComponent(keyword)}`,
+        )) as { results?: unknown[] }
+        const suggestions = (upstreamPayload.results ?? []).flatMap((item): ActorSearchSuggestion[] => {
+          if (!item || typeof item !== 'object') return []
+          const actor = item as { id?: unknown; name?: unknown; kana?: unknown }
+          const id = String(actor.id ?? '')
+          if (!ACTOR_ID_PATTERN.test(id) || typeof actor.name !== 'string' || !actor.name.trim()) return []
+          return [{
+            id,
+            name: actor.name.trim(),
+            kana: typeof actor.kana === 'string' ? actor.kana.trim() : '',
+          }]
+        }).slice(0, 8)
+        jsonResponse(response, 200, { suggestions })
+        return
+      }
+
+      const placeRefreshRoute = url.pathname.match(/^\/api\/(users|actors)\/([^/]+)\/places\/refresh$/)
       if (request.method === 'POST' && placeRefreshRoute) {
-        const userId = decodeURIComponent(placeRefreshRoute[1])
-        if (!USER_ID_PATTERN.test(userId)) {
-          jsonResponse(response, 400, { error: 'Invalid Eventernote user ID' })
+        const kind = placeRefreshRoute[1]
+        const id = decodeURIComponent(placeRefreshRoute[2])
+        if (kind === 'users' ? !USER_ID_PATTERN.test(id) : !ACTOR_ID_PATTERN.test(id)) {
+          jsonResponse(response, 400, { error: `Invalid Eventernote ${kind === 'users' ? 'user' : 'actor'} ID` })
           return
         }
+        const storageId = kind === 'actors' ? `actor:${id}` : id
         const { placeIds } = placeRefreshSchema.parse(await readJson(request))
-        const warnings = await syncService.refreshUnmappedPlaces(userId, placeIds)
-        const snapshot = await repository.getSnapshot(userId)
+        const warnings = await syncService.refreshUnmappedPlaces(storageId, placeIds)
+        const snapshot = await repository.getSnapshot(storageId)
         const userIndexFresh = snapshot.lastIndexSuccessAt !== undefined
           && Date.now() - new Date(snapshot.lastIndexSuccessAt).getTime() < config.userIndexTtlMs
         const payload: EventApiResponse = {
@@ -127,27 +160,29 @@ async function main(): Promise<void> {
           places: snapshot.places,
           cache: {
             status: userIndexFresh ? 'fresh' : 'stale',
-            refreshing: syncService.isRunning(userId),
+            refreshing: syncService.isRunning(storageId),
             dataVersion: snapshot.dataVersion,
             userIndexCheckedAt: snapshot.lastIndexSuccessAt,
             pendingDetailCount: snapshot.pendingDetailCount,
             pendingPlaceCount: snapshot.pendingPlaceCount,
-            indexProgress: syncService.getIndexProgress(userId),
+            indexProgress: syncService.getIndexProgress(storageId),
           },
         }
         jsonResponse(response, 200, payload)
         return
       }
 
-      const refreshRoute = url.pathname.match(/^\/api\/users\/([^/]+)\/events\/(\d+)\/refresh$/)
+      const refreshRoute = url.pathname.match(/^\/api\/(users|actors)\/([^/]+)\/events\/(\d+)\/refresh$/)
       if (request.method === 'POST' && refreshRoute) {
-        const userId = decodeURIComponent(refreshRoute[1])
-        if (!USER_ID_PATTERN.test(userId)) {
-          jsonResponse(response, 400, { error: 'Invalid Eventernote user ID' })
+        const kind = refreshRoute[1]
+        const id = decodeURIComponent(refreshRoute[2])
+        if (kind === 'users' ? !USER_ID_PATTERN.test(id) : !ACTOR_ID_PATTERN.test(id)) {
+          jsonResponse(response, 400, { error: `Invalid Eventernote ${kind === 'users' ? 'user' : 'actor'} ID` })
           return
         }
-        const warnings = await syncService.refreshEvent(userId, refreshRoute[2])
-        const snapshot = await repository.getSnapshot(userId)
+        const storageId = kind === 'actors' ? `actor:${id}` : id
+        const warnings = await syncService.refreshEvent(storageId, refreshRoute[3])
+        const snapshot = await repository.getSnapshot(storageId)
         const userIndexFresh = snapshot.lastIndexSuccessAt !== undefined
           && Date.now() - new Date(snapshot.lastIndexSuccessAt).getTime() < config.userIndexTtlMs
         const payload: EventApiResponse = {
@@ -159,27 +194,34 @@ async function main(): Promise<void> {
           places: snapshot.places,
           cache: {
             status: userIndexFresh ? 'fresh' : 'stale',
-            refreshing: syncService.isRunning(userId),
+            refreshing: syncService.isRunning(storageId),
             dataVersion: snapshot.dataVersion,
             userIndexCheckedAt: snapshot.lastIndexSuccessAt,
             pendingDetailCount: snapshot.pendingDetailCount,
             pendingPlaceCount: snapshot.pendingPlaceCount,
-            indexProgress: syncService.getIndexProgress(userId),
+            indexProgress: syncService.getIndexProgress(storageId),
           },
         }
         jsonResponse(response, 200, payload)
         return
       }
 
-      const route = url.pathname.match(/^\/api\/users\/([^/]+)\/events$/)
+      const route = url.pathname.match(/^\/api\/(users|actors)\/([^/]+)\/events$/)
       if (request.method !== 'GET' || !route) {
         jsonResponse(response, 404, { error: 'Not found' })
         return
       }
 
-      const userId = decodeURIComponent(route[1])
-      if (!USER_ID_PATTERN.test(userId)) {
-        jsonResponse(response, 400, { error: 'Invalid Eventernote user ID' })
+      const kind = route[1]
+      const id = decodeURIComponent(route[2])
+      if (kind === 'users' ? !USER_ID_PATTERN.test(id) : !ACTOR_ID_PATTERN.test(id)) {
+        jsonResponse(response, 400, { error: `Invalid Eventernote ${kind === 'users' ? 'user' : 'actor'} ID` })
+        return
+      }
+      const userId = kind === 'actors' ? `actor:${id}` : id
+      const actorName = kind === 'actors' ? url.searchParams.get('name')?.trim() : undefined
+      if (kind === 'actors' && !actorName) {
+        jsonResponse(response, 400, { error: 'Eventernote actor name is required' })
         return
       }
 
@@ -195,13 +237,13 @@ async function main(): Promise<void> {
       const retryAllowed = attemptAge >= config.syncRetryCooldownMs
 
       if ((!fresh || forceRefresh) && snapshot.lastIndexSuccessAt && retryAllowed) {
-        void syncService.start(userId).catch((error) => {
+        void syncService.start(userId, actorName).catch((error) => {
           console.error(`Background sync failed for ${userId}`, error)
         })
       } else if (!fresh && !snapshot.lastIndexSuccessAt && syncService.isIndexRunning(userId)) {
         // The browser polls this endpoint and receives live index progress.
       } else if (!fresh && !snapshot.lastIndexSuccessAt && retryAllowed) {
-        void syncService.start(userId).catch((error) => {
+        void syncService.start(userId, actorName).catch((error) => {
           console.error(`Background sync failed for ${userId}`, error)
         })
       } else if (!fresh && !snapshot.lastIndexSuccessAt) {
@@ -209,6 +251,7 @@ async function main(): Promise<void> {
       }
 
       if ((snapshot.pendingDetailCount > 0 || snapshot.pendingPlaceCount > 0)
+        && kind === 'users'
         && !syncService.isRunning(userId)) {
         void syncService.startEnrichment(userId).catch((error) => {
           console.error(`Background enrichment failed for ${userId}`, error)

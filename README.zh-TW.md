@@ -2,12 +2,12 @@
 
 [English](README.md) | 繁體中文 | [日本語](README.ja.md)
 
-Eventernote Dashboard 是以 React 與 TypeScript 開發的公開 Eventernote 行程檢視器。在首頁輸入 Eventernote 使用者 ID，即可透過資料庫支援的行程 API 載入資料，並在時間軸式儀表板中瀏覽結果。
+Eventernote Dashboard 是以 React 與 TypeScript 開發的公開 Eventernote 行程檢視器。在首頁輸入 Eventernote 使用者 ID，或搜尋聲優／藝人，即可透過資料庫支援的 API 載入資料，並在時間軸式儀表板中瀏覽結果。
 
 ## 目前功能
 
-- 輸入 Eventernote 使用者 ID 的首頁
-- 載入所選使用者公開活動列表的檢視頁
+- 可在 Eventernote 使用者 ID 與聲優／藝人搜尋建議之間切換的首頁
+- 載入所選使用者公開活動或聲優／藝人出演活動的檢視頁
 - 依日期分組的時間軸檢視
 - 顯示目前範圍內下一個即將開始活動的倒數橫幅
 - 可切換顯示全部活動或僅顯示未來活動的行程範圍
@@ -18,8 +18,8 @@ Eventernote Dashboard 是以 React 與 TypeScript 開發的公開 Eventernote �
 
 目前的應用程式以 Eventernote 檢視流程為核心。
 
-1. 首頁取得使用者 ID，並導向 `/{userId}`。
-2. 瀏覽器請求 `GET /api/users/{userId}/events`，不會直接抓取 Eventernote。
+1. 首頁取得使用者 ID，或透過 Eventernote 搜尋聲優／藝人建議。
+2. 瀏覽器請求 `GET /api/users/{userId}/events` 或 `GET /api/actors/{actorId}/events`，不會直接抓取 Eventernote。
 3. API 會立即回傳最新的 PostgreSQL 資料；若資料已過期，則先回傳舊資料並在背景開始更新。
 4. 伺服器以 Eventernote 參加活動日曆的月份數量為權威值，逐月抓取非空月份並依活動 ID 去重。日曆與列表列數不一致時只記錄警告、不讓同步失敗；報告採用日曆統計，而 PostgreSQL 會保留曾為該使用者發現的所有活動 ID。
 5. 伺服器以有限並行數抓取尚未取得或已過期的活動詳情頁，解析後將結果儲存為活動的權威資料。
@@ -34,8 +34,11 @@ Eventernote Dashboard 是以 React 與 TypeScript 開發的公開 Eventernote �
 
 | 路徑 | 用途 |
 |---|---|
-| / | 輸入使用者 ID 的首頁 |
-| /{userId} | 該 Eventernote 使用者的活動檢視頁 |
+| / | 選擇 Users 或 Actors 的首頁 |
+| /users/{userId} | 該 Eventernote 使用者的活動檢視頁 |
+| /actors/{name}/{actorId} | 該 Eventernote 聲優／藝人的出演活動檢視頁 |
+| /report/actors/{name}/{actorId} | 該 Eventernote 聲優／藝人的出演活動報告 |
+| /{userId} | 舊版使用者活動檢視網址 |
 
 ## 技術堆疊
 

@@ -184,6 +184,26 @@ export async function fetchUserEventIndex(
   }
 }
 
+export async function fetchActorEventIndex(
+  actorName: string,
+  actorId: string,
+  fetchHtml: (path: string) => Promise<string>,
+  maxPages: number,
+): Promise<UserEventIndex> {
+  const events = await fetchPaginatedEventIndex(
+    `/actors/${encodeURIComponent(actorName)}/${encodeURIComponent(actorId)}/events`,
+    fetchHtml,
+    maxPages,
+  )
+  return {
+    events,
+    participationCalendar: [],
+    indexedMonths: [],
+    totalEventCount: events.length,
+    warnings: [],
+  }
+}
+
 async function fetchPaginatedEventIndex(
   startPath: string,
   fetchHtml: (path: string) => Promise<string>,
@@ -238,6 +258,7 @@ async function fetchPaginatedEventPages(
 export class EventSyncService {
   private readonly inFlight = new Map<string, Promise<void>>()
   private readonly indexProgress = new Map<string, EventIndexProgress>()
+  private readonly actorNames = new Map<string, string>()
   private readonly enrichmentInFlight = new Map<string, Promise<void>>()
   private readonly enrichmentCompletedAt = new Map<string, number>()
   private readonly placeRefreshes = new Map<string, PlaceRefreshInFlight>()
@@ -278,7 +299,8 @@ export class EventSyncService {
     return this.indexProgress.get(userId)
   }
 
-  start(userId: string): Promise<void> {
+  start(userId: string, actorName?: string): Promise<void> {
+    if (userId.startsWith('actor:') && actorName) this.actorNames.set(userId, actorName)
     const existing = this.inFlight.get(userId)
     if (existing) return existing
     this.indexProgress.set(userId, {
@@ -289,6 +311,7 @@ export class EventSyncService {
     })
     const synchronization = this.synchronizeIndexWithLock(userId)
       .then(() => {
+        if (userId.startsWith('actor:')) return
         void this.startEnrichment(userId, true).catch((error) => {
           console.error(`Background enrichment failed for ${userId}`, error)
         })
@@ -582,6 +605,16 @@ export class EventSyncService {
   }
 
   private async fetchUserIndex(userId: string): Promise<UserEventIndex> {
+    if (userId.startsWith('actor:')) {
+      const actorName = this.actorNames.get(userId)
+      if (!actorName) throw new Error(`Actor name is required for ${userId}`)
+      return fetchActorEventIndex(
+        actorName,
+        userId.slice('actor:'.length),
+        (path) => this.upstream.fetchHtml(path),
+        this.config.maxListPages,
+      )
+    }
     const storedMonths = await this.repository.getStoredIndexMonths(userId)
     return fetchUserEventIndex(
       userId,

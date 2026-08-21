@@ -25,6 +25,11 @@ interface UiCopy {
   landingTitle: string
   landingDesc: string
   landingSubmit: string
+  actorLandingDesc: string
+  actorSearchPlaceholder: string
+  actorSearchLoading: string
+  actorSearchEmpty: string
+  actorSearchError: string
   loadingText: string
   loadErrorTitle: string
   loadRetry: string
@@ -54,6 +59,11 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     landingTitle: '活動列表',
     landingDesc: '輸入 Eventernote 用戶 ID，即可一覽參加活動。',
     landingSubmit: '查看',
+    actorLandingDesc: '搜尋 Eventernote 聲優或藝人，即可查看出演活動。',
+    actorSearchPlaceholder: '輸入聲優／藝人名稱',
+    actorSearchLoading: '搜尋中…',
+    actorSearchEmpty: '找不到相符的聲優／藝人',
+    actorSearchError: '暫時無法搜尋，請稍後再試。',
     loadingText: '載入中…',
     loadErrorTitle: '載入錯誤',
     loadRetry: '重試',
@@ -81,6 +91,11 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     landingTitle: 'Event Schedule',
     landingDesc: 'Enter an Eventernote user ID to browse your event schedule.',
     landingSubmit: 'View',
+    actorLandingDesc: 'Search Eventernote for a performer to browse their events.',
+    actorSearchPlaceholder: 'Search performers',
+    actorSearchLoading: 'Searching…',
+    actorSearchEmpty: 'No matching performers',
+    actorSearchError: 'Search is unavailable. Please try again later.',
     loadingText: 'Loading…',
     loadErrorTitle: 'Load error',
     loadRetry: 'Retry',
@@ -108,6 +123,11 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     landingTitle: 'イベント一覧',
     landingDesc: 'Eventernote のユーザー ID を入力すると、参加イベントを一覧表示します。',
     landingSubmit: '表示する',
+    actorLandingDesc: 'Eventernote の声優・アーティストを検索して、出演イベントを表示します。',
+    actorSearchPlaceholder: '声優・アーティスト名を検索',
+    actorSearchLoading: '検索中…',
+    actorSearchEmpty: '一致する声優・アーティストが見つかりません',
+    actorSearchError: '検索できませんでした。しばらくしてからもう一度お試しください。',
     loadingText: '読み込み中…',
     loadErrorTitle: '読み込みエラー',
     loadRetry: '再試行',
@@ -169,6 +189,16 @@ export interface ReportCopy {
   noReportBody: string
   unknownVenue: string
   noArtistData: string
+  actorTitle: (name: string) => string
+  actorSubtitle: string
+  actorAttendedEvents: string
+  actorArtists: string
+  actorArtistRanking: string
+  actorShareText: (name: string, eventCount: number) => string
+  actorEventOccurrences: (count: number) => string
+  actorExpandEvents: (name: string, count: number) => string
+  actorNoReportTitle: string
+  actorNoReportBody: string
 }
 
 const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
@@ -179,7 +209,7 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     eyebrow: 'Attendance report',
     title: (userId) => `${userId} 的活動足跡`,
     subtitle: '把去過的現場，整理成一份值得回看的紀錄。',
-    back: '返回活動列表',
+    back: '返回首頁',
     refresh: '重新整理資料',
     indexPreparing: '正在讀取 Eventernote 活動總數…',
     indexProgress: (indexed, total) => `正在建立活動索引：${indexed} / ${total}`,
@@ -217,6 +247,16 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     noReportBody: '切換到其他年份，或重新整理 Eventernote 資料。',
     unknownVenue: '未記錄會場',
     noArtistData: 'Eventernote 沒有提供藝人資料',
+    actorTitle: (name) => `${name} 的演出足跡`,
+    actorSubtitle: '把演出過的現場，整理成一份值得回看的紀錄。',
+    actorAttendedEvents: '演出活動',
+    actorArtists: '同場演出的藝人',
+    actorArtistRanking: '最常同場演出的藝人',
+    actorShareText: (name, eventCount) => `${name} 的 Eventernote 演出活動報告：共 ${eventCount} 場演出活動`,
+    actorEventOccurrences: (count) => `${count} 場演出活動`,
+    actorExpandEvents: (name, count) => `展開 ${name} 的 ${count} 場演出活動`,
+    actorNoReportTitle: '這個範圍還沒有演出活動',
+    actorNoReportBody: '切換到其他年份，或重新整理 Eventernote 資料。',
   },
   en: {
     landingTitle: 'Attendance report',
@@ -225,7 +265,7 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     eyebrow: 'Attendance report',
     title: (userId) => `${userId}'s live event footprint`,
     subtitle: 'A personal record of the live events you have attended.',
-    back: 'Back to events',
+    back: 'Back to home',
     refresh: 'Refresh data',
     indexPreparing: 'Reading the total activity count from Eventernote…',
     indexProgress: (indexed, total) => `Building activity index: ${indexed} / ${total}`,
@@ -263,6 +303,16 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     noReportBody: 'Choose another year or refresh your Eventernote data.',
     unknownVenue: 'Venue not recorded',
     noArtistData: 'No artist data from Eventernote',
+    actorTitle: (name) => `${name}'s performance footprint`,
+    actorSubtitle: 'A record of the live events where this performer appeared.',
+    actorAttendedEvents: 'Performances',
+    actorArtists: 'Co-performers',
+    actorArtistRanking: 'Most frequent co-performers',
+    actorShareText: (name, eventCount) => `${name}'s Eventernote performance report: ${eventCount} appearances`,
+    actorEventOccurrences: (count) => `${count} appearance${count === 1 ? '' : 's'}`,
+    actorExpandEvents: (name, count) => `Show ${count} appearances with ${name}`,
+    actorNoReportTitle: 'No performances in this range',
+    actorNoReportBody: 'Choose another year or refresh the Eventernote data.',
   },
   ja: {
     landingTitle: 'イベント統計レポート',
@@ -271,7 +321,7 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     eyebrow: 'Attendance report',
     title: (userId) => `${userId}さんのイベント記録`,
     subtitle: '参加した現場を、振り返りたくなるレポートに。',
-    back: 'イベント一覧へ',
+    back: 'ホームへ戻る',
     refresh: 'データを更新',
     indexPreparing: 'Eventernoteからイベント総数を取得しています…',
     indexProgress: (indexed, total) => `イベント索引を作成中：${indexed} / ${total}`,
@@ -309,6 +359,16 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     noReportBody: '別の年を選ぶか、Eventernote データを更新してください。',
     unknownVenue: '会場未登録',
     noArtistData: '出演者情報がありません',
+    actorTitle: (name) => `${name}の出演記録`,
+    actorSubtitle: '出演したイベントを、振り返りやすいレポートにまとめます。',
+    actorAttendedEvents: '出演イベント',
+    actorArtists: '共演アーティスト',
+    actorArtistRanking: '共演回数の多いアーティスト',
+    actorShareText: (name, eventCount) => `${name}の Eventernote 出演レポート：出演イベント ${eventCount} 件`,
+    actorEventOccurrences: (count) => `出演イベント ${count} 件`,
+    actorExpandEvents: (name, count) => `${name}の出演イベント ${count} 件を表示`,
+    actorNoReportTitle: 'この期間には出演イベントがありません',
+    actorNoReportBody: '別の年を選ぶか、Eventernote データを更新してください。',
   },
 }
 
