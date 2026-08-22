@@ -2232,7 +2232,8 @@ button {
   border-top: 1px solid var(--line-strong);
 }
 
-.report-venue-list button {
+.report-venue-list button,
+.report-venue-list__edit {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) 24px;
   gap: 9px;
@@ -2247,7 +2248,12 @@ button {
   text-align: left;
 }
 
+.report-venue-list__edit {
+  text-decoration: none;
+}
+
 .report-venue-list button:hover,
+.report-venue-list__edit:hover,
 .report-venue-list button.is-active {
   background: color-mix(in srgb, var(--report-green) 9%, transparent);
   color: var(--text);
@@ -2258,7 +2264,8 @@ button {
   cursor: not-allowed;
 }
 
-.report-venue-list button > span {
+.report-venue-list button > span,
+.report-venue-list__edit > span {
   display: grid;
   min-width: 0;
 }

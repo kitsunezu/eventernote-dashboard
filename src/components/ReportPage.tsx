@@ -602,13 +602,35 @@ export function ReportPage({
                   />
                 </div>
                 <div className="report-venue-list">
-                  {mapVenueList.map((venue) => (
-                    <button key={venue.name} type="button" className={selectedVenue === venue.name ? 'is-active' : ''} onClick={() => setSelectedVenue(venue.name)} disabled={!mappedVenueNames.has(venue.name)}>
-                      <MapPin size={16} />
-                      <span><strong>{venue.name}</strong><small>{venue.address || venue.region}</small></span>
-                      <em>{venue.count}</em>
-                    </button>
-                  ))}
+                  {mapVenueList.map((venue) => {
+                    const editUrl = !mappedVenueNames.has(venue.name) && venue.placeId
+                      ? `https://www.eventernote.com/places/${venue.placeId}/edit`
+                      : undefined
+                    if (editUrl) {
+                      return (
+                        <a
+                          key={venue.name}
+                          className="report-venue-list__edit"
+                          href={editUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={copy.editVenue}
+                          aria-label={`${copy.editVenue}: ${venue.name}`}
+                        >
+                          <MapPin size={16} />
+                          <span><strong>{venue.name}</strong><small>{venue.address || venue.region}</small></span>
+                          <em>{venue.count}</em>
+                        </a>
+                      )
+                    }
+                    return (
+                      <button key={venue.name} type="button" className={selectedVenue === venue.name ? 'is-active' : ''} onClick={() => setSelectedVenue(venue.name)} disabled={!mappedVenueNames.has(venue.name)}>
+                        <MapPin size={16} />
+                        <span><strong>{venue.name}</strong><small>{venue.address || venue.region}</small></span>
+                        <em>{venue.count}</em>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             </section>

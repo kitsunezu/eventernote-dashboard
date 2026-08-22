@@ -12,6 +12,7 @@ export interface RankedStat {
 export interface VenueStat extends RankedStat {
   address: string
   region: string
+  placeId?: string
   latitude?: number
   longitude?: number
 }
@@ -129,6 +130,7 @@ export function buildReportStats(
   const venueCounts = rank(attendedEvents.map((event) => ({ name: event.location ?? '', eventId: event.id })))
   const venues = venueCounts.map((venue) => {
     const place = placesByVenue.get(venue.name) ?? placesByName.get(venue.name)
+    const placeId = attendedEvents.find((event) => event.location?.trim() === venue.name)?.sourceMeta?.placeId
     const latitude = place && hasUsablePlaceCoordinates(place) ? place.latitude : undefined
     const longitude = place && hasUsablePlaceCoordinates(place) ? place.longitude : undefined
     const fallbackRegion = attendedEvents.find((event) => event.location === venue.name)?.category.label ?? ''
@@ -136,6 +138,7 @@ export function buildReportStats(
       ...venue,
       address: place?.address ?? '',
       region: place?.region ?? fallbackRegion,
+      ...(placeId && /^\d+$/.test(placeId) ? { placeId } : {}),
       latitude,
       longitude,
     }

@@ -42,6 +42,23 @@ function userEventPage(eventId: string, paginationPages: number[]): string {
   `
 }
 
+function actorEventPage(eventId: string, paginationPages: number[]): string {
+  return `
+    <ul>
+      <li class="clearfix">
+        <div class="date"><p>2026-08-14</p></div>
+        <div class="event">
+          <h4><a href="/events/${eventId}">Event ${eventId}</a></h4>
+          <div class="place"><a href="/places/${eventId}">Venue ${eventId}</a><span class="s">開演 20:00</span></div>
+        </div>
+      </li>
+    </ul>
+    <div class="pagination">
+      ${paginationPages.map((page) => `<a href="/actors/MYTH&ROID/14802/events?actor_id=14802&limit=20&page=${page}">${page}</a>`).join('')}
+    </div>
+  `
+}
+
 function calendarPage(months: Array<{ month: number; count: number }>): string {
   return months.map(({ month, count }) => (
     `<a href="/users/test-user/events/?year=2025&month=${month}">${count}</a>`
@@ -177,6 +194,26 @@ describe('fetchActorEventIndex', () => {
       totalEventCount: 1,
     })
     expect(fetchHtml).toHaveBeenCalledWith('/actors/%E6%B0%B4%E6%A8%B9%E5%A5%88%E3%80%85/28/events')
+  })
+
+  it('follows pagination links when the actor name contains an ampersand', async () => {
+    const htmlByPage = new Map<number, string>([
+      [1, actorEventPage('301', [2])],
+      [2, actorEventPage('302', [])],
+    ])
+    const fetchHtml = vi.fn(async (path: string) => {
+      const page = Number(new URL(path, 'https://www.eventernote.com').searchParams.get('page') ?? '1')
+      return htmlByPage.get(page) ?? ''
+    })
+
+    await expect(fetchActorEventIndex('MYTH&ROID', '14802', fetchHtml, 5)).resolves.toMatchObject({
+      events: [expect.objectContaining({ id: '301' }), expect.objectContaining({ id: '302' })],
+      totalEventCount: 2,
+    })
+    expect(fetchHtml.mock.calls.map(([path]) => path)).toEqual([
+      '/actors/MYTH%26ROID/14802/events',
+      '/actors/MYTH&ROID/14802/events?actor_id=14802&limit=20&page=2',
+    ])
   })
 })
 

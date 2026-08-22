@@ -147,6 +147,17 @@ describe('report statistics', () => {
     })
   })
 
+  it('keeps numeric Eventernote place IDs for unmapped venues', () => {
+    const stats = buildReportStats(
+      [{ ...baseEvent, sourceMeta: { placeId: '303' } }],
+      'all',
+      {},
+      new Date('2026-01-01T00:00:00.000Z'),
+    )
+
+    expect(stats.venues[0]).toMatchObject({ name: 'Venue A', placeId: '303' })
+  })
+
   it('uses refreshed place region instead of the event fallback region', () => {
     const event = {
       ...baseEvent,

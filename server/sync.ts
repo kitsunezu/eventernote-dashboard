@@ -79,7 +79,7 @@ async function mapWithConcurrency<T>(
 function paginationPageNumber(path: string, expectedPathname: string): number | undefined {
   try {
     const url = new URL(path, 'https://www.eventernote.com')
-    const normalizedPathname = (value: string) => value.replace(/\/$/, '')
+    const normalizedPathname = (value: string) => decodeURIComponent(value).replace(/\/$/, '')
     if (url.origin !== 'https://www.eventernote.com'
       || normalizedPathname(url.pathname) !== normalizedPathname(expectedPathname)) return undefined
     const rawPage = url.searchParams.get('page')

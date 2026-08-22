@@ -176,6 +176,7 @@ export interface ReportCopy {
   mapRefreshFailed: string
   eventOccurrences: (count: number) => string
   approximateLocation: string
+  editVenue: string
   expandEvents: (name: string, count: number) => string
   loadMoreRankings: (visible: number, total: number) => string
   downloadImage: string
@@ -234,6 +235,7 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     mapRefreshFailed: '無法重新尋找未標記會場，請稍後再試。',
     eventOccurrences: (count) => `${count} 場活動`,
     approximateLocation: '城市級約略位置',
+    editVenue: '在 Eventernote 編輯會場',
     expandEvents: (name, count) => `展開 ${name} 的 ${count} 場活動`,
     loadMoreRankings: (visible, total) => `載入更多（已顯示 ${visible} / ${total}）`,
     downloadImage: '下載報告圖片',
@@ -290,6 +292,7 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     mapRefreshFailed: 'Could not retry unmapped venues. Please try again later.',
     eventOccurrences: (count) => `${count} event${count === 1 ? '' : 's'}`,
     approximateLocation: 'Approximate city location',
+    editVenue: 'Edit venue on Eventernote',
     expandEvents: (name, count) => `Show ${count} events for ${name}`,
     loadMoreRankings: (visible, total) => `Load more (${visible} of ${total} shown)`,
     downloadImage: 'Download report image',
@@ -346,6 +349,7 @@ const REPORT_COPY: Record<SupportedLocale, ReportCopy> = {
     mapRefreshFailed: '未表示の会場を再検索できませんでした。後でもう一度お試しください。',
     eventOccurrences: (count) => `${count} 件のイベント`,
     approximateLocation: '都市単位の概算位置',
+    editVenue: 'Eventernoteで会場を編集',
     expandEvents: (name, count) => `${name}のイベント ${count} 件を表示`,
     loadMoreRankings: (visible, total) => `さらに読み込む（${visible} / ${total} 件表示）`,
     downloadImage: 'レポート画像を保存',
