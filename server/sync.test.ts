@@ -14,6 +14,7 @@ const config: ServerConfig = {
   detailFetchLimit: 1,
   detailFetchConcurrency: 1,
   placeFetchLimit: 1,
+  placeFetchConcurrency: 1,
   upstreamMinIntervalMs: 1,
   upstreamTimeoutMs: 1_000,
   maxListPages: 1,

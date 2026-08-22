@@ -396,7 +396,7 @@ export class EventSyncService {
       }
     }
 
-    await mapWithConcurrency(places, 2, async (place) => {
+    await mapWithConcurrency(places, this.config.placeFetchConcurrency, async (place) => {
       try {
         let refresh = this.manualPlaceRefreshes.get(place.id)
         if (!refresh) {
@@ -591,7 +591,7 @@ export class EventSyncService {
       if (placeCandidates.length === 0) return
       placeCandidates.forEach((place) => attemptedPlaceIds.add(place.place_id))
 
-      await mapWithConcurrency(placeCandidates, 2, async (place) => {
+      await mapWithConcurrency(placeCandidates, this.config.placeFetchConcurrency, async (place) => {
         try {
           await this.refreshPlace(place.place_id, place.name)
           stats.refreshedPlaces += 1

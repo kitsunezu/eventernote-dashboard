@@ -89,7 +89,7 @@ The server reads the participation calendar from the user's Eventernote event-li
 | Past event detail | 30 days |
 | Place detail | 90 days |
 
-Event and place enrichment uses batches of at most 40 event details and 20 places by default. It continues with later batches in the same background job, ordered by missing detail, upcoming events, then recent history. Detail concurrency defaults to 3 and upstream request starts are spaced by at least 350 ms. These values are configurable.
+Event and place enrichment uses batches of at most 40 event details and 20 places by default. It continues with later batches in the same background job, ordered by missing detail, upcoming events, then recent history. Detail concurrency defaults to 3, place concurrency defaults to 4, and upstream request starts are spaced by at least 350 ms. These values are configurable.
 
 ## Environment variables
 
@@ -102,6 +102,7 @@ Event and place enrichment uses batches of at most 40 event details and 20 place
 | `DETAIL_FETCH_LIMIT` | No | `40` |
 | `DETAIL_FETCH_CONCURRENCY` | No | `3` |
 | `PLACE_FETCH_LIMIT` | No | `20` |
+| `PLACE_FETCH_CONCURRENCY` | No | `4` |
 | `UPSTREAM_MIN_INTERVAL_MS` | No | `350` |
 | `UPSTREAM_TIMEOUT_MS` | No | `20000` |
 | `MAX_LIST_PAGES` | No | `100` |

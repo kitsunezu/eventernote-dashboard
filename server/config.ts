@@ -6,6 +6,7 @@ export interface ServerConfig {
   detailFetchLimit: number
   detailFetchConcurrency: number
   placeFetchLimit: number
+  placeFetchConcurrency: number
   upstreamMinIntervalMs: number
   upstreamTimeoutMs: number
   maxListPages: number
@@ -36,6 +37,7 @@ export function loadConfig(): ServerConfig {
     detailFetchLimit: positiveInteger('DETAIL_FETCH_LIMIT', 40),
     detailFetchConcurrency: positiveInteger('DETAIL_FETCH_CONCURRENCY', 3),
     placeFetchLimit: positiveInteger('PLACE_FETCH_LIMIT', 20),
+    placeFetchConcurrency: positiveInteger('PLACE_FETCH_CONCURRENCY', 4),
     upstreamMinIntervalMs: positiveInteger('UPSTREAM_MIN_INTERVAL_MS', 350),
     upstreamTimeoutMs: positiveInteger('UPSTREAM_TIMEOUT_MS', 20_000),
     maxListPages: positiveInteger('MAX_LIST_PAGES', 100),

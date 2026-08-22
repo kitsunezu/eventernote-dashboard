@@ -8,7 +8,7 @@ import type {
 
 const POLL_INTERVAL_MS = 2_000
 const MAX_REFRESH_POLLS = 900
-const PLACE_REFRESH_BATCH_SIZE = 5
+const PLACE_REFRESH_BATCH_SIZE = 20
 
 interface ApiResponse extends ImportedScheduleData {
   participationCalendar: ParticipationCalendarMonth[]

@@ -104,12 +104,12 @@ describe('loadEventernoteUserFromApi', () => {
 })
 
 describe('refreshEventernotePlaces', () => {
-  it('deduplicates, sends place IDs in small batches, and publishes every completed batch', async () => {
+  it('deduplicates, sends place IDs in batches, and publishes every completed batch', async () => {
     const fetcher = vi.fn()
       .mockResolvedValueOnce(response('1'))
-      .mockResolvedValueOnce(response('6'))
+      .mockResolvedValueOnce(response('21'))
     vi.stubGlobal('fetch', fetcher)
-    const placeIds = [...Array.from({ length: 6 }, (_, index) => String(index + 1)), '1']
+    const placeIds = [...Array.from({ length: 21 }, (_, index) => String(index + 1)), '1']
     const onBatch = vi.fn()
 
     await expect(refreshEventernotePlaces('test-user', placeIds, onBatch)).resolves.toMatchObject({
@@ -118,11 +118,11 @@ describe('refreshEventernotePlaces', () => {
     })
 
     expect(fetcher).toHaveBeenCalledTimes(2)
-    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({ placeIds: placeIds.slice(0, 5) })
-    expect(JSON.parse(String(fetcher.mock.calls[1][1]?.body))).toEqual({ placeIds: ['6'] })
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({ placeIds: placeIds.slice(0, 20) })
+    expect(JSON.parse(String(fetcher.mock.calls[1][1]?.body))).toEqual({ placeIds: ['21'] })
     expect(onBatch).toHaveBeenCalledTimes(2)
     expect(onBatch.mock.calls[0][0]).toMatchObject({ places: { '1': { name: 'Venue 1' } } })
-    expect(onBatch.mock.calls[1][0]).toMatchObject({ places: { '6': { name: 'Venue 6' } } })
+    expect(onBatch.mock.calls[1][0]).toMatchObject({ places: { '21': { name: 'Venue 21' } } })
   })
 
   it('returns earlier successful data when a later batch fails', async () => {
@@ -133,7 +133,7 @@ describe('refreshEventernotePlaces', () => {
 
     await expect(refreshEventernotePlaces(
       'test-user',
-      Array.from({ length: 6 }, (_, index) => String(index + 1)),
+      Array.from({ length: 21 }, (_, index) => String(index + 1)),
     )).resolves.toMatchObject({
       events: [event],
       warnings: ['Temporary failure'],
