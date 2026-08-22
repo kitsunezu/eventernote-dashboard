@@ -25,7 +25,11 @@ type LoadFromApi = (
   forceRefresh?: boolean,
 ) => Promise<ImportedScheduleData>
 type RefreshFromApi = (userId: string, eventId: string) => Promise<ImportedScheduleData>
-type RefreshPlacesFromApi = (userId: string, placeIds: string[]) => Promise<ImportedScheduleData>
+type RefreshPlacesFromApi = (
+  userId: string,
+  placeIds: string[],
+  onBatch?: (partial: ImportedScheduleData) => void,
+) => Promise<ImportedScheduleData>
 
 const loadFromApi = vi.hoisted(() => vi.fn<LoadFromApi>())
 const refreshFromApi = vi.hoisted(() => vi.fn<RefreshFromApi>())
@@ -307,13 +311,31 @@ describe('useScheduleStore Eventernote loading', () => {
     await expect(useScheduleStore.getState().refreshUnmappedPlaces('A', ['101', '202']))
       .resolves.toEqual([])
 
-    expect(refreshPlacesFromApi).toHaveBeenCalledWith('A', ['101', '202'])
+    expect(refreshPlacesFromApi).toHaveBeenCalledWith('A', ['101', '202'], expect.any(Function))
     expect(useScheduleStore.getState()).toMatchObject({
       events: refreshedEvents,
       places: { 'place-A': { name: 'Venue A', address: '', region: '' } },
       cachedUserId: 'A',
       cachedAt: '2026-08-05T10:00:01.000Z',
     })
+  })
+
+  it('publishes each completed place batch before the full refresh finishes', async () => {
+    const request = createDeferred<ImportedScheduleData>()
+    const firstBatchEvents = [{ ...testEvents[0], location: 'First mapped venue' }]
+    const finalEvents = [{ ...testEvents[0], location: 'Final mapped venue' }]
+    refreshPlacesFromApi.mockImplementation((_userId, _placeIds, onBatch) => {
+      onBatch?.(createApiResult('A', firstBatchEvents))
+      return request.promise
+    })
+    useScheduleStore.setState({ events: testEvents, cachedUserId: 'A' })
+
+    const refresh = useScheduleStore.getState().refreshUnmappedPlaces('A', ['101', '202'])
+    expect(useScheduleStore.getState().events).toEqual(firstBatchEvents)
+
+    request.resolve(createApiResult('A', finalEvents))
+    await refresh
+    expect(useScheduleStore.getState().events).toEqual(finalEvents)
   })
 
   it('does not apply an unmapped-place refresh after switching users', async () => {

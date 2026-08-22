@@ -8,7 +8,7 @@ import type {
 
 const POLL_INTERVAL_MS = 2_000
 const MAX_REFRESH_POLLS = 900
-const PLACE_REFRESH_BATCH_SIZE = 20
+const PLACE_REFRESH_BATCH_SIZE = 5
 
 interface ApiResponse extends ImportedScheduleData {
   participationCalendar: ParticipationCalendarMonth[]
@@ -188,6 +188,7 @@ export async function refreshEventernoteEvent(
 export async function refreshEventernotePlaces(
   userId: string,
   placeIds: string[],
+  onBatch?: (partial: ImportedScheduleData) => void,
 ): Promise<ImportedScheduleData> {
   const uniquePlaceIds = Array.from(new Set(placeIds))
   let latest: ApiResponse | undefined
@@ -196,6 +197,14 @@ export async function refreshEventernotePlaces(
     try {
       latest = await refreshUserPlaces(userId, uniquePlaceIds.slice(index, index + PLACE_REFRESH_BATCH_SIZE))
       warnings.push(...latest.warnings)
+      onBatch?.({
+        events: latest.events,
+        places: latest.places,
+        warnings: [...warnings],
+        sourceType: 'backend',
+        importedAt: latest.importedAt,
+        participationCalendar: latest.participationCalendar,
+      })
     } catch (error) {
       warnings.push(error instanceof Error ? error.message : 'Place refresh failed')
     }

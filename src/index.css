@@ -2149,6 +2149,10 @@ button {
   opacity: 0.42;
 }
 
+.report-map-section[aria-busy='true'] .report-map-refresh {
+  opacity: 0.42;
+}
+
 .report-map-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.75fr);

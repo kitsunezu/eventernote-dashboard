@@ -204,14 +204,17 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     }
   },
   refreshUnmappedPlaces: async (userId, placeIds) => {
-    const data = await refreshEventernotePlaces(userId, placeIds)
-    if (get().cachedUserId !== userId) return data.warnings
-    set({
-      events: sortEvents(data.events),
-      places: data.places,
-      participationCalendar: data.participationCalendar ?? [],
-      cachedAt: data.importedAt,
-    })
+    const publish = (data: ImportedScheduleData) => {
+      if (get().cachedUserId !== userId) return
+      set({
+        events: sortEvents(data.events),
+        places: data.places,
+        participationCalendar: data.participationCalendar ?? [],
+        cachedAt: data.importedAt,
+      })
+    }
+    const data = await refreshEventernotePlaces(userId, placeIds, publish)
+    publish(data)
     return data.warnings
   },
 }))

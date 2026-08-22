@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toBlob } from 'html-to-image'
 import {
   ArrowLeft,
@@ -275,8 +275,11 @@ export function ReportPage({
   const [selectedVenue, setSelectedVenue] = useState('')
   const [expandedMonth, setExpandedMonth] = useState('')
   const [status, setStatus] = useState('')
-  const [refreshingUnmapped, setRefreshingUnmapped] = useState(false)
+  const [refreshingPlaceSubject, setRefreshingPlaceSubject] = useState<string | null>(null)
   const statusTimerRef = useRef<number | null>(null)
+  const autoAttemptedPlaceIdsRef = useRef(new Set<string>())
+  const refreshSubjectRef = useRef(userId)
+  const refreshingUnmapped = refreshingPlaceSubject === userId
 
   const stats = useMemo(
     () => buildReportStats(events, scope, places, new Date(), participationCalendar, actorName),
@@ -310,24 +313,40 @@ export function ReportPage({
     () => getUnmappedVenuePlaceIds(stats.venues, mappedVenueNames, eventsById),
     [eventsById, mappedVenueNames, stats.venues],
   )
-  function showStatus(message: string) {
+  const showStatus = useCallback((message: string) => {
     if (statusTimerRef.current !== null) window.clearTimeout(statusTimerRef.current)
     setStatus(message)
     statusTimerRef.current = window.setTimeout(() => setStatus(''), 3200)
-  }
+  }, [])
 
-  async function refreshUnmappedPlaces() {
-    if (refreshingUnmapped || unmappedPlaceIds.length === 0) return
-    setRefreshingUnmapped(true)
+  const refreshUnmappedPlaces = useCallback(async (placeIds: string[], showCompletion: boolean) => {
+    if (refreshingUnmapped || placeIds.length === 0) return
+    const refreshSubject = userId
+    setRefreshingPlaceSubject(refreshSubject)
     try {
-      const warnings = await onRefreshUnmappedPlaces(unmappedPlaceIds)
-      showStatus(warnings.length > 0 ? copy.mapRefreshPartial : copy.mapRefreshComplete)
+      const warnings = await onRefreshUnmappedPlaces(placeIds)
+      if (showCompletion && refreshSubjectRef.current === refreshSubject) {
+        showStatus(warnings.length > 0 ? copy.mapRefreshPartial : copy.mapRefreshComplete)
+      }
     } catch {
-      showStatus(copy.mapRefreshFailed)
+      if (refreshSubjectRef.current === refreshSubject) showStatus(copy.mapRefreshFailed)
     } finally {
-      setRefreshingUnmapped(false)
+      setRefreshingPlaceSubject((current) => current === refreshSubject ? null : current)
     }
-  }
+  }, [copy.mapRefreshComplete, copy.mapRefreshFailed, copy.mapRefreshPartial, onRefreshUnmappedPlaces, refreshingUnmapped, showStatus, userId])
+
+  useEffect(() => {
+    refreshSubjectRef.current = userId
+    autoAttemptedPlaceIdsRef.current.clear()
+  }, [userId])
+
+  useEffect(() => {
+    if (loading || refreshingUnmapped) return
+    const pendingPlaceIds = unmappedPlaceIds.filter((placeId) => !autoAttemptedPlaceIdsRef.current.has(placeId))
+    if (pendingPlaceIds.length === 0) return
+    pendingPlaceIds.forEach((placeId) => autoAttemptedPlaceIdsRef.current.add(placeId))
+    void refreshUnmappedPlaces(pendingPlaceIds, false)
+  }, [loading, refreshUnmappedPlaces, refreshingUnmapped, unmappedPlaceIds])
 
   const mapRefreshLabel = refreshingUnmapped
     ? copy.mapRefreshing
@@ -550,17 +569,17 @@ export function ReportPage({
               </div>
             </section>
 
-            <section className="report-section report-map-section">
+            <section className="report-section report-map-section" aria-busy={refreshingUnmapped}>
               <div className="report-section__heading">
                 <div><h2>{copy.venueMap}</h2><p>{copy.mapHint}</p></div>
                 <div className="report-map-actions">
-                  <span className="report-map-coverage">{copy.mapCoverage(mapPoints.length, stats.venues.length)}</span>
+                  <span className="report-map-coverage" aria-live="polite">{copy.mapCoverage(mapPoints.length, stats.venues.length)}</span>
                   <button
                     type="button"
                     className="report-map-refresh"
                     data-capture="exclude"
-                    onClick={() => void refreshUnmappedPlaces()}
-                    disabled={refreshingUnmapped}
+                    onClick={() => void refreshUnmappedPlaces(unmappedPlaceIds, true)}
+                    disabled={refreshingUnmapped || unmappedPlaceIds.length === 0}
                     aria-disabled={refreshingUnmapped || unmappedPlaceIds.length === 0}
                     title={mapRefreshLabel}
                     aria-label={mapRefreshLabel}
