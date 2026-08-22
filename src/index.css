@@ -2250,6 +2250,7 @@ button {
 
 .report-venue-list__edit {
   text-decoration: none;
+  opacity: 0.45;
 }
 
 .report-venue-list button:hover,
