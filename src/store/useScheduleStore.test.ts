@@ -17,6 +17,7 @@ type ProgressCallback = (partial: {
   warnings: string[]
   importedAt: string
   participationCalendar: ParticipationCalendarMonth[]
+  refreshing: boolean
   indexProgress?: EventIndexProgress
 }) => void
 type LoadFromApi = (
@@ -111,6 +112,7 @@ function createState(overrides: Partial<ScheduleStore> = {}): ScheduleStore {
     upsertEvent: () => undefined,
     deleteEvent: () => undefined,
     loading: false,
+    backgroundRefreshing: false,
     error: null,
     indexProgress: null,
     loadFromEventernote: async () => undefined,
@@ -132,6 +134,24 @@ describe('useScheduleStore selectors', () => {
     expect(visible).toHaveLength(1)
     expect(visible[0].category.id).toBe('health')
   })
+
+  it('shows past and future events in calendar view regardless of the saved range', () => {
+    const pastEvent = {
+      ...testEvents[0],
+      id: 'past-event',
+      startAt: dayjs().subtract(1, 'day').toISOString(),
+      endAt: dayjs().subtract(1, 'day').add(1, 'hour').toISOString(),
+    }
+    const futureEvent = testEvents[1]
+
+    expect(selectVisibleEvents(createState({ events: [pastEvent, futureEvent] })))
+      .toEqual([futureEvent])
+    expect(selectVisibleEvents(createState({
+      events: [pastEvent, futureEvent],
+      viewMode: 'calendar',
+    })))
+      .toEqual([futureEvent, pastEvent])
+  })
 })
 
 describe('useScheduleStore Eventernote loading', () => {
@@ -149,6 +169,7 @@ describe('useScheduleStore Eventernote loading', () => {
       selectedEventId: null,
       statusMessage: '',
       loading: false,
+      backgroundRefreshing: false,
       error: null,
     })
   })
@@ -175,6 +196,7 @@ describe('useScheduleStore Eventernote loading', () => {
       warnings: [],
       importedAt: '2026-08-05T10:00:02.000Z',
       participationCalendar: [{ year: 2026, month: 8, count: 2 }],
+      refreshing: true,
     })
     requests.get('B')?.deferred.resolve(createApiResult('B', userBEvents))
     await userBLoad
@@ -185,6 +207,7 @@ describe('useScheduleStore Eventernote loading', () => {
       warnings: [],
       importedAt: '2026-08-05T10:00:01.000Z',
       participationCalendar: [{ year: 2026, month: 8, count: 1 }],
+      refreshing: true,
     })
     requests.get('A')?.deferred.resolve(createApiResult('A', userAEvents))
     await userALoad
@@ -195,6 +218,7 @@ describe('useScheduleStore Eventernote loading', () => {
       cachedAt: '2026-08-05T10:00:02.000Z',
       participationCalendar: [{ year: 2026, month: 8, count: 2 }],
       loading: false,
+      backgroundRefreshing: false,
       error: null,
     })
   })
@@ -246,10 +270,11 @@ describe('useScheduleStore Eventernote loading', () => {
     loadFromApi.mockImplementation((_userId, onProgress) => {
       onProgress?.({
         events: initialEvents,
-        places: { initial: { name: 'Initial Venue', address: '', region: '' } },
-        warnings: [],
-        importedAt: '2026-08-05T10:00:03.000Z',
-        participationCalendar: [{ year: 2026, month: 8, count: 1 }],
+          places: { initial: { name: 'Initial Venue', address: '', region: '' } },
+          warnings: [],
+          importedAt: '2026-08-05T10:00:03.000Z',
+          participationCalendar: [{ year: 2026, month: 8, count: 1 }],
+          refreshing: true,
       })
       return request.promise
     })
@@ -262,6 +287,7 @@ describe('useScheduleStore Eventernote loading', () => {
       cachedUserId: 'A',
       cachedAt: '2026-08-05T10:00:03.000Z',
       loading: false,
+      backgroundRefreshing: true,
     })
     const appliedEvents = useScheduleStore.getState().events
     request.resolve(createApiResult('A', initialEvents))
@@ -278,6 +304,7 @@ describe('useScheduleStore Eventernote loading', () => {
         warnings: [],
         importedAt: '2026-08-05T10:00:03.000Z',
         participationCalendar: [],
+        refreshing: true,
         indexProgress: {
           processedMonths: 2,
           totalMonths: 10,

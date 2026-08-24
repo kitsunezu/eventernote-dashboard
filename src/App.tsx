@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
+import { HouseIcon } from 'lucide-react'
 import { Countdown } from './components/Countdown'
+import { CalendarView } from './components/CalendarView'
 import { EventDetailsDrawer } from './components/EventDetailsDrawer'
 import { Header } from './components/Header'
 import { LandingPage } from './components/LandingPage'
@@ -88,6 +90,7 @@ function App() {
         theme={state.theme}
         loading={shouldShowLoadingState || state.loading}
         indexProgress={state.indexProgress}
+        backgroundRefreshing={state.backgroundRefreshing}
         error={state.error}
         onThemeToggle={state.toggleTheme}
         onRefresh={() => state.loadFromEventernote(sourceId, true)}
@@ -100,13 +103,26 @@ function App() {
   return (
     <div className="app-shell-root">
       <div className="app-shell app-shell--viewer">
+        <aside className="app-header app-home-nav" aria-label={copy.returnToLanding}>
+          <a
+            className="button button--ghost icon-button"
+            href="/"
+            aria-label={copy.returnToLanding}
+            title={copy.returnToLanding}
+          >
+            <HouseIcon className="ui-icon" aria-hidden="true" />
+            <span className="visually-hidden">{copy.returnToLanding}</span>
+          </a>
+        </aside>
+
         <Header
           locale={state.locale}
           theme={state.theme}
+          viewMode={state.viewMode}
           daysToShow={state.daysToShow}
-          cachedAt={state.cachedAt}
           loading={state.loading}
           onThemeToggle={state.toggleTheme}
+          onViewModeChange={state.setViewMode}
           onDaysToShowChange={state.setDaysToShow}
           onRefresh={() => state.loadFromEventernote(sourceId, true)}
         />
@@ -142,22 +158,34 @@ function App() {
               )}
               <Countdown locale={state.locale} nextEvent={nextEvent} />
 
-              <div className="schedule-canvas">
+              <div className={`schedule-canvas${state.viewMode === 'calendar' ? ' schedule-canvas--calendar' : ''}`}>
                 {visibleEvents.length === 0 ? (
                   <section className="empty-state" aria-live="polite">
                     <h2>{copy.noEventsTitle}</h2>
                     <p>{copy.emptyTitle}</p>
                   </section>
                 ) : (
-                  <TimelineView
-                    events={visibleEvents}
-                    locale={state.locale}
-                    onOpenEvent={(eventId) => {
-                      state.selectEvent(eventId)
-                      void state.refreshEvent(sourceId, eventId)
-                    }}
-                    onRefreshEvent={(eventId) => state.refreshEvent(sourceId, eventId)}
-                  />
+                  state.viewMode === 'calendar' ? (
+                    <CalendarView
+                      key={sourceId}
+                      events={visibleEvents}
+                      locale={state.locale}
+                      onOpenEvent={(eventId) => {
+                        state.selectEvent(eventId)
+                        void state.refreshEvent(sourceId, eventId)
+                      }}
+                    />
+                  ) : (
+                    <TimelineView
+                      events={visibleEvents}
+                      locale={state.locale}
+                      onOpenEvent={(eventId) => {
+                        state.selectEvent(eventId)
+                        void state.refreshEvent(sourceId, eventId)
+                      }}
+                      onRefreshEvent={(eventId) => state.refreshEvent(sourceId, eventId)}
+                    />
+                  )
                 )}
               </div>
             </>

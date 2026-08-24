@@ -35,6 +35,7 @@ export interface ScheduleStore extends ScheduleSnapshot {
   selectedEventId: string | null
   statusMessage: string
   loading: boolean
+  backgroundRefreshing: boolean
   error: string | null
   indexProgress: EventIndexProgress | null
   setViewMode: (viewMode: ViewMode) => void
@@ -76,6 +77,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   selectedEventId: null,
   statusMessage: '',
   loading: false,
+  backgroundRefreshing: false,
   error: null,
   indexProgress: null,
   setViewMode: (viewMode) => set({ viewMode }),
@@ -134,6 +136,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     const switchingUser = get().cachedUserId !== userId
     set({
       loading: true,
+      backgroundRefreshing: false,
       error: null,
       indexProgress: null,
       selectedEventId: null,
@@ -147,6 +150,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         places,
         importedAt,
         participationCalendar,
+        refreshing,
         indexProgress,
       }) => {
         receivedProgress = true
@@ -158,6 +162,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
             activeSource: 'backend',
             loading: indexProgress !== undefined,
             indexProgress: indexProgress ?? null,
+            backgroundRefreshing: refreshing,
             cachedAt: importedAt,
             cachedUserId: userId,
           })
@@ -174,6 +179,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         activeSource: 'backend',
         loading: false,
         indexProgress: null,
+        backgroundRefreshing: false,
         cachedAt: data.importedAt,
         cachedUserId: userId,
         statusMessage: copy.loadedCount(data.events.length),
@@ -184,6 +190,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
       set({
         loading: false,
         indexProgress: null,
+        backgroundRefreshing: false,
         error: err instanceof Error ? err.message : copy.loadFailed,
       })
     }
@@ -240,7 +247,8 @@ export function selectCategories(state: ScheduleStore): EventCategory[] {
 }
 
 export function selectVisibleEvents(state: ScheduleStore): ScheduleEvent[] {
-  return getVisibleEvents(state.events, state.daysToShow, '', state.selectedCategoryIds)
+  const daysToShow = state.viewMode === 'calendar' ? 'all' : state.daysToShow
+  return getVisibleEvents(state.events, daysToShow, '', state.selectedCategoryIds)
 }
 
 export function selectNextEvent(state: ScheduleStore): ScheduleEvent | null {

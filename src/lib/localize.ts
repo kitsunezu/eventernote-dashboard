@@ -11,6 +11,23 @@ export const LOCALE_LABELS: Record<SupportedLocale, string> = {
 interface UiCopy {
   viewerEyebrow: string
   viewerTitle: string
+  calendar: string
+  showCalendar: string
+  showTimeline: string
+  previousMonth: string
+  nextMonth: string
+  previousYear: string
+  nextYear: string
+  moreEvents: (count: number) => string
+  calendarStyle: string
+  standardCalendar: string
+  githubCalendar: string
+  showYearCalendar: string
+  showMonthCalendar: string
+  eventCount: (count: number) => string
+  eventCountSuffix: (count: number) => string
+  previousEvent: string
+  nextEventInDay: string
   darkMode: string
   lightMode: string
   noUpcoming: string
@@ -30,6 +47,7 @@ interface UiCopy {
   actorSearchLoading: string
   actorSearchEmpty: string
   actorSearchError: string
+  returnToLanding: string
   loadingText: string
   loadErrorTitle: string
   loadRetry: string
@@ -38,13 +56,29 @@ interface UiCopy {
   loadFailed: string
   refreshData: string
   refreshing: string
-  lastUpdated: (minutesAgo: number) => string
 }
 
 const UI_COPY: Record<SupportedLocale, UiCopy> = {
   'zh-Hant': {
     viewerEyebrow: 'Eventernote Dashboard',
     viewerTitle: 'Eventernote Dashboard',
+    calendar: '日曆',
+    showCalendar: '切換至日曆視圖',
+    showTimeline: '切換至列表視圖',
+    previousMonth: '上一個月',
+    nextMonth: '下一個月',
+    previousYear: '上一年',
+    nextYear: '下一年',
+    moreEvents: (count) => `另有 ${count} 個`,
+    calendarStyle: '日曆樣式',
+    standardCalendar: '標準日曆',
+    githubCalendar: 'GitHub 熱度日曆',
+    showYearCalendar: '切換至年曆',
+    showMonthCalendar: '切換至月曆',
+    eventCount: (count) => `${count}場活動`,
+    eventCountSuffix: () => '場活動',
+    previousEvent: '上一個活動',
+    nextEventInDay: '下一個活動',
     darkMode: '深色模式',
     lightMode: '亮色模式',
     noUpcoming: '目前顯示範圍內沒有即將到來的事件。',
@@ -64,6 +98,7 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     actorSearchLoading: '搜尋中…',
     actorSearchEmpty: '找不到相符的聲優／藝人',
     actorSearchError: '暫時無法搜尋，請稍後再試。',
+    returnToLanding: '回到首頁',
     loadingText: '載入中…',
     loadErrorTitle: '載入錯誤',
     loadRetry: '重試',
@@ -72,11 +107,27 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     loadFailed: '活動載入失敗。',
     refreshData: '重新整理',
     refreshing: '更新中…',
-    lastUpdated: (min) => min === 0 ? '剛剛更新' : `${min} 分鐘前更新`,
   },
   en: {
     viewerEyebrow: 'Eventernote Dashboard',
     viewerTitle: 'Eventernote Dashboard',
+    calendar: 'Calendar',
+    showCalendar: 'Switch to calendar view',
+    showTimeline: 'Switch to list view',
+    previousMonth: 'Previous month',
+    nextMonth: 'Next month',
+    previousYear: 'Previous year',
+    nextYear: 'Next year',
+    moreEvents: (count) => `${count} more`,
+    calendarStyle: 'Calendar style',
+    standardCalendar: 'Standard calendar',
+    githubCalendar: 'GitHub heatmap calendar',
+    showYearCalendar: 'Switch to year calendar',
+    showMonthCalendar: 'Switch to month calendar',
+    eventCount: (count) => `${count} event${count === 1 ? '' : 's'}`,
+    eventCountSuffix: (count) => `\u00a0event${count === 1 ? '' : 's'}`,
+    previousEvent: 'Previous event',
+    nextEventInDay: 'Next event',
     darkMode: 'Dark mode',
     lightMode: 'Light mode',
     noUpcoming: 'No upcoming events in the current range.',
@@ -96,6 +147,7 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     actorSearchLoading: 'Searching…',
     actorSearchEmpty: 'No matching performers',
     actorSearchError: 'Search is unavailable. Please try again later.',
+    returnToLanding: 'Back to home',
     loadingText: 'Loading…',
     loadErrorTitle: 'Load error',
     loadRetry: 'Retry',
@@ -104,11 +156,27 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     loadFailed: 'Failed to load events.',
     refreshData: 'Refresh',
     refreshing: 'Refreshing…',
-    lastUpdated: (min) => min === 0 ? 'Just updated' : `Updated ${min}m ago`,
   },
   ja: {
     viewerEyebrow: 'Eventernote Dashboard',
     viewerTitle: 'Eventernote Dashboard',
+    calendar: 'カレンダー',
+    showCalendar: 'カレンダー表示に切り替え',
+    showTimeline: 'リスト表示に切り替え',
+    previousMonth: '前の月',
+    nextMonth: '次の月',
+    previousYear: '前年',
+    nextYear: '翌年',
+    moreEvents: (count) => `他 ${count} 件`,
+    calendarStyle: 'カレンダースタイル',
+    standardCalendar: '標準カレンダー',
+    githubCalendar: 'GitHub ヒートマップ',
+    showYearCalendar: '年表示に切り替え',
+    showMonthCalendar: '月表示に切り替え',
+    eventCount: (count) => `${count} 件`,
+    eventCountSuffix: () => '件',
+    previousEvent: '前のイベント',
+    nextEventInDay: '次のイベント',
     darkMode: 'ダークモード',
     lightMode: 'ライトモード',
     noUpcoming: '現在の表示範囲に予定はありません。',
@@ -128,6 +196,7 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     actorSearchLoading: '検索中…',
     actorSearchEmpty: '一致する声優・アーティストが見つかりません',
     actorSearchError: '検索できませんでした。しばらくしてからもう一度お試しください。',
+    returnToLanding: 'トップに戻る',
     loadingText: '読み込み中…',
     loadErrorTitle: '読み込みエラー',
     loadRetry: '再試行',
@@ -136,7 +205,6 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     loadFailed: 'イベントの読み込みに失敗しました。',
     refreshData: '更新',
     refreshing: '更新中…',
-    lastUpdated: (min) => min === 0 ? '今更新しました' : `${min}分前に更新`,
   },
 }
 

@@ -63,9 +63,10 @@ describe('loadEventernoteUserFromApi', () => {
 
     expect(fetcher).toHaveBeenCalledTimes(2)
     expect(onProgress).toHaveBeenCalledTimes(2)
+    expect(onProgress.mock.calls.map(([progress]) => progress.refreshing)).toEqual([true, false])
   })
 
-  it('does not publish unchanged snapshots on every poll', async () => {
+  it('publishes only when an unchanged snapshot finishes refreshing', async () => {
     vi.useFakeTimers()
     const fetcher = vi.fn()
       .mockResolvedValueOnce(response('1', true, 'same-version'))
@@ -79,7 +80,8 @@ describe('loadEventernoteUserFromApi', () => {
     await loading
 
     expect(fetcher).toHaveBeenCalledTimes(3)
-    expect(onProgress).toHaveBeenCalledOnce()
+    expect(onProgress).toHaveBeenCalledTimes(2)
+    expect(onProgress.mock.calls.map(([progress]) => progress.refreshing)).toEqual([true, false])
   })
 
   it('publishes index progress even while the snapshot version is unchanged', async () => {

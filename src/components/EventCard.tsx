@@ -49,6 +49,16 @@ export function EventCard({ event, locale, onOpen, onRefresh }: EventCardProps) 
       onFocusCapture={updateTooltipPosition}
     >
       <span className="event-card__accent" style={{ background: event.category.color }} aria-hidden="true" />
+      <span
+        className="event-card__image"
+        style={{ '--event-color': event.category.color } as CSSProperties}
+      >
+        {event.previewImageUrl ? (
+          <img src={event.previewImageUrl} alt={copy.previewAlt} loading="lazy" />
+        ) : (
+          <span aria-hidden="true">{copy.title.slice(0, 1)}</span>
+        )}
+      </span>
       <div className="event-card__body">
         {primaryLink ? (
           <a

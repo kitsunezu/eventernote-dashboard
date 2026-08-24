@@ -1,4 +1,4 @@
-export type ViewMode = 'timeline' | 'list'
+export type ViewMode = 'timeline' | 'list' | 'calendar'
 
 export type ThemeMode = 'dark' | 'light'
 

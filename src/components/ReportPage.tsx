@@ -36,6 +36,7 @@ interface ReportPageProps {
   locale: SupportedLocale
   theme: ThemeMode
   loading: boolean
+  backgroundRefreshing: boolean
   error: string | null
   indexProgress: EventIndexProgress | null
   onThemeToggle: () => void
@@ -249,6 +250,7 @@ export function ReportPage({
   locale,
   theme,
   loading,
+  backgroundRefreshing,
   error,
   indexProgress,
   onThemeToggle,
@@ -320,7 +322,7 @@ export function ReportPage({
   }, [])
 
   const refreshUnmappedPlaces = useCallback(async (placeIds: string[], showCompletion: boolean) => {
-    if (refreshingUnmapped || placeIds.length === 0) return
+    if (backgroundRefreshing || refreshingUnmapped || placeIds.length === 0) return
     const refreshSubject = userId
     setRefreshingPlaceSubject(refreshSubject)
     try {
@@ -333,7 +335,7 @@ export function ReportPage({
     } finally {
       setRefreshingPlaceSubject((current) => current === refreshSubject ? null : current)
     }
-  }, [copy.mapRefreshComplete, copy.mapRefreshFailed, copy.mapRefreshPartial, onRefreshUnmappedPlaces, refreshingUnmapped, showStatus, userId])
+  }, [backgroundRefreshing, copy.mapRefreshComplete, copy.mapRefreshFailed, copy.mapRefreshPartial, onRefreshUnmappedPlaces, refreshingUnmapped, showStatus, userId])
 
   useEffect(() => {
     refreshSubjectRef.current = userId
@@ -341,14 +343,15 @@ export function ReportPage({
   }, [userId])
 
   useEffect(() => {
-    if (loading || refreshingUnmapped) return
+    if (backgroundRefreshing || loading || refreshingUnmapped) return
     const pendingPlaceIds = unmappedPlaceIds.filter((placeId) => !autoAttemptedPlaceIdsRef.current.has(placeId))
     if (pendingPlaceIds.length === 0) return
     pendingPlaceIds.forEach((placeId) => autoAttemptedPlaceIdsRef.current.add(placeId))
     void refreshUnmappedPlaces(pendingPlaceIds, false)
-  }, [loading, refreshUnmappedPlaces, refreshingUnmapped, unmappedPlaceIds])
+  }, [backgroundRefreshing, loading, refreshUnmappedPlaces, refreshingUnmapped, unmappedPlaceIds])
 
-  const mapRefreshLabel = refreshingUnmapped
+  const venueRefreshInProgress = backgroundRefreshing || refreshingUnmapped
+  const mapRefreshLabel = venueRefreshInProgress
     ? copy.mapRefreshing
     : unmappedPlaceIds.length === 0
       ? copy.mapRefreshUnavailable
@@ -569,7 +572,7 @@ export function ReportPage({
               </div>
             </section>
 
-            <section className="report-section report-map-section" aria-busy={refreshingUnmapped}>
+            <section className="report-section report-map-section" aria-busy={venueRefreshInProgress}>
               <div className="report-section__heading">
                 <div><h2>{copy.venueMap}</h2><p>{copy.mapHint}</p></div>
                 <div className="report-map-actions">
@@ -579,12 +582,12 @@ export function ReportPage({
                     className="report-map-refresh"
                     data-capture="exclude"
                     onClick={() => void refreshUnmappedPlaces(unmappedPlaceIds, true)}
-                    disabled={refreshingUnmapped || unmappedPlaceIds.length === 0}
-                    aria-disabled={refreshingUnmapped || unmappedPlaceIds.length === 0}
+                    disabled={venueRefreshInProgress || unmappedPlaceIds.length === 0}
+                    aria-disabled={venueRefreshInProgress || unmappedPlaceIds.length === 0}
                     title={mapRefreshLabel}
                     aria-label={mapRefreshLabel}
                   >
-                    <RefreshCw size={15} className={refreshingUnmapped ? 'is-spinning' : ''} />
+                    <RefreshCw size={15} className={venueRefreshInProgress ? 'is-spinning' : ''} />
                   </button>
                 </div>
               </div>

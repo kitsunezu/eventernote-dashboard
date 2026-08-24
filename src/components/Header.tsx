@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
-import { DAY_RANGE_OPTIONS, type DayRangeOption, type SupportedLocale, type ThemeMode } from '../types/events'
+import type { DayRangeOption, SupportedLocale, ThemeMode, ViewMode } from '../types/events'
 import { formatDayRangeOption, getUiCopy } from '../lib/localize'
-import { ChevronDownIcon, MoonIcon, SunIcon } from './Icons'
+import { CalendarIcon, ListIcon, MoonIcon, SunIcon } from './Icons'
 
 interface HeaderProps {
   locale: SupportedLocale
   theme: ThemeMode
+  viewMode: ViewMode
   daysToShow: DayRangeOption
-  cachedAt?: string
   loading?: boolean
   onThemeToggle: () => void
+  onViewModeChange: (viewMode: ViewMode) => void
   onDaysToShowChange: (daysToShow: DayRangeOption) => void
   onRefresh?: () => void
 }
@@ -17,100 +17,37 @@ interface HeaderProps {
 export function Header({
   locale,
   theme,
+  viewMode,
   daysToShow,
-  cachedAt,
   loading,
   onThemeToggle,
+  onViewModeChange,
   onDaysToShowChange,
   onRefresh,
 }: HeaderProps) {
   const copy = getUiCopy(locale)
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement | null>(null)
-  const [currentTime, setCurrentTime] = useState<number | null>(null)
-
-  // Re-render every minute so "X min ago" stays accurate
-  useEffect(() => {
-    const updateCurrentTime = () => setCurrentTime(Date.now())
-    const initialId = setTimeout(updateCurrentTime, 0)
-    const intervalId = setInterval(updateCurrentTime, 60_000)
-    return () => {
-      clearTimeout(initialId)
-      clearInterval(intervalId)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!open) return
-    function onPointerDown(e: PointerEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [open])
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') setOpen(false)
-  }
-
-  const minutesAgo = cachedAt && currentTime !== null
-    ? Math.floor((currentTime - new Date(cachedAt).getTime()) / 60_000)
-    : null
+  const calendarActive = viewMode === 'calendar'
+  const displayedDaysToShow = calendarActive ? 'all' : daysToShow
+  const nextDaysToShow = displayedDaysToShow === 'all' ? 'future' : 'all'
+  const viewToggleLabel = calendarActive ? copy.showTimeline : copy.showCalendar
 
   return (
     <aside className="app-header" aria-label={copy.viewerTitle}>
-      {/* custom range picker */}
-      <div className="ctrl-dropdown" ref={wrapRef} onKeyDown={handleKeyDown}>
-        <button
-          className="ctrl-dropdown__trigger"
-          type="button"
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          aria-label="Schedule range"
-          onClick={() => setOpen((v) => !v)}
-        >
-          <span className="ctrl-dropdown__label">{formatDayRangeOption(locale, daysToShow)}</span>
-          <ChevronDownIcon className={`ui-icon ctrl-dropdown__caret${open ? ' is-open' : ''}`} />
-        </button>
+      <button
+        className={`ctrl-range-toggle${displayedDaysToShow === 'all' ? ' is-active' : ''}`}
+        type="button"
+        aria-label={formatDayRangeOption(locale, 'all')}
+        aria-pressed={displayedDaysToShow === 'all'}
+        title={formatDayRangeOption(locale, nextDaysToShow)}
+        disabled={calendarActive}
+        onClick={() => onDaysToShowChange(nextDaysToShow)}
+      >
+        {formatDayRangeOption(locale, displayedDaysToShow)}
+      </button>
 
-        {open && (
-          <ul className="ctrl-dropdown__menu" role="listbox" aria-label="Schedule range">
-            {DAY_RANGE_OPTIONS.map((option) => (
-              <li
-                key={option}
-                role="option"
-                aria-selected={option === daysToShow}
-                className={`ctrl-dropdown__item${option === daysToShow ? ' is-active' : ''}`}
-                tabIndex={0}
-                onClick={() => {
-                  onDaysToShowChange(option)
-                  setOpen(false)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onDaysToShowChange(option)
-                    setOpen(false)
-                  }
-                }}
-              >
-                {formatDayRangeOption(locale, option)}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* refresh button + last-updated hint */}
+      {/* refresh button */}
       {onRefresh && (
         <div className="header-refresh">
-          {minutesAgo !== null && !loading && (
-            <span className="header-refresh__label">
-              {copy.lastUpdated(minutesAgo)}
-            </span>
-          )}
           <button
             className="button button--ghost icon-button"
             type="button"
@@ -123,6 +60,18 @@ export function Header({
           </button>
         </div>
       )}
+
+      <button
+        className={`button button--ghost icon-button${calendarActive ? ' is-active' : ''}`}
+        type="button"
+        onClick={() => onViewModeChange(calendarActive ? 'timeline' : 'calendar')}
+        aria-label={viewToggleLabel}
+        aria-pressed={calendarActive}
+        title={viewToggleLabel}
+      >
+        {calendarActive ? <ListIcon className="ui-icon" /> : <CalendarIcon className="ui-icon" />}
+        <span className="visually-hidden">{viewToggleLabel}</span>
+      </button>
 
       {/* theme toggle */}
       <button
