@@ -424,7 +424,7 @@ export function CalendarView({ events, locale, onOpenEvent }: CalendarViewProps)
                     >
                       <time dateTime={day.dateKey}>{day.dayNumber}</time>
                       <span className="calendar-mobile__dots" aria-hidden="true">
-                        {day.events.slice(0, 3).map((event) => (
+                        {day.events.slice(0, 4).map((event) => (
                           <i key={event.id} style={{ '--event-color': event.category.color } as CSSProperties} />
                         ))}
                       </span>
