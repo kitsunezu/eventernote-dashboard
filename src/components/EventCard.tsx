@@ -2,6 +2,7 @@ import { useRef, useState, type CSSProperties } from 'react'
 import type { ScheduleEvent, SupportedLocale } from '../types/events'
 import { buildPreviewText, formatEventDate, formatEventTime } from '../lib/date'
 import { getUiCopy, resolveEventCopy, resolveLinkLabel } from '../lib/localize'
+import { calculateTooltipPosition, shouldPlaceTooltipBelow } from '../lib/tooltipPosition'
 import { CalendarIcon, ClockIcon, LinkChainIcon, PinIcon } from './Icons'
 
 interface EventCardProps {
@@ -14,6 +15,8 @@ interface EventCardProps {
 type TooltipStyle = CSSProperties & {
   '--tooltip-left'?: string
   '--tooltip-width'?: string
+  '--tooltip-top'?: string
+  '--tooltip-bottom'?: string
 }
 
 export function EventCard({ event, locale, onOpen, onRefresh }: EventCardProps) {
@@ -21,29 +24,35 @@ export function EventCard({ event, locale, onOpen, onRefresh }: EventCardProps) 
   const copy = resolveEventCopy(event, locale)
   const ui = getUiCopy(locale)
   const primaryLink = event.links[0]
-  const cardRef = useRef<HTMLElement | null>(null)
+  const tooltipContainerRef = useRef<HTMLDivElement | null>(null)
+  const tooltipRef = useRef<HTMLDivElement | null>(null)
   const [tooltipStyle, setTooltipStyle] = useState<TooltipStyle | undefined>(undefined)
 
   function updateTooltipPosition() {
-    if (!preview || !cardRef.current || typeof window === 'undefined') {
+    if (!preview || !tooltipContainerRef.current || !tooltipRef.current || typeof window === 'undefined') {
       return
     }
 
-    const rect = cardRef.current.getBoundingClientRect()
-    const width = Math.min(320, window.innerWidth - 32)
-    const minLeft = 16 - rect.left
-    const maxLeft = window.innerWidth - rect.left - width - 16
-    const left = Math.max(minLeft, Math.min(8, maxLeft))
+    const rect = tooltipContainerRef.current.getBoundingClientRect()
+    const tooltipRect = tooltipRef.current.getBoundingClientRect()
+    const { left, width } = calculateTooltipPosition(window.innerWidth, rect.left)
+    const placeBelow = shouldPlaceTooltipBelow(
+      window.innerHeight,
+      rect.top,
+      rect.bottom,
+      tooltipRect.height,
+    )
 
     setTooltipStyle({
       '--tooltip-left': `${left}px`,
       '--tooltip-width': `${width}px`,
+      '--tooltip-top': placeBelow ? 'calc(100% + 10px)' : 'auto',
+      '--tooltip-bottom': placeBelow ? 'auto' : 'calc(100% + 10px)',
     })
   }
 
   return (
     <article
-      ref={cardRef}
       className={`event-card${primaryLink ? ' event-card--hasLink' : ''}`}
       onMouseEnter={updateTooltipPosition}
       onFocusCapture={updateTooltipPosition}
@@ -59,7 +68,7 @@ export function EventCard({ event, locale, onOpen, onRefresh }: EventCardProps) 
           <span aria-hidden="true">{copy.title.slice(0, 1)}</span>
         )}
       </span>
-      <div className="event-card__body">
+      <div ref={tooltipContainerRef} className="event-card__body">
         {primaryLink ? (
           <a
             className="event-card__linkButton icon-button"
@@ -104,7 +113,7 @@ export function EventCard({ event, locale, onOpen, onRefresh }: EventCardProps) 
         </button>
 
         {preview ? (
-          <div className="event-card__tooltip" style={tooltipStyle}>
+          <div ref={tooltipRef} className="event-card__tooltip" style={tooltipStyle}>
             {event.previewImageUrl ? (
               <img
                 className="event-card__tooltipImage"

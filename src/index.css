@@ -1511,8 +1511,9 @@ button {
 
 .event-card__tooltip {
   position: absolute;
+  top: var(--tooltip-top, auto);
   left: var(--tooltip-left, 8px);
-  bottom: calc(100% + 10px);
+  bottom: var(--tooltip-bottom, calc(100% + 10px));
   width: var(--tooltip-width, min(320px, calc(100vw - 32px)));
   max-width: calc(100vw - 32px);
   padding: 14px;
