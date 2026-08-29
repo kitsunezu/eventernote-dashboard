@@ -141,6 +141,8 @@ button {
 }
 
 .viewer-layout {
+  max-width: 1150px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -1422,6 +1424,71 @@ button {
   object-fit: cover;
 }
 
+.event-card--background {
+  grid-template-columns: 5px minmax(0, 1fr);
+  background: var(--event-color);
+}
+
+.event-card--background .event-card__accent {
+  position: relative;
+  z-index: 2;
+}
+
+.event-card--background .event-card__image {
+  position: absolute;
+  inset: 0 0 0 5px;
+  z-index: 0;
+}
+
+.event-card--background .event-card__body {
+  z-index: 1;
+}
+
+.event-card--background .event-card__body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.68) 48%, transparent 100%);
+  pointer-events: none;
+}
+
+.event-card--background .event-card__body > * {
+  z-index: 1;
+}
+
+.event-card--background .event-card__content {
+  justify-content: flex-end;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.event-card--background .event-card__header {
+  gap: 2px;
+}
+
+.event-card--background .event-card__location,
+.event-card--background .event-card__fact {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.event-card--background .event-card__location .ui-icon,
+.event-card--background .event-card__fact .ui-icon {
+  color: #fff;
+}
+
+.event-card--background .event-card__facts {
+  flex-direction: row;
+  align-items: center;
+  margin-top: 0;
+}
+
+.event-card--background .event-card__linkButton {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(0, 0, 0, 0.38);
+  color: #fff;
+}
+
 .event-card__body {
   position: relative;
   display: flex;
@@ -1885,6 +1952,10 @@ button {
   .event-card {
     height: 120px;
     grid-template-columns: 5px clamp(76px, 24vw, 96px) minmax(0, 1fr);
+  }
+
+  .event-card.event-card--background {
+    grid-template-columns: 5px minmax(0, 1fr);
   }
 
   .calendar-view__toolbar {

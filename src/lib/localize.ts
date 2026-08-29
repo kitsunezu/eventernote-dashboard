@@ -14,6 +14,8 @@ interface UiCopy {
   calendar: string
   showCalendar: string
   showTimeline: string
+  showBackgroundImages: string
+  showSideImages: string
   previousMonth: string
   nextMonth: string
   previousYear: string
@@ -65,6 +67,8 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     calendar: '日曆',
     showCalendar: '切換至日曆視圖',
     showTimeline: '切換至列表視圖',
+    showBackgroundImages: '將活動圖片改為卡片背景',
+    showSideImages: '將活動圖片移至左側',
     previousMonth: '上一個月',
     nextMonth: '下一個月',
     previousYear: '上一年',
@@ -114,6 +118,8 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     calendar: 'Calendar',
     showCalendar: 'Switch to calendar view',
     showTimeline: 'Switch to list view',
+    showBackgroundImages: 'Use event images as card backgrounds',
+    showSideImages: 'Move event images to the left',
     previousMonth: 'Previous month',
     nextMonth: 'Next month',
     previousYear: 'Previous year',
@@ -163,6 +169,8 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     calendar: 'カレンダー',
     showCalendar: 'カレンダー表示に切り替え',
     showTimeline: 'リスト表示に切り替え',
+    showBackgroundImages: 'イベント画像をカード背景にする',
+    showSideImages: 'イベント画像を左側に戻す',
     previousMonth: '前の月',
     nextMonth: '次の月',
     previousYear: '前年',

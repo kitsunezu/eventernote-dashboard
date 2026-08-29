@@ -70,7 +70,7 @@ $env:DATABASE_URL = 'postgresql://eventernote:local-password@localhost:5432/even
 npm run dev
 ```
 
-Web アプリは http://localhost:5173 で動作し、アプリケーション API のリクエストを port 8787 の API サービスへプロキシします。
+Web アプリは http://localhost:5173 で動作し、アプリケーション API のリクエストをローカルの port 9000 の API サービスへプロキシします。production Docker 内では引き続き port 8787 を使用します。
 
 ### スクリプト
 

@@ -1,15 +1,23 @@
-import type { DayRangeOption, SupportedLocale, ThemeMode, ViewMode } from '../types/events'
+import type {
+  DayRangeOption,
+  SupportedLocale,
+  ThemeMode,
+  TimelineImageLayout,
+  ViewMode,
+} from '../types/events'
 import { formatDayRangeOption, getUiCopy } from '../lib/localize'
-import { CalendarIcon, ListIcon, MoonIcon, SunIcon } from './Icons'
+import { CalendarIcon, ImageIcon, ListIcon, MoonIcon, SunIcon } from './Icons'
 
 interface HeaderProps {
   locale: SupportedLocale
   theme: ThemeMode
   viewMode: ViewMode
+  timelineImageLayout: TimelineImageLayout
   daysToShow: DayRangeOption
   loading?: boolean
   onThemeToggle: () => void
   onViewModeChange: (viewMode: ViewMode) => void
+  onTimelineImageLayoutChange: (layout: TimelineImageLayout) => void
   onDaysToShowChange: (daysToShow: DayRangeOption) => void
   onRefresh?: () => void
 }
@@ -18,10 +26,12 @@ export function Header({
   locale,
   theme,
   viewMode,
+  timelineImageLayout,
   daysToShow,
   loading,
   onThemeToggle,
   onViewModeChange,
+  onTimelineImageLayoutChange,
   onDaysToShowChange,
   onRefresh,
 }: HeaderProps) {
@@ -30,6 +40,10 @@ export function Header({
   const displayedDaysToShow = calendarActive ? 'all' : daysToShow
   const nextDaysToShow = displayedDaysToShow === 'all' ? 'future' : 'all'
   const viewToggleLabel = calendarActive ? copy.showTimeline : copy.showCalendar
+  const backgroundImagesActive = timelineImageLayout === 'background'
+  const imageLayoutToggleLabel = backgroundImagesActive
+    ? copy.showSideImages
+    : copy.showBackgroundImages
 
   return (
     <aside className="app-header" aria-label={copy.viewerTitle}>
@@ -72,6 +86,20 @@ export function Header({
         {calendarActive ? <ListIcon className="ui-icon" /> : <CalendarIcon className="ui-icon" />}
         <span className="visually-hidden">{viewToggleLabel}</span>
       </button>
+
+      {!calendarActive ? (
+        <button
+          className={`button button--ghost icon-button${backgroundImagesActive ? ' is-active' : ''}`}
+          type="button"
+          onClick={() => onTimelineImageLayoutChange(backgroundImagesActive ? 'thumbnail' : 'background')}
+          aria-label={imageLayoutToggleLabel}
+          aria-pressed={backgroundImagesActive}
+          title={imageLayoutToggleLabel}
+        >
+          <ImageIcon className="ui-icon" />
+          <span className="visually-hidden">{imageLayoutToggleLabel}</span>
+        </button>
+      ) : null}
 
       {/* theme toggle */}
       <button

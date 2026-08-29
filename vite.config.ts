@@ -7,15 +7,15 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/users': {
-        target: 'http://localhost:8787',
+        target: 'http://127.0.0.1:9000',
         changeOrigin: true,
       },
       '/api/actors': {
-        target: 'http://localhost:8787',
+        target: 'http://127.0.0.1:9000',
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://localhost:8787',
+        target: 'http://127.0.0.1:9000',
         changeOrigin: true,
       },
       '/api/eventernote': {

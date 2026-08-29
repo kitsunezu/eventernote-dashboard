@@ -105,3 +105,13 @@ export function ChevronDownIcon(props: IconProps) {
     </svg>
   )
 }
+
+export function ImageIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <rect x="3.5" y="4" width="17" height="16" rx="2.5" />
+      <circle cx="8.5" cy="9" r="1.5" />
+      <path d="m5.5 17 4.5-4 3.2 2.8 2.3-2 3 3.2" />
+    </svg>
+  )
+}

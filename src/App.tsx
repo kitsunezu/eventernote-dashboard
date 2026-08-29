@@ -119,10 +119,12 @@ function App() {
           locale={state.locale}
           theme={state.theme}
           viewMode={state.viewMode}
+          timelineImageLayout={state.timelineImageLayout}
           daysToShow={state.daysToShow}
           loading={state.loading}
           onThemeToggle={state.toggleTheme}
           onViewModeChange={state.setViewMode}
+          onTimelineImageLayoutChange={state.setTimelineImageLayout}
           onDaysToShowChange={state.setDaysToShow}
           onRefresh={() => state.loadFromEventernote(sourceId, true)}
         />
@@ -179,6 +181,7 @@ function App() {
                     <TimelineView
                       events={visibleEvents}
                       locale={state.locale}
+                      imageLayout={state.timelineImageLayout}
                       onOpenEvent={(eventId) => {
                         state.selectEvent(eventId)
                         void state.refreshEvent(sourceId, eventId)

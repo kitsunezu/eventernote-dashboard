@@ -1,10 +1,20 @@
-import { DAY_RANGE_OPTIONS, DEFAULT_DAY_RANGE, type DayRangeOption, type ScheduleSnapshot } from '../types/events'
+import {
+  DAY_RANGE_OPTIONS,
+  DEFAULT_DAY_RANGE,
+  type DayRangeOption,
+  type ScheduleSnapshot,
+  type TimelineImageLayout,
+} from '../types/events'
 
 export const STORAGE_KEY = 'schedule-canvas:v2'
 const LEGACY_PLACE_CACHE_KEY = 'eventernote:places:v1'
 
 function isDayRangeOption(value: unknown): value is DayRangeOption {
   return typeof value === 'string' && DAY_RANGE_OPTIONS.includes(value as DayRangeOption)
+}
+
+function isTimelineImageLayout(value: unknown): value is TimelineImageLayout {
+  return value === 'thumbnail' || value === 'background'
 }
 
 export function readScheduleSnapshot(): ScheduleSnapshot | null {
@@ -27,6 +37,9 @@ export function readScheduleSnapshot(): ScheduleSnapshot | null {
       events: parsed.events,
       places: parsed.places && typeof parsed.places === 'object' ? parsed.places : {},
       viewMode: parsed.viewMode,
+      timelineImageLayout: isTimelineImageLayout(parsed.timelineImageLayout)
+        ? parsed.timelineImageLayout
+        : 'thumbnail',
       daysToShow: isDayRangeOption(parsed.daysToShow) ? parsed.daysToShow : DEFAULT_DAY_RANGE,
       selectedCategoryIds: parsed.selectedCategoryIds ?? [],
       theme: parsed.theme,

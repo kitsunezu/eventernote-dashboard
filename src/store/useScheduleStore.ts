@@ -16,6 +16,7 @@ import type {
   ScheduleEvent,
   ScheduleSnapshot,
   SupportedLocale,
+  TimelineImageLayout,
   ViewMode,
 } from '../types/events'
 
@@ -39,6 +40,7 @@ export interface ScheduleStore extends ScheduleSnapshot {
   error: string | null
   indexProgress: EventIndexProgress | null
   setViewMode: (viewMode: ViewMode) => void
+  setTimelineImageLayout: (layout: TimelineImageLayout) => void
   setDaysToShow: (daysToShow: DayRangeOption) => void
   toggleCategory: (categoryId: string) => void
   clearFilters: () => void
@@ -63,6 +65,7 @@ const initialSnapshot: ScheduleSnapshot = persisted ?? {
   events: [],
   places: {},
   viewMode: 'timeline',
+  timelineImageLayout: 'thumbnail',
   daysToShow: DEFAULT_DAY_RANGE,
   selectedCategoryIds: [],
   theme: 'dark',
@@ -81,6 +84,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   error: null,
   indexProgress: null,
   setViewMode: (viewMode) => set({ viewMode }),
+  setTimelineImageLayout: (timelineImageLayout) => set({ timelineImageLayout }),
   setDaysToShow: (daysToShow) => set({ daysToShow }),
   toggleCategory: (categoryId) =>
     set((state) => ({
@@ -231,6 +235,7 @@ useScheduleStore.subscribe((state) => {
     events: state.events,
     places: state.places,
     viewMode: state.viewMode,
+    timelineImageLayout: state.timelineImageLayout,
     daysToShow: state.daysToShow,
     selectedCategoryIds: state.selectedCategoryIds,
     theme: state.theme,

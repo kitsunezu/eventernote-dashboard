@@ -1,15 +1,16 @@
-import type { ScheduleEvent, SupportedLocale } from '../types/events'
+import type { ScheduleEvent, SupportedLocale, TimelineImageLayout } from '../types/events'
 import { formatDayHeading, groupEventsByDay } from '../lib/date'
 import { EventCard } from './EventCard'
 
 interface TimelineViewProps {
   events: ScheduleEvent[]
   locale: SupportedLocale
+  imageLayout: TimelineImageLayout
   onOpenEvent: (eventId: string) => void
   onRefreshEvent: (eventId: string) => void
 }
 
-export function TimelineView({ events, locale, onOpenEvent, onRefreshEvent }: TimelineViewProps) {
+export function TimelineView({ events, locale, imageLayout, onOpenEvent, onRefreshEvent }: TimelineViewProps) {
   const groups = groupEventsByDay(events)
 
   return (
@@ -27,6 +28,7 @@ export function TimelineView({ events, locale, onOpenEvent, onRefreshEvent }: Ti
                 key={event.id}
                 event={event}
                 locale={locale}
+                imageLayout={imageLayout}
                 onOpen={onOpenEvent}
                 onRefresh={onRefreshEvent}
               />

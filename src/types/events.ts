@@ -1,5 +1,7 @@
 export type ViewMode = 'timeline' | 'list' | 'calendar'
 
+export type TimelineImageLayout = 'thumbnail' | 'background'
+
 export type ThemeMode = 'dark' | 'light'
 
 export type SupportedLocale = 'zh-Hant' | 'en' | 'ja'
@@ -84,6 +86,7 @@ export interface ScheduleSnapshot {
   events: ScheduleEvent[]
   places: Record<string, SchedulePlace>
   viewMode: ViewMode
+  timelineImageLayout: TimelineImageLayout
   daysToShow: DayRangeOption
   selectedCategoryIds: string[]
   theme: ThemeMode

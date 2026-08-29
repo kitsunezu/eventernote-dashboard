@@ -1,5 +1,5 @@
 import { useRef, useState, type CSSProperties } from 'react'
-import type { ScheduleEvent, SupportedLocale } from '../types/events'
+import type { ScheduleEvent, SupportedLocale, TimelineImageLayout } from '../types/events'
 import { buildPreviewText, formatEventDate, formatEventTime } from '../lib/date'
 import { getUiCopy, resolveEventCopy, resolveLinkLabel } from '../lib/localize'
 import { calculateTooltipPosition, shouldPlaceTooltipBelow } from '../lib/tooltipPosition'
@@ -8,6 +8,7 @@ import { CalendarIcon, ClockIcon, LinkChainIcon, PinIcon } from './Icons'
 interface EventCardProps {
   event: ScheduleEvent
   locale: SupportedLocale
+  imageLayout: TimelineImageLayout
   onOpen: (eventId: string) => void
   onRefresh?: (eventId: string) => void
 }
@@ -19,7 +20,7 @@ type TooltipStyle = CSSProperties & {
   '--tooltip-bottom'?: string
 }
 
-export function EventCard({ event, locale, onOpen, onRefresh }: EventCardProps) {
+export function EventCard({ event, locale, imageLayout, onOpen, onRefresh }: EventCardProps) {
   const preview = buildPreviewText(event, locale)
   const copy = resolveEventCopy(event, locale)
   const ui = getUiCopy(locale)
@@ -53,7 +54,7 @@ export function EventCard({ event, locale, onOpen, onRefresh }: EventCardProps) 
 
   return (
     <article
-      className={`event-card${primaryLink ? ' event-card--hasLink' : ''}`}
+      className={`event-card event-card--${imageLayout}${primaryLink ? ' event-card--hasLink' : ''}`}
       onMouseEnter={updateTooltipPosition}
       onFocusCapture={updateTooltipPosition}
     >

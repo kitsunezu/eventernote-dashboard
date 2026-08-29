@@ -18,6 +18,7 @@ function snapshot(): ScheduleSnapshot {
       '101': { name: 'Venue', address: 'Tokyo', region: '東京' },
     },
     viewMode: 'timeline',
+    timelineImageLayout: 'background',
     daysToShow: 'future',
     selectedCategoryIds: [],
     theme: 'dark',
@@ -57,6 +58,15 @@ describe('schedule snapshot storage', () => {
       cachedAt: undefined,
       cachedUserId: 'test-user',
     })
+  })
+
+  it('defaults legacy snapshots to left-side thumbnails', () => {
+    const legacySnapshot = { ...snapshot() } as Partial<ScheduleSnapshot>
+    delete legacySnapshot.timelineImageLayout
+    const localStorage = createStorage({ [STORAGE_KEY]: JSON.stringify(legacySnapshot) })
+    vi.stubGlobal('window', { localStorage })
+
+    expect(readScheduleSnapshot()).toMatchObject({ timelineImageLayout: 'thumbnail' })
   })
 
   it('removes the retired standalone place cache when saving', () => {
