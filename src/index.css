@@ -91,6 +91,14 @@ body,
   min-height: 100%;
 }
 
+html {
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
 .app-shell-root {
   overflow-x: clip;
 }
@@ -585,7 +593,6 @@ button {
 
 .admit-ticket-frame {
   width: min(100%, 741px);
-  aspect-ratio: 741 / 290;
   margin: 0 auto;
   padding: 10px;
 }

@@ -127,7 +127,11 @@ export function AdmitOneTicket({
     const frame = frameRef.current
     if (!frame) return
 
-    const updateWidth = () => setWidth(Math.min(REFERENCE_WIDTH, frame.clientWidth))
+    const updateWidth = () => {
+      const style = getComputedStyle(frame)
+      const horizontalPadding = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight)
+      setWidth(Math.min(REFERENCE_WIDTH, Math.max(0, frame.clientWidth - horizontalPadding)))
+    }
     updateWidth()
     const observer = new ResizeObserver(updateWidth)
     observer.observe(frame)
