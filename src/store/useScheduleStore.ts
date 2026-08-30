@@ -10,6 +10,7 @@ import { readScheduleSnapshot, writeScheduleSnapshot } from '../lib/storage'
 import { DEFAULT_DAY_RANGE } from '../types/events'
 import type {
   DayRangeOption,
+  CountdownStyle,
   EventIndexProgress,
   EventCategory,
   ImportedScheduleData,
@@ -41,6 +42,7 @@ export interface ScheduleStore extends ScheduleSnapshot {
   indexProgress: EventIndexProgress | null
   setViewMode: (viewMode: ViewMode) => void
   setTimelineImageLayout: (layout: TimelineImageLayout) => void
+  setCountdownStyle: (style: CountdownStyle) => void
   setDaysToShow: (daysToShow: DayRangeOption) => void
   toggleCategory: (categoryId: string) => void
   clearFilters: () => void
@@ -65,7 +67,8 @@ const initialSnapshot: ScheduleSnapshot = persisted ?? {
   events: [],
   places: {},
   viewMode: 'timeline',
-  timelineImageLayout: 'thumbnail',
+  timelineImageLayout: 'background',
+  countdownStyle: 'ticket',
   daysToShow: DEFAULT_DAY_RANGE,
   selectedCategoryIds: [],
   theme: 'dark',
@@ -85,6 +88,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   indexProgress: null,
   setViewMode: (viewMode) => set({ viewMode }),
   setTimelineImageLayout: (timelineImageLayout) => set({ timelineImageLayout }),
+  setCountdownStyle: (countdownStyle) => set({ countdownStyle }),
   setDaysToShow: (daysToShow) => set({ daysToShow }),
   toggleCategory: (categoryId) =>
     set((state) => ({
@@ -236,6 +240,7 @@ useScheduleStore.subscribe((state) => {
     places: state.places,
     viewMode: state.viewMode,
     timelineImageLayout: state.timelineImageLayout,
+    countdownStyle: state.countdownStyle,
     daysToShow: state.daysToShow,
     selectedCategoryIds: state.selectedCategoryIds,
     theme: state.theme,

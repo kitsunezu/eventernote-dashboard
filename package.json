@@ -21,6 +21,7 @@
     "@opentelemetry/resources": "^2.10.0",
     "@opentelemetry/sdk-trace-base": "^2.10.0",
     "@opentelemetry/sdk-trace-web": "^2.10.0",
+    "@paper-design/shaders-react": "0.0.80",
     "cheerio": "^1.2.0",
     "dayjs": "^1.11.21",
     "html-to-image": "^1.11.13",

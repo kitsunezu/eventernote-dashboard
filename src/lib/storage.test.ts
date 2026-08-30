@@ -19,6 +19,7 @@ function snapshot(): ScheduleSnapshot {
     },
     viewMode: 'timeline',
     timelineImageLayout: 'background',
+    countdownStyle: 'classic',
     daysToShow: 'future',
     selectedCategoryIds: [],
     theme: 'dark',
@@ -60,13 +61,22 @@ describe('schedule snapshot storage', () => {
     })
   })
 
-  it('defaults legacy snapshots to left-side thumbnails', () => {
+  it('defaults legacy snapshots to card background images', () => {
     const legacySnapshot = { ...snapshot() } as Partial<ScheduleSnapshot>
     delete legacySnapshot.timelineImageLayout
     const localStorage = createStorage({ [STORAGE_KEY]: JSON.stringify(legacySnapshot) })
     vi.stubGlobal('window', { localStorage })
 
-    expect(readScheduleSnapshot()).toMatchObject({ timelineImageLayout: 'thumbnail' })
+    expect(readScheduleSnapshot()).toMatchObject({ timelineImageLayout: 'background' })
+  })
+
+  it('defaults legacy snapshots to the ticket countdown', () => {
+    const legacySnapshot = { ...snapshot() } as Partial<ScheduleSnapshot>
+    delete legacySnapshot.countdownStyle
+    const localStorage = createStorage({ [STORAGE_KEY]: JSON.stringify(legacySnapshot) })
+    vi.stubGlobal('window', { localStorage })
+
+    expect(readScheduleSnapshot()).toMatchObject({ countdownStyle: 'ticket' })
   })
 
   it('removes the retired standalone place cache when saving', () => {

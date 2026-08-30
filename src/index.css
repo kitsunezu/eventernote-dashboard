@@ -158,7 +158,8 @@ button {
 .schedule-canvas,
 .admin-card,
 .admin-panel,
-.event-modal__dialog {
+.event-modal__dialog,
+.settings-modal__dialog {
   border: 1px solid var(--line);
   background: var(--surface);
   backdrop-filter: blur(22px) saturate(112%);
@@ -239,11 +240,6 @@ button {
   width: 100%;
   min-width: 0;
   min-height: 40px;
-}
-
-/* refresh section */
-.header-refresh {
-  display: flex;
 }
 
 .is-spinning {
@@ -580,6 +576,129 @@ button {
 .countdown__fact .ui-icon,
 .event-card__fact .ui-icon {
   color: var(--accent);
+}
+
+.countdown-ticket-shell {
+  margin-bottom: 8px;
+  padding: clamp(12px, 2.5vw, 28px) 10px;
+}
+
+.admit-ticket-frame {
+  width: min(100%, 741px);
+  aspect-ratio: 741 / 290;
+  margin: 0 auto;
+}
+
+.admit-ticket {
+  position: relative;
+  overflow: hidden;
+  color: #211008;
+  filter: drop-shadow(0 20px 28px rgba(43, 14, 3, 0.26));
+  transform-style: preserve-3d;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  user-select: none;
+  will-change: transform;
+}
+
+.admit-ticket.is-hovering {
+  transition: none;
+}
+
+.admit-ticket__fallback,
+.admit-ticket__shader,
+.admit-ticket__glare {
+  position: absolute;
+  inset: 0;
+}
+
+.admit-ticket__fallback {
+  background: #b84b0d;
+}
+
+.admit-ticket__shader {
+  width: 100%;
+  height: 100%;
+}
+
+.admit-ticket__perforation {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(90, 53, 32, 0.34) 0 9px,
+    transparent 9px 18px
+  );
+}
+
+.admit-ticket__watermark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  color: #d9a173;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.admit-ticket__watermark span,
+.admit-ticket__stub span {
+  writing-mode: vertical-rl;
+}
+
+.admit-ticket__label,
+.admit-ticket__name,
+.admit-ticket__footer,
+.admit-ticket__stub {
+  position: absolute;
+  z-index: 1;
+}
+
+.admit-ticket__label {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  letter-spacing: 0.016em;
+  text-transform: uppercase;
+}
+
+.admit-ticket__name {
+  max-width: 64%;
+  font-family: var(--font-heading);
+  font-weight: 780;
+  letter-spacing: -0.01em;
+}
+
+.admit-ticket__footer {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  letter-spacing: 0.016em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admit-ticket__stub {
+  top: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-heading);
+  font-weight: 780;
+  line-height: 1;
+  opacity: 0.88;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admit-ticket__glare {
+  z-index: 2;
+  pointer-events: none;
+  transition: background 420ms ease-out;
 }
 
 /* ── Schedule range toggle ───────────────────────────────────── */
@@ -1823,6 +1942,96 @@ button {
   border-radius: var(--radius-xl);
 }
 
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.settings-modal__scrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: rgba(2, 7, 15, 0.58);
+}
+
+.settings-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(360px, calc(100vw - 36px));
+  max-height: calc(100dvh - 36px);
+  overflow: auto;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+}
+
+.settings-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-modal__header h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.settings-modal__close {
+  flex: 0 0 auto;
+}
+
+.settings-modal__options {
+  display: grid;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.settings-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.settings-option__copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-option__copy strong {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.settings-option__copy span {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.settings-option__button {
+  flex: 0 0 auto;
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  justify-content: center;
+}
+
 .event-modal__image {
   display: block;
   width: 100%;
@@ -1947,6 +2156,10 @@ button {
   .event-card__facts {
     flex-direction: column;
     align-items: start;
+  }
+
+  .countdown-ticket-shell {
+    padding: 12px 0 18px;
   }
 
   .event-card {

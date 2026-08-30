@@ -1,16 +1,36 @@
-import type { ScheduleEvent, SupportedLocale } from '../types/events'
+import type { CountdownStyle, ScheduleEvent, SupportedLocale } from '../types/events'
 import { formatCountdown, formatEventDate, formatEventTime } from '../lib/date'
 import { getUiCopy, resolveEventCopy } from '../lib/localize'
 import { CalendarIcon, ClockIcon, PinIcon } from './Icons'
+import { AdmitOneTicket } from './ui/AdmitOneTicket'
 
 interface CountdownProps {
   locale: SupportedLocale
   nextEvent: ScheduleEvent | null
+  style: CountdownStyle
 }
 
-export function Countdown({ locale, nextEvent }: CountdownProps) {
+export function Countdown({ locale, nextEvent, style }: CountdownProps) {
   const copy = getUiCopy(locale)
   const eventCopy = nextEvent ? resolveEventCopy(nextEvent, locale) : null
+  const countdown = formatCountdown(nextEvent, locale)
+
+  if (style === 'ticket') {
+    return (
+      <section className="countdown-ticket-shell" aria-live="polite">
+        <AdmitOneTicket
+          name={eventCopy?.title ?? copy.noUpcoming}
+          presenter={copy.nextEventTicket}
+          venue={eventCopy?.location ?? ''}
+          dates={nextEvent
+            ? `${formatEventDate(nextEvent, locale)} · ${formatEventTime(nextEvent, locale)}`
+            : ''}
+          stubText={countdown}
+          watermark={nextEvent ? new Date(nextEvent.startAt).getFullYear().toString() : '—'}
+        />
+      </section>
+    )
+  }
 
   return (
     <section className="countdown" aria-live="polite">
@@ -37,7 +57,7 @@ export function Countdown({ locale, nextEvent }: CountdownProps) {
         ) : null}
       </div>
 
-      <div className="countdown__pill">{formatCountdown(nextEvent, locale)}</div>
+      <div className="countdown__pill">{countdown}</div>
     </section>
   )
 }

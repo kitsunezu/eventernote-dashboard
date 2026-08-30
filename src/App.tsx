@@ -120,12 +120,15 @@ function App() {
           theme={state.theme}
           viewMode={state.viewMode}
           timelineImageLayout={state.timelineImageLayout}
+          countdownStyle={state.countdownStyle}
           daysToShow={state.daysToShow}
           loading={state.loading}
           onThemeToggle={state.toggleTheme}
           onViewModeChange={state.setViewMode}
           onTimelineImageLayoutChange={state.setTimelineImageLayout}
+          onCountdownStyleChange={state.setCountdownStyle}
           onDaysToShowChange={state.setDaysToShow}
+          onLocaleChange={state.setLocale}
           onRefresh={() => state.loadFromEventernote(sourceId, true)}
         />
 
@@ -158,7 +161,11 @@ function App() {
               {state.loading && (
                 <div className="refresh-progress" role="progressbar" aria-label={copy.refreshing} />
               )}
-              <Countdown locale={state.locale} nextEvent={nextEvent} />
+              <Countdown
+                locale={state.locale}
+                nextEvent={nextEvent}
+                style={state.countdownStyle}
+              />
 
               <div className={`schedule-canvas${state.viewMode === 'calendar' ? ' schedule-canvas--calendar' : ''}`}>
                 {visibleEvents.length === 0 ? (

@@ -16,6 +16,16 @@ interface UiCopy {
   showTimeline: string
   showBackgroundImages: string
   showSideImages: string
+  settings: string
+  settingsTitle: string
+  imageStyle: string
+  themeMode: string
+  language: string
+  languageDescription: (current: string) => string
+  countdownStyle: string
+  useTicketCountdown: string
+  useClassicCountdown: string
+  nextEventTicket: string
   previousMonth: string
   nextMonth: string
   previousYear: string
@@ -57,6 +67,7 @@ interface UiCopy {
   loadedCount: (count: number) => string
   loadFailed: string
   refreshData: string
+  refreshDescription: string
   refreshing: string
 }
 
@@ -69,6 +80,16 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     showTimeline: '切換至列表視圖',
     showBackgroundImages: '將活動圖片改為卡片背景',
     showSideImages: '將活動圖片移至左側',
+    settings: '設定',
+    settingsTitle: '顯示設定',
+    imageStyle: '活動圖片樣式',
+    themeMode: '色彩模式',
+    language: '語言',
+    languageDescription: (current) => `目前語言：${current}`,
+    countdownStyle: '倒數卡片樣式',
+    useTicketCountdown: '切換成票券樣式',
+    useClassicCountdown: '切換成經典樣式',
+    nextEventTicket: '下一場活動',
     previousMonth: '上一個月',
     nextMonth: '下一個月',
     previousYear: '上一年',
@@ -110,6 +131,7 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     loadedCount: (count) => `已載入 ${count} 個活動。`,
     loadFailed: '活動載入失敗。',
     refreshData: '重新整理',
+    refreshDescription: '重新取得 Eventernote 的最新活動資料',
     refreshing: '更新中…',
   },
   en: {
@@ -120,6 +142,16 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     showTimeline: 'Switch to list view',
     showBackgroundImages: 'Use event images as card backgrounds',
     showSideImages: 'Move event images to the left',
+    settings: 'Settings',
+    settingsTitle: 'Display settings',
+    imageStyle: 'Event image style',
+    themeMode: 'Color theme',
+    language: 'Language',
+    languageDescription: (current) => `Current language: ${current}`,
+    countdownStyle: 'Countdown card style',
+    useTicketCountdown: 'Switch to ticket style',
+    useClassicCountdown: 'Switch to classic style',
+    nextEventTicket: 'Next event',
     previousMonth: 'Previous month',
     nextMonth: 'Next month',
     previousYear: 'Previous year',
@@ -161,6 +193,7 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     loadedCount: (count) => `Loaded ${count} event${count === 1 ? '' : 's'}.`,
     loadFailed: 'Failed to load events.',
     refreshData: 'Refresh',
+    refreshDescription: 'Fetch the latest event data from Eventernote',
     refreshing: 'Refreshing…',
   },
   ja: {
@@ -171,6 +204,16 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     showTimeline: 'リスト表示に切り替え',
     showBackgroundImages: 'イベント画像をカード背景にする',
     showSideImages: 'イベント画像を左側に戻す',
+    settings: '設定',
+    settingsTitle: '表示設定',
+    imageStyle: 'イベント画像の表示',
+    themeMode: 'カラーテーマ',
+    language: '言語',
+    languageDescription: (current) => `現在の言語：${current}`,
+    countdownStyle: 'カウントダウン表示',
+    useTicketCountdown: 'チケット表示に切り替え',
+    useClassicCountdown: 'クラシック表示に切り替え',
+    nextEventTicket: '次のイベント',
     previousMonth: '前の月',
     nextMonth: '次の月',
     previousYear: '前年',
@@ -212,6 +255,7 @@ const UI_COPY: Record<SupportedLocale, UiCopy> = {
     loadedCount: (count) => `${count} 件のイベントを読み込みました。`,
     loadFailed: 'イベントの読み込みに失敗しました。',
     refreshData: '更新',
+    refreshDescription: 'Eventernote から最新のイベントデータを取得',
     refreshing: '更新中…',
   },
 }

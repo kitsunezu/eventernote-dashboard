@@ -1,6 +1,7 @@
 import {
   DAY_RANGE_OPTIONS,
   DEFAULT_DAY_RANGE,
+  type CountdownStyle,
   type DayRangeOption,
   type ScheduleSnapshot,
   type TimelineImageLayout,
@@ -15,6 +16,10 @@ function isDayRangeOption(value: unknown): value is DayRangeOption {
 
 function isTimelineImageLayout(value: unknown): value is TimelineImageLayout {
   return value === 'thumbnail' || value === 'background'
+}
+
+function isCountdownStyle(value: unknown): value is CountdownStyle {
+  return value === 'classic' || value === 'ticket'
 }
 
 export function readScheduleSnapshot(): ScheduleSnapshot | null {
@@ -39,7 +44,8 @@ export function readScheduleSnapshot(): ScheduleSnapshot | null {
       viewMode: parsed.viewMode,
       timelineImageLayout: isTimelineImageLayout(parsed.timelineImageLayout)
         ? parsed.timelineImageLayout
-        : 'thumbnail',
+        : 'background',
+      countdownStyle: isCountdownStyle(parsed.countdownStyle) ? parsed.countdownStyle : 'ticket',
       daysToShow: isDayRangeOption(parsed.daysToShow) ? parsed.daysToShow : DEFAULT_DAY_RANGE,
       selectedCategoryIds: parsed.selectedCategoryIds ?? [],
       theme: parsed.theme,
