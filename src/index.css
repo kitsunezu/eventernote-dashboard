@@ -587,6 +587,7 @@ button {
   width: min(100%, 741px);
   aspect-ratio: 741 / 290;
   margin: 0 auto;
+  padding: 10px;
 }
 
 .admit-ticket {
