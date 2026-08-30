@@ -99,6 +99,53 @@ html::-webkit-scrollbar {
   display: none;
 }
 
+.custom-scrollbar {
+  position: fixed;
+  top: 8px;
+  right: 4px;
+  bottom: 8px;
+  z-index: 40;
+  width: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.custom-scrollbar.is-visible {
+  opacity: 1;
+}
+
+.custom-scrollbar__track,
+.custom-scrollbar__thumb {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-radius: 999px;
+}
+
+.custom-scrollbar__track {
+  top: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.custom-scrollbar__thumb {
+  top: 0;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(114, 137, 218, 0.42);
+  will-change: transform;
+}
+
+:root[data-theme='light'] .custom-scrollbar__track {
+  background: rgba(79, 84, 92, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .custom-scrollbar {
+    transition: none;
+  }
+}
+
 .app-shell-root {
   overflow-x: clip;
 }

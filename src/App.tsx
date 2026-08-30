@@ -7,6 +7,7 @@ import { Header } from './components/Header'
 import { LandingPage } from './components/LandingPage'
 import { ReportPage } from './components/ReportPage'
 import { TimelineView } from './components/TimelineView'
+import { CustomScrollbar } from './components/ui/CustomScrollbar'
 import { getUiCopy } from './lib/localize'
 import {
   CACHE_TTL_MS,
@@ -208,6 +209,8 @@ function App() {
           onClose={() => state.selectEvent(null)}
           onRefreshEvent={(eventId) => state.refreshEvent(sourceId, eventId)}
         />
+
+        <CustomScrollbar />
       </div>
     </div>
   )
