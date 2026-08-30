@@ -108,7 +108,7 @@ html::-webkit-scrollbar {
   width: 6px;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 180ms ease;
+  transition: opacity 500ms ease;
 }
 
 .custom-scrollbar.is-visible {
@@ -131,8 +131,8 @@ html::-webkit-scrollbar {
 
 .custom-scrollbar__thumb {
   top: 0;
-  background: var(--accent);
-  box-shadow: 0 0 10px rgba(114, 137, 218, 0.42);
+  background: var(--text-soft);
+  box-shadow: 0 0 10px rgba(128, 128, 128, 0.3);
   will-change: transform;
 }
 
