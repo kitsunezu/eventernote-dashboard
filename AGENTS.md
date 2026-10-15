@@ -156,3 +156,9 @@ npm run build
 3. 優先做小範圍修改；不要為了單一 bug 做跨模組重構。
 4. 修改後執行最小必要驗證，並在回覆中列出有跑與沒跑的檢查。
 5. 若任務涉及部署、CI、Portainer、GHCR 或 Cloudflare/反代設定，請同時檢查 Docker、Nginx、GitHub Actions 與 compose 的互相影響。
+
+## Deployment verification
+
+- Production builds receive `BUILD_REVISION` from the exact GitHub commit. The workflow polls public release/health endpoints until their revision matches that commit; an old healthy image cannot satisfy deployment success.
+- The live Coolify Compose resource is managed separately from the repository example. App images must use `pull_policy: always`; preserve the existing persistent volumes and runtime environment when editing it.
+- Repository Compose files are examples; runtime changes must be applied deliberately in the existing Coolify resource. CI publishes images and redeploys that saved definition; it does not import example Compose or recreate database volumes.

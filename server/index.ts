@@ -94,7 +94,7 @@ async function main(): Promise<void> {
       const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`)
       if (request.method === 'GET' && url.pathname === '/health') {
         await pool.query('SELECT 1')
-        jsonResponse(response, 200, { ok: true })
+        jsonResponse(response, 200, { ok: true, revision: process.env.BUILD_REVISION ?? 'development' })
         return
       }
 
