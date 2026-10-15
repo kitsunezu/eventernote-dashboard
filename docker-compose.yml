@@ -8,13 +8,11 @@ services:
     ports:
       - "3003:80"
     environment:
-      - OTEL_BACKEND=http://signoz-otel-collector:4318
       - EVENTERNOTE_UPSTREAM=https://www.eventernote.com
       - EVENTERNOTE_HOST=www.eventernote.com
       - API_BACKEND=http://eventernote-api:8787
     networks:
       - eventernote-internal
-      - signoz-net
 
   eventernote-api:
     image: ghcr.io/kitsunezu/eventernote-dashboard:api-latest
@@ -74,6 +72,3 @@ networks:
   eventernote-internal:
     driver: bridge
     name: eventernote-dashboard_eventernote-internal
-  signoz-net:
-    external: true
-    name: signoz-net

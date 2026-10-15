@@ -13,6 +13,9 @@ RUN npm run build
 FROM node:22-alpine AS api
 
 WORKDIR /app
+ARG BUILD_REVISION=development
+ENV BUILD_REVISION=$BUILD_REVISION
+LABEL org.opencontainers.image.revision=$BUILD_REVISION
 ENV NODE_ENV=production
 
 COPY package*.json ./
@@ -35,6 +38,10 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN sed -i 's/\r$//' /docker-entrypoint.sh \
  && chmod +x /docker-entrypoint.sh \
  && mkdir -p /var/cache/nginx/eventernote
+
+ARG BUILD_REVISION=development
+RUN printf '{"revision":"%s"}\n' "$BUILD_REVISION" > /usr/share/nginx/html/deployment-version.json
+LABEL org.opencontainers.image.revision=$BUILD_REVISION
 
 EXPOSE 80
 

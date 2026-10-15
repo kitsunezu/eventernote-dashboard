@@ -93,7 +93,7 @@ docker pull ghcr.io/kitsunezu/eventernote-dashboard:api-latest
 
 ### docker-compose
 
-Set `POSTGRES_PASSWORD` in Portainer's stack environment, then deploy the committed `docker-compose.yml`. The stack creates the web, API, and PostgreSQL services plus the persistent `eventernote-db-data` volume.
+Set `POSTGRES_PASSWORD` in Coolify environment, then deploy the committed `docker-compose.yml`. The stack creates the web, API, and PostgreSQL services plus the persistent `eventernote-db-data` volume.
 
 To accept reviewed events from the separate `eventernote-autofill` service, also set a long random `DASHBOARD_IMPORT_TOKEN` in both stacks. The import route is disabled when this value is empty and should only be called over the shared `eventernote-internal` Docker network.
 
@@ -104,7 +104,7 @@ docker build --target web -t eventernote-dashboard:web .
 docker build --target api -t eventernote-dashboard:api .
 ```
 
-The production workflow publishes both targets before requesting the Portainer stack redeploy.
+The production workflow publishes both targets before requesting the Coolify deployment.
 
 If Eventernote's hostname ever resolves inconsistently from your deployment environment, you can override the proxy target without rebuilding the image:
 
