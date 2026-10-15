@@ -96,7 +96,7 @@ Event and place enrichment uses batches of at most 40 event details and 20 place
 | Variable | Required | Default |
 |---|---|---|
 | `DATABASE_URL` | Local development | Standard PostgreSQL environment variables |
-| `POSTGRES_PASSWORD` | Docker Compose/Portainer | None; deployment fails when absent |
+| `POSTGRES_PASSWORD` | Docker Compose/Coolify | None; deployment fails when absent |
 | `EVENTERNOTE_UPSTREAM` | No | `https://www.eventernote.com` |
 | `USER_INDEX_TTL_MS` | No | `21600000` |
 | `DETAIL_FETCH_LIMIT` | No | `40` |
@@ -113,7 +113,7 @@ Event and place enrichment uses batches of at most 40 event details and 20 place
 | `NOMINATIM_MIN_INTERVAL_MS` | No | `1100` |
 | `DASHBOARD_IMPORT_TOKEN` | For autofill import | Endpoint disabled when unset |
 
-Only variable names belong in git. Set the real PostgreSQL password in the Portainer stack environment.
+Only variable names belong in git. Set the real PostgreSQL password in the Coolify environment.
 
 ## Internal reviewed-event import
 

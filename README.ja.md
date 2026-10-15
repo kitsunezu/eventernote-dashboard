@@ -93,7 +93,7 @@ docker pull ghcr.io/kitsunezu/eventernote-dashboard:api-latest
 
 ### docker-compose
 
-Portainer の stack environment に `POSTGRES_PASSWORD` を設定してから、リポジトリに含まれる `docker-compose.yml` をデプロイします。この stack は Web、API、PostgreSQL の各サービスと、永続化用の `eventernote-db-data` volume を作成します。
+Coolify の environment に `POSTGRES_PASSWORD` を設定してから、リポジトリに含まれる `docker-compose.yml` をデプロイします。この stack は Web、API、PostgreSQL の各サービスと、永続化用の `eventernote-db-data` volume を作成します。
 
 ### ローカルでのビルド
 
@@ -102,7 +102,7 @@ docker build --target web -t eventernote-dashboard:web .
 docker build --target api -t eventernote-dashboard:api .
 ```
 
-Production workflow は両方の target を公開した後、Portainer stack の再デプロイを要求します。
+Production workflow は両方の target を公開した後、Coolify の再デプロイを要求します。
 
 デプロイ環境で Eventernote の hostname 解決が不安定な場合は、image を再ビルドせずに proxy target を上書きできます。
 

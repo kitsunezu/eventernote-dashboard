@@ -12,7 +12,7 @@ Eventernote Dashboard 是一個 React + TypeScript 的公開 Eventernote 行程�
 - PostgreSQL 是 user index、活動、會場與同步狀態的 canonical data source。
 - API 會先回傳資料庫 snapshot，再於必要時背景更新 Eventernote user index、event detail 與 place detail。
 - 狀態由 Zustand 管理；同一位 user 的 events、places 與 participation calendar 會一起寫入 localStorage snapshot，並以 `CACHE_TTL_MS` 控制前端短期快取。
-- Production 由 Nginx web、Node.js API 與 PostgreSQL 三個服務組成；Nginx 另提供 SigNoz OTLP proxy。
+- Production 由 Nginx web、Node.js API 與 PostgreSQL 三個服務組成；Nginx 提供空回應的 OTLP endpoint；舊的 SigNoz collector 已退役。
 
 ## 技術堆疊
 
@@ -30,7 +30,7 @@ Eventernote Dashboard 是一個 React + TypeScript 的公開 Eventernote 行程�
 - PostgreSQL 17
 - Node.js API service
 - GitHub Actions：push 到 `main` 時 build/push GHCR image
-- Portainer / Docker Compose 部署到個人伺服器
+- Coolify / Docker Compose deploys the production web, API, and PostgreSQL services.
 
 ## 專案結構
 
@@ -95,7 +95,7 @@ docker run -p 3003:80 eventernote-dashboard
 - 以目前 active viewer flow 為第一優先：landing page、`/{userId}` viewer、Eventernote fetch、timeline display、details drawer。
 - Browser frontend 不得直接請求 Eventernote；應呼叫 Node.js API。Eventernote upstream request 集中在 `server/upstream.ts`。
 - Eventernote upstream 可能 403/429 或 DNS 解析不穩。Nginx 已提供 browser-like headers、request-time DNS resolve、短 timeout、cache stale fallback，以及 `EVENTERNOTE_UPSTREAM` / `EVENTERNOTE_HOST` override；修改 proxy 行為時要保留這些部署需求。
-- Production OTel trace 走 `/api/otel/v1/traces`，由 Nginx 代理到 `OTEL_BACKEND`。不要在前端硬編外部 collector URL。
+- Production OTel trace requests to `/api/otel/v1/traces` receive the empty success response so retired SigNoz clients keep working. Do not configure a collector.
 - 修改 cache、loading 或 user switching 行為時，要確認不同 user ID 之間不會短暫顯示錯誤使用者的舊資料。
 - 變更 route 時要同時考慮 SPA fallback 與 Nginx 設定。
 - 保持 web、API 與 PostgreSQL compose service 的部署相容性。
@@ -136,23 +136,18 @@ npm run build
 - Registry：GitHub Container Registry
 - Image：`ghcr.io/kitsunezu/eventernote-dashboard`
 - Tags：default branch 會推 `latest`，另外會推 `sha-*`
-- Portainer 以 `docker-compose.yml` 部署，服務對外 port 預設 `3003:80`。
-- Compose 目前接到 external Docker network `signoz-net`，並設定：
-  - `OTEL_BACKEND=http://signoz-otel-collector:4318`
-  - `EVENTERNOTE_UPSTREAM=https://www.eventernote.com`
+- Coolify deploys the web, API, and PostgreSQL Compose services. The web listens on container port `80`.
+- Compose no longer joins `signoz-net` and has no collector address. It keeps `EVENTERNOTE_UPSTREAM=https://www.eventernote.com`.
   - `EVENTERNOTE_HOST=www.eventernote.com`
 
-修改部署相關檔案時，請確認 Portainer stack 可繼續使用同一份 compose，且 Nginx placeholder 仍會由 `docker-entrypoint.sh` 正確替換。
+修改部署相關檔案時，請確認 Coolify Compose references the external Nginx config at `/data/kitsunet/config/eventernote-dashboard/nginx.conf.tmpl`.
 
 ## Kitsunet auto deploy
 
-- Pushes to `main` build and push `ghcr.io/kitsunezu/eventernote-dashboard` through `.github/workflows/docker-publish.yml`.
-- After the image is pushed, GitHub Actions calls Portainer's Git stack redeploy API for stack `42` on endpoint `3` with `RepullImageAndRedeploy=true`.
-- Required GitHub Actions secrets:
-  - `PORTAINER_API_KEY`
-  - `CF_ACCESS_CLIENT_ID`
-  - `CF_ACCESS_CLIENT_SECRET`
-- Do not commit Portainer API keys, Cloudflare Access service token values, cookies, or webhook URLs. Only secret and variable names belong in git.
+- Pushes to `main` run lint, tests, and Docker builds in `.github/workflows/docker-publish.yml`.
+- After the web and API images are pushed to GHCR, the workflow joins the Kitsunet tailnet using GitHub OIDC and triggers the Coolify service deployment API.
+- Required repository secrets: `TS_OAUTH_CLIENT_ID`, `TS_AUDIENCE`, and `COOLIFY_DEPLOY_TOKEN`.
+- Never commit Coolify tokens, GitHub OIDC tokens, cookies, or registry credentials.
 
 ## Agent 工作流程建議
 

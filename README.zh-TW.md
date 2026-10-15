@@ -93,7 +93,7 @@ docker pull ghcr.io/kitsunezu/eventernote-dashboard:api-latest
 
 ### docker-compose
 
-在 Portainer 的 stack environment 中設定 `POSTGRES_PASSWORD`，再部署 repository 內的 `docker-compose.yml`。此 stack 會建立 web、API 與 PostgreSQL 服務，以及持久化的 `eventernote-db-data` volume。
+在 Coolify 的 environment 中設定 `POSTGRES_PASSWORD`，再部署 repository 內的 `docker-compose.yml`。此 stack 會建立 web、API 與 PostgreSQL 服務，以及持久化的 `eventernote-db-data` volume。
 
 ### 本機建置
 
@@ -102,7 +102,7 @@ docker build --target web -t eventernote-dashboard:web .
 docker build --target api -t eventernote-dashboard:api .
 ```
 
-Production workflow 會先發布兩個 target，再要求 Portainer stack 重新部署。
+Production workflow 會先發布兩個 target，再要求 Coolify 重新部署。
 
 如果 Eventernote hostname 在部署環境中偶爾無法穩定解析，可在不重新建置 image 的情況下覆寫 proxy target：
 
