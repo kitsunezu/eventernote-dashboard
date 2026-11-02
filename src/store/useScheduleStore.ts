@@ -188,6 +188,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         loading: false,
         indexProgress: null,
         backgroundRefreshing: false,
+        error: data.warnings.length > 0 ? data.warnings.join('\n') : null,
         cachedAt: data.importedAt,
         cachedUserId: userId,
         statusMessage: copy.loadedCount(data.events.length),

@@ -299,6 +299,22 @@ describe('useScheduleStore Eventernote loading', () => {
     expect(useScheduleStore.getState().events).toBe(appliedEvents)
   })
 
+  it('preserves the snapshot and reports synchronization warnings after a refresh', async () => {
+    loadFromApi.mockResolvedValue({
+      ...createApiResult('A', testEvents),
+      warnings: ['Eventernote synchronization failed'],
+    })
+
+    await useScheduleStore.getState().loadFromEventernote('A', true)
+
+    expect(loadFromApi).toHaveBeenCalledWith('A', expect.any(Function), true)
+    expect(useScheduleStore.getState()).toMatchObject({
+      events: testEvents,
+      error: 'Eventernote synchronization failed',
+      backgroundRefreshing: false,
+    })
+  })
+
   it('keeps the cold report loading while index progress is active', async () => {
     const request = createDeferred<ImportedScheduleData>()
     loadFromApi.mockImplementation((_userId, onProgress) => {

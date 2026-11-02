@@ -454,6 +454,8 @@ export function ReportPage({
         </button>
       </div>
 
+      {error && <p className="sync-warning" role="alert" data-capture="exclude">{error}</p>}
+
       {indexProgress && (
         <div className="report-index-banner" data-capture="exclude">
           <ReportIndexProgress

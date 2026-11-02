@@ -46,6 +46,23 @@ afterEach(() => {
 })
 
 describe('loadEventernoteUserFromApi', () => {
+  it('requests a forced refresh only on the initial request and polls until complete', async () => {
+    vi.useFakeTimers()
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(response('1', true))
+      .mockResolvedValueOnce(response('1', false))
+    vi.stubGlobal('fetch', fetcher)
+
+    const loading = loadEventernoteUserFromApi('test-user', undefined, true)
+    await vi.advanceTimersByTimeAsync(2_000)
+    await loading
+
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+      '/api/users/test-user/events?refresh=1',
+      '/api/users/test-user/events',
+    ])
+  })
+
   it('publishes place-only changes while background enrichment is running', async () => {
     vi.useFakeTimers()
     const fetcher = vi.fn()
