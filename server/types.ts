@@ -44,6 +44,8 @@ export interface UserEventIndex {
   events: EventSeed[]
   participationCalendar: ParticipationCalendarMonth[]
   indexedMonths: ParticipationCalendarMonth[]
+  reconciledMonths?: Array<{ year: number; month: number; eventIds: string[] }>
+  completeIndex?: boolean
   totalEventCount: number
   warnings: string[]
 }

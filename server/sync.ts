@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { load } from 'cheerio'
 import type { Pool } from 'pg'
 import type { EventIndexProgress } from '../src/types/events.js'
 import type { ServerConfig } from './config.js'
@@ -137,6 +138,9 @@ export async function fetchUserEventIndex(
     })
     const byId = new Map<string, EventSeed>()
     const warnings: string[] = []
+    const reconciledMonths: NonNullable<UserEventIndex['reconciledMonths']> = []
+    const seenMonthByEvent = new Map<string, string>()
+    let crossMonthDuplicate = false
     let processedMonths = 0
     let indexedEventCount = options.storedMonths?.length
       ? totalEventCount - selectedMonths.reduce((total, month) => total + month.count, 0)
@@ -150,12 +154,22 @@ export async function fetchUserEventIndex(
     await mapWithConcurrency(selectedMonths, options.monthConcurrency ?? INDEX_MONTH_CONCURRENCY, async (month) => {
       const pages = await fetchPaginatedEventPages(month.path, fetchHtml, maxPages)
       const events = pages.flatMap((page) => page.events)
-      if (events.length !== month.count) {
+      const eventIds = Array.from(new Set(events.map((event) => event.id)))
+      if (events.length !== month.count || eventIds.length !== month.count) {
         warnings.push(
-          `Eventernote participation calendar mismatch for ${month.path}: expected ${month.count} rows, found ${events.length}`,
+          `Eventernote participation calendar mismatch for ${month.path}: expected ${month.count} rows, found ${events.length} (${eventIds.length} unique)`,
         )
       }
-      for (const event of events) byId.set(event.id, event)
+      if (events.length === month.count && eventIds.length === month.count) {
+        reconciledMonths.push({ year: month.year, month: month.month, eventIds })
+      }
+      for (const event of events) {
+        const monthKey = `${month.year}-${month.month}`
+        const previous = seenMonthByEvent.get(event.id)
+        if (previous && previous !== monthKey) crossMonthDuplicate = true
+        seenMonthByEvent.set(event.id, monthKey)
+        byId.set(event.id, event)
+      }
       processedMonths += 1
       indexedEventCount += month.count
       options.onProgress?.({
@@ -169,6 +183,9 @@ export async function fetchUserEventIndex(
       events: Array.from(byId.values()),
       participationCalendar: calendar.map(({ year, month, count }) => ({ year, month, count })),
       indexedMonths: selectedMonths.map(({ year, month, count }) => ({ year, month, count })),
+      reconciledMonths: crossMonthDuplicate ? [] : reconciledMonths,
+      completeIndex: selectedMonths.length === calendar.length
+        && reconciledMonths.length === calendar.length && !crossMonthDuplicate,
       totalEventCount,
       warnings,
     }
@@ -182,6 +199,40 @@ export async function fetchUserEventIndex(
     totalEventCount: events.length,
     warnings: [],
   }
+}
+
+export async function isAbsentFromAttendees(
+  eventId: string,
+  userId: string,
+  fetchHtml: (path: string) => Promise<string>,
+  maxPages: number,
+): Promise<boolean> {
+  const path = `/events/${encodeURIComponent(eventId)}/users`
+  const users = new Set<string>()
+  let expected: number | undefined
+  for (let page = 1; page <= maxPages; page += 1) {
+    const html = await fetchHtml(page === 1 ? path : `${path}?event_id=${encodeURIComponent(eventId)}&limit=30&page=${page}`)
+    const $ = load(html)
+    const eventHref = $('h2.gb_subtitle a[href]').first().attr('href')
+    if (eventHref !== `/events/${eventId}` && eventHref !== `/events/${eventId}/`) return false
+    const countText = $('h3 .number').first().text().trim()
+    if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(countText)) return false
+    const count = Number(countText.replaceAll(',', ''))
+    const currentPage = $('.pagination .active span').first().text().trim()
+    if ((page > 1 || currentPage) && Number(currentPage) !== page) return false
+    if (expected !== undefined && count !== expected) return false
+    expected = count
+    const previousSize = users.size
+    $('.gb_users_icon li p.img a[href]').each((_, node) => {
+      const href = $(node).attr('href') ?? ''
+      const match = href.match(/^\/users\/([^/?#]+)\/?$/)
+      if (match) users.add(decodeURIComponent(match[1]))
+    })
+    if (users.has(userId)) return false
+    if (users.size === expected) return true
+    if (users.size > expected || users.size === previousSize) return false
+  }
+  return false
 }
 
 export async function fetchActorEventIndex(
@@ -506,11 +557,27 @@ export class EventSyncService {
       const index = await this.fetchUserIndex(userId)
       stats.discoveredEvents = index.totalEventCount
       stats.warnings.push(...index.warnings)
+      const absentIds: string[] = []
+      if (!userId.startsWith('actor:') && !index.completeIndex && index.participationCalendar.length > 0) {
+        const observed = new Set(index.events.map((event) => event.id))
+        const missing = (await this.repository.getStoredEvents(userId)).filter((event) => !observed.has(event.id))
+        await mapWithConcurrency(missing, INDEX_MONTH_CONCURRENCY, async (event) => {
+          try {
+            if (await isAbsentFromAttendees(event.id, userId, (path) => this.upstream.fetchHtml(path), this.config.maxListPages)) {
+              absentIds.push(event.id)
+            }
+          } catch (error) {
+            stats.warnings.push(`Unable to verify participation for ${event.id}: ${error instanceof Error ? error.message : String(error)}`)
+          }
+        })
+      }
       await this.repository.saveUserIndex(
         userId,
         index.events,
         index.participationCalendar,
         index.indexedMonths,
+        index.completeIndex,
+        absentIds,
       )
 
       await this.repository.completeSyncJob(jobId, stats)
@@ -615,13 +682,13 @@ export class EventSyncService {
         this.config.maxListPages,
       )
     }
-    const storedMonths = await this.repository.getStoredIndexMonths(userId)
     return fetchUserEventIndex(
       userId,
       (path) => this.upstream.fetchHtml(path),
       this.config.maxListPages,
       {
-        storedMonths,
+        // A complete scan detects changes that leave monthly counts unchanged.
+        storedMonths: [],
         onProgress: (progress) => this.indexProgress.set(userId, progress),
       },
     )
