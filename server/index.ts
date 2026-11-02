@@ -234,7 +234,7 @@ async function main(): Promise<void> {
       const attemptAge = snapshot.lastIndexAttemptAt
         ? Date.now() - new Date(snapshot.lastIndexAttemptAt).getTime()
         : Number.POSITIVE_INFINITY
-      const retryAllowed = attemptAge >= config.syncRetryCooldownMs
+      const retryAllowed = forceRefresh || attemptAge >= config.syncRetryCooldownMs
 
       if ((!fresh || forceRefresh) && snapshot.lastIndexSuccessAt && retryAllowed) {
         void syncService.start(userId, actorName).catch((error) => {

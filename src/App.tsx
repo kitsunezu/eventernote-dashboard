@@ -89,7 +89,7 @@ function App() {
         participationCalendar={hasCachedDataForCurrentUser ? state.participationCalendar ?? [] : []}
         locale={state.locale}
         theme={state.theme}
-        loading={shouldShowLoadingState || state.loading}
+        loading={shouldShowLoadingState || state.loading || state.backgroundRefreshing}
         indexProgress={state.indexProgress}
         backgroundRefreshing={state.backgroundRefreshing}
         error={state.error}
@@ -123,7 +123,7 @@ function App() {
           timelineImageLayout={state.timelineImageLayout}
           countdownStyle={state.countdownStyle}
           daysToShow={state.daysToShow}
-          loading={state.loading}
+          loading={state.loading || state.backgroundRefreshing}
           onThemeToggle={state.toggleTheme}
           onViewModeChange={state.setViewMode}
           onTimelineImageLayoutChange={state.setTimelineImageLayout}
@@ -159,7 +159,8 @@ function App() {
             </div>
           ) : (
             <>
-              {state.loading && (
+              {state.error && <p className="sync-warning" role="alert">{state.error}</p>}
+              {(state.loading || state.backgroundRefreshing) && (
                 <div className="refresh-progress" role="progressbar" aria-label={copy.refreshing} />
               )}
               <Countdown
