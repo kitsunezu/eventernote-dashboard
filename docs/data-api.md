@@ -66,18 +66,18 @@ Event and place enrichment continues in the background after the index is availa
 |---|---|
 | `eventernote_users` | User-index attempts, successful freshness timestamp, latest error |
 | `events` | Canonical event detail values and detail freshness |
-| `user_events` | Permanent user-to-event relationships and discovery timestamps |
-| `user_event_months` | Highest observed Eventernote participation-calendar count per user/year/month |
+| `user_events` | User-to-event participation status and discovery timestamps |
+| `user_event_months` | Latest Eventernote participation-calendar count per user/year/month |
 | `places` | Canonical address, region, coordinates, and place freshness |
 | `sync_jobs` | Auditable synchronization state, statistics, and warnings |
 
-The user list page is only a discovery source. Once an event detail page has been stored, later list-page parsing does not overwrite its title, time, venue, actors, or image. A later sync never removes an existing `user_events` relationship, because Eventernote can temporarily replace or duplicate list rows. Place IDs from every remembered user event are independently eligible for refresh, so canonical addresses are populated even when the related event detail does not need refreshing.
+Once an event detail page has been stored, later list-page parsing does not overwrite its title, time, venue, actors, or image. Synchronization can mark a user-event relationship inactive when participation is no longer present and the upstream evidence is complete; the canonical event and place records remain available to other users.
 
 When a place has an address, its prefecture or overseas region is authoritative. Mainland Chinese addresses are grouped by their city when one can be extracted, for example `中國・廣州` or `中國・深圳`. Venue names and event titles are only used as a fallback, preventing tour names from assigning an event to the wrong region. Eventernote's `0,0` placeholder map coordinates are discarded while the address is retained in PostgreSQL.
 
 Venue coordinates are resolved in order: valid Eventernote coordinates, coordinates embedded in its map link, the Japanese GSI address service with progressively simplified address queries, then address-level Nominatim results. If address lookup still fails, Nominatim searches the venue name and its aliases with progressively broader address scopes. A POI is accepted only when its name and administrative location match, or when a name-only search produces exactly one strong name match. The matched third-party display address and coordinates replace incomplete Eventernote location data in PostgreSQL. Results are tagged with the geocoding strategy version and reused for the same venue across users and later refreshes; older strategies are retried once after an upgrade. Failed searches retain the 30-day retry interval. Nominatim requests are serialized and spaced by at least 1.1 seconds; ambiguous POIs and synthetic city-center map points are not used.
 
-The server reads the participation calendar from the user's Eventernote event-list page, fetches every non-empty month link, recursively follows pagination, and deduplicates available rows by Eventernote event ID. The calendar count remains authoritative when Eventernote repeats one event row or omits another: the mismatch is stored as a sync warning instead of failing the index. If the calendar is unavailable, the server falls back to event-list pagination and report statistics fall back to the discovered event data. Calendar counts are stored monotonically, and previously discovered user-event relationships are never removed by a later sync.
+The server reads the participation calendar from the user's Eventernote event-list page, fetches every non-empty month link, recursively follows pagination, and deduplicates rows by Eventernote event ID. When all months have the expected number of distinct IDs and there are no cross-month duplicates, missing user-event relationships are marked inactive. If the index is inconsistent, missing events are checked against the complete event participant list. An absent user is only removed when that list is complete and its unique user count matches the reported total. Failed or incomplete checks preserve the relationship. An unavailable or empty calendar does not authorize removals; the server falls back to event-list pagination and report statistics fall back to the discovered event data. Calendar/list mismatches are recorded as sync warnings.
 
 ## Freshness and load limits
 

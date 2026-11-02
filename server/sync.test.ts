@@ -4,7 +4,7 @@ import type { ServerConfig } from './config.js'
 import { GEOCODER_STRATEGY_VERSION } from './geocoder.js'
 import type { VenueGeocoder } from './geocoder.js'
 import type { EventRepository } from './repository.js'
-import { EventSyncService, fetchActorEventIndex, fetchUserEventIndex } from './sync.js'
+import { EventSyncService, fetchActorEventIndex, fetchUserEventIndex, isAbsentFromAttendees } from './sync.js'
 import type { EventernoteClient } from './upstream.js'
 
 const config: ServerConfig = {
@@ -81,10 +81,23 @@ describe('fetchUserEventIndex', () => {
 
     expect(index.events.map((event) => event.id)).toEqual(['201', '202'])
     expect(index.participationCalendar).toEqual([{ year: 2025, month: 6, count: 3 }])
+    expect(index.completeIndex).toBe(false)
+    expect(index.reconciledMonths).toEqual([])
     expect(fetchHtml.mock.calls.map(([path]) => path)).toEqual([
       '/users/test-user/events',
       '/users/test-user/events/?year=2025&month=6',
     ])
+  })
+
+  it('marks a complete unique calendar safe for membership reconciliation', async () => {
+    const index = await fetchUserEventIndex('test-user', async (path) => (
+      path === '/users/test-user/events'
+        ? calendarPage([{ month: 6, count: 1 }])
+        : userEventPage('201', [])
+    ), 5)
+
+    expect(index.completeIndex).toBe(true)
+    expect(index.reconciledMonths).toEqual([{ year: 2025, month: 6, eventIds: ['201'] }])
   })
 
   it('trusts the calendar count and keeps the available event IDs when rows disagree', async () => {
@@ -181,6 +194,28 @@ describe('fetchUserEventIndex', () => {
     await expect(fetchUserEventIndex('test-user', fetchHtml, 40))
       .rejects.toThrow('User index has at least 41 pages; maximum is 40')
     expect(fetchHtml).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('isAbsentFromAttendees', () => {
+  const page = (count: number, current: number, ids: string[]) => `
+    <h2 class="gb_subtitle"><a href="/events/1">Event</a></h2>
+    <h3>参加イベンター一覧(<span class="number">${count}</span>人)</h3>
+    <div class="pagination"><li class="active"><span>${current}</span></li></div>
+    <div class="gb_users_icon">${ids.map((id) => `<li><p class="img"><a href="/users/${id}/"></a></p></li>`).join('')}</div>`
+
+  it('confirms absence only after every unique attendee is accounted for', async () => {
+    const fetch = vi.fn(async (path: string) => path.includes('page=2') ? page(2, 2, ['b']) : page(2, 1, ['a']))
+    await expect(isAbsentFromAttendees('1', 'target', fetch, 3)).resolves.toBe(true)
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('preserves participation for incomplete lists, mismatched pages and present users', async () => {
+    await expect(isAbsentFromAttendees('1', 'target', async () => page(2, 1, ['a']), 2)).resolves.toBe(false)
+    await expect(isAbsentFromAttendees('1', 'target', async () => page(1, 1, ['target']), 2)).resolves.toBe(false)
+    await expect(isAbsentFromAttendees('1', 'target', async () => '<html></html>', 2)).resolves.toBe(false)
+    await expect(isAbsentFromAttendees('2', 'target', async () => page(1, 1, ['a']), 2)).resolves.toBe(false)
+    await expect(isAbsentFromAttendees('1', 'target', async () => page(0, 1, []), 2)).resolves.toBe(true)
   })
 })
 

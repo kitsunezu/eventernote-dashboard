@@ -45,7 +45,17 @@ describe('EventRepository.importExternalEvent', () => {
 })
 
 describe('EventRepository.saveUserIndex', () => {
-  it('keeps previously seen event IDs and stores authoritative calendar counts', async () => {
+  it('deactivates absent memberships only for a verified complete index', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 1 })
+    const pool = { connect: vi.fn().mockResolvedValue({ query, release: vi.fn() }) } as unknown as Pool
+    await new EventRepository(pool).saveUserIndex('reviewer', [], [{ year: 2026, month: 8, count: 1 }], [], true)
+    expect(query.mock.calls.some(([sql, params]) => (
+      String(sql).includes('UPDATE user_events SET active = FALSE')
+      && JSON.stringify(params) === JSON.stringify(['reviewer', []])
+    ))).toBe(true)
+  })
+
+  it('preserves previously seen event IDs without a verified complete index and stores calendar counts', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 1 })
     const release = vi.fn()
     const pool = { connect: vi.fn().mockResolvedValue({ query, release }) } as unknown as Pool

@@ -142,7 +142,7 @@ export class EventRepository {
          FROM user_events ue
          JOIN events e ON e.event_id = ue.event_id
          LEFT JOIN places p ON p.place_id = e.place_id
-         WHERE ue.user_id = $1
+         WHERE ue.user_id = $1 AND ue.active = TRUE
          ORDER BY e.start_at ASC, e.event_id ASC`,
         [userId],
       ),
@@ -298,6 +298,8 @@ export class EventRepository {
     events: EventSeed[],
     participationCalendar: ParticipationCalendarMonth[],
     indexedMonths: ParticipationCalendarMonth[] = participationCalendar,
+    completeIndex = false,
+    verifiedAbsentIds: string[] = [],
   ): Promise<void> {
     const client = await this.pool.connect()
     try {
@@ -316,6 +318,20 @@ export class EventRepository {
            ON CONFLICT (user_id, event_id) DO UPDATE
            SET active = TRUE, last_seen_at = NOW()`,
           [userId, event.id],
+        )
+      }
+
+      if (completeIndex) {
+        await client.query(
+          `UPDATE user_events SET active = FALSE
+           WHERE user_id = $1 AND NOT (event_id = ANY($2::text[]))`,
+          [userId, events.map((event) => event.id)],
+        )
+      }
+      if (verifiedAbsentIds.length > 0) {
+        await client.query(
+          `UPDATE user_events SET active = FALSE WHERE user_id = $1 AND event_id = ANY($2::text[])`,
+          [userId, verifiedAbsentIds],
         )
       }
 
@@ -431,7 +447,7 @@ export class EventRepository {
        FROM user_events ue
        JOIN events e ON e.event_id = ue.event_id
        LEFT JOIN places p ON p.place_id = e.place_id
-       WHERE ue.user_id = $1`,
+       WHERE ue.user_id = $1 AND ue.active = TRUE`,
       [userId],
     )
     return result.rows.map((row) => ({
@@ -501,7 +517,7 @@ export class EventRepository {
          SELECT 1
          FROM user_events ue
          JOIN events e ON e.event_id = ue.event_id
-         WHERE ue.user_id = $1 AND e.place_id = p.place_id
+         WHERE ue.user_id = $1 AND ue.active = TRUE AND e.place_id = p.place_id
        )
          AND (p.detail_fetched_at IS NULL OR p.detail_fetched_at < $2)
        ORDER BY p.detail_fetched_at ASC NULLS FIRST, p.place_id ASC
@@ -522,7 +538,7 @@ export class EventRepository {
            SELECT 1
            FROM user_events ue
            JOIN events e ON e.event_id = ue.event_id
-           WHERE ue.user_id = $1 AND e.place_id = p.place_id
+           WHERE ue.user_id = $1 AND ue.active = TRUE AND e.place_id = p.place_id
          )
        ORDER BY array_position($2::text[], p.place_id)`,
       [userId, placeIds],
@@ -568,7 +584,7 @@ export class EventRepository {
     const result = await this.pool.query(
       `SELECT 1
        FROM user_events
-       WHERE user_id = $1 AND event_id = $2
+       WHERE user_id = $1 AND event_id = $2 AND active = TRUE
        LIMIT 1`,
       [userId, eventId],
     )

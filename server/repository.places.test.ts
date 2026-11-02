@@ -133,7 +133,7 @@ describe('EventRepository.getRequestedPlacesForUser', () => {
 
     const [sql, parameters] = query.mock.calls[0]
     expect(String(sql)).toContain('p.place_id = ANY($2::text[])')
-    expect(String(sql)).toContain('ue.user_id = $1 AND e.place_id = p.place_id')
+    expect(String(sql)).toContain('ue.user_id = $1 AND ue.active = TRUE AND e.place_id = p.place_id')
     expect(parameters).toEqual(['test-user', ['202', '101']])
   })
 

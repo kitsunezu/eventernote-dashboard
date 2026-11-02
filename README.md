@@ -21,7 +21,7 @@ The current app is centered on the Eventernote viewer flow.
 1. The landing page collects a user ID or searches Eventernote for a performer suggestion.
 2. The browser requests `GET /api/users/{userId}/events` or `GET /api/actors/{actorId}/events`; it does not scrape Eventernote directly.
 3. The API returns fresh PostgreSQL data immediately, or stale data while starting a background refresh.
-4. The server treats Eventernote's participation calendar as the authoritative monthly count, fetches each non-empty month, and deduplicates the available rows by event ID. A calendar/list mismatch is recorded without failing the sync; the report uses the calendar totals while PostgreSQL retains every event ID ever discovered for the user.
+4. The server reads Eventernote's participation calendar, fetches each non-empty month, and deduplicates rows by event ID. It reconciles user participation against complete results; when the index has inconsistent rows, it verifies missing events against their participant lists before removing a user relationship. Incomplete or failed checks retain the relationship. Canonical event records remain in PostgreSQL.
 5. Missing or expired event detail pages are fetched with bounded concurrency, parsed, and saved as the authoritative event values.
 6. Missing or expired place pages are fetched separately for addresses and coordinates. Invalid, incomplete, or absent Eventernote location data falls back through its map link, progressively simplified Japanese GSI and Nominatim address searches, then validated venue-name POI search. A uniquely matched POI address is persisted in PostgreSQL and reused across users and later refreshes.
 7. Events are deduplicated by Eventernote event ID, sorted by time, and grouped by day for display.
